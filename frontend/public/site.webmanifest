@@ -1,0 +1,18 @@
+{
+  "name": "Affinia",
+  "short_name": "Affinia",
+  "description": "Découvrez votre nature amoureuse unique",
+  "theme_color": "#FF6B6B",
+  "background_color": "#0A0E27",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
