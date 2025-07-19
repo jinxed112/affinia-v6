@@ -426,30 +426,30 @@ const LandingContent: React.FC<{
             </button>
           </div>
 
-          {/* Stats ou Social Proof */}
+          {/* Stats honnêtes - Basées sur la psychologie */}
           <div className="flex flex-wrap justify-center gap-8 text-center">
             <div>
               <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                10K+
+                16
               </div>
               <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Miroirs révélés
+                Types de personnalité
               </div>
             </div>
             <div>
               <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                2.5K+
+                5
               </div>
               <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Connexions authentiques
+                Dimensions analysées
               </div>
             </div>
             <div>
               <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                94%
+                ∞
               </div>
               <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Se découvrent vraiment
+                Facettes uniques
               </div>
             </div>
           </div>
@@ -637,7 +637,7 @@ const LandingContent: React.FC<{
 
           <div className="grid md:grid-cols-4 gap-8">
             {steps.map((step, index) => (
-              <div key={index} className="text-center group">
+              <div key={index} className="text-center group relative">
                 <div className={`relative p-6 rounded-2xl bg-gradient-to-r ${step.gradient} text-white mb-6 mx-auto w-fit transition-all duration-300 group-hover:scale-110 shadow-xl`}>
                   {step.icon}
                   <div className="absolute -top-2 -right-2 w-8 h-8 bg-white text-gray-900 rounded-full flex items-center justify-center font-bold text-sm">
@@ -741,7 +741,7 @@ const LandingContent: React.FC<{
         </div>
       </section>
 
-      {/* SECTION TEASER VIDÉO */}
+      {/* SECTION TEASER VIDÉO - VRAIE VIDÉO YOUTUBE */}
       <section className="relative z-10 py-20 px-6">
         <div className="max-w-4xl mx-auto">
           
@@ -763,30 +763,16 @@ const LandingContent: React.FC<{
               Regarde cette vidéo de 2 minutes qui va changer ta façon de voir les rencontres
             </p>
 
-            {/* Zone vidéo teaser */}
+            {/* Vraie vidéo YouTube */}
             <div className="relative mb-8">
-              <div className={`aspect-video rounded-xl ${
-                isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'
-              } flex items-center justify-center border-2 border-dashed ${
-                isDarkMode ? 'border-gray-600' : 'border-gray-400'
-              } group cursor-pointer hover:border-purple-500 transition-all duration-300`}>
-                
-                <div className="text-center group-hover:scale-110 transition-transform duration-300">
-                  <div className="p-6 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white mb-4 mx-auto w-fit shadow-xl">
-                    <Play className="w-12 h-12" />
-                  </div>
-                  <p className={`text-lg font-medium ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Voir le teaser Affinia
-                  </p>
-                  <p className={`text-sm ${
-                    isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                  }`}>
-                    2 min · Plein écran disponible
-                  </p>
-                </div>
-              </div>
+              <iframe
+                className="w-full aspect-video rounded-xl shadow-2xl"
+                src="https://www.youtube.com/embed/xfn_UPHL6B8?controls=1&modestbranding=1&rel=0"
+                title="Teaser Affinia - Découvre ton miroir intérieur"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
 
             <button 

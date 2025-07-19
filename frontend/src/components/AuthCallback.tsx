@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Heart, Loader } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export const AuthCallback: React.FC = () => {
@@ -32,16 +33,16 @@ export const AuthCallback: React.FC = () => {
         // Vérifier si c'est un nouvel utilisateur
         const isNewUser = new Date(session.user.created_at).getTime() === new Date(session.user.updated_at).getTime()
         
-        // Petit délai pour l'UX puis redirection
+        // Petit délai pour l'UX puis redirection avec navigate()
         setTimeout(() => {
           if (isNewUser) {
             // Nouveau compte - rediriger vers questionnaire ou onboarding
             console.log('🎉 Nouvel utilisateur détecté - redirection vers questionnaire')
-            window.location.href = '/questionnaire'
+            navigate('/questionnaire', { replace: true })
           } else {
             // Utilisateur existant - page d'accueil
             console.log('👋 Utilisateur existant - redirection vers accueil')
-            window.location.href = '/'
+            navigate('/', { replace: true })
           }
         }, 1500)
       }
@@ -118,7 +119,7 @@ export const AuthCallback: React.FC = () => {
           })
           
           setTimeout(() => {
-            window.location.href = '/'
+            navigate('/', { replace: true })
           }, 1000)
           return
         }
@@ -170,17 +171,17 @@ export const AuthCallback: React.FC = () => {
             console.log('⏱️ Timeout atteint, vérification finale...')
             supabase.auth.getSession().then(({ data: { session } }) => {
               if (session) {
-                window.location.href = '/'
+                navigate('/', { replace: true })
               } else {
                 setDebugInfo({
                   step: 'Timeout dépassé',
-                  details: 'Aucune session créée après 8 secondes',
+                  details: 'Aucune session créée après 10 secondes',
                   isNewUser: false
                 })
                 navigate('/login?error=timeout')
               }
             })
-          }, 8000) // 8 secondes pour inscription
+          }, 10000) // 10 secondes pour inscription
         } else {
           console.log('❌ Pas de code OAuth')
           setDebugInfo({
@@ -210,15 +211,26 @@ export const AuthCallback: React.FC = () => {
   }, [navigate])
 
   return (
-    <div className="min-h-screen bg-galaxy flex items-center justify-center">
-      <div className="text-center max-w-md mx-auto px-6">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      {/* Background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-pink-900/20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_70%)]" />
+      
+      <div className="relative z-10 text-center max-w-md mx-auto px-6">
+        
+        {/* Logo Affinia */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <Heart className="w-8 h-8 text-purple-600" />
+          <span className="text-2xl font-bold text-white">Affinia</span>
+        </div>
+        
         <div className="relative">
-          {/* Animation de chargement style Affinia */}
+          {/* Animation de chargement moderne */}
           <div className="w-20 h-20 mx-auto relative mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-affinia-primary to-affinia-accent rounded-full animate-ping opacity-20"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-affinia-primary to-affinia-accent rounded-full animate-pulse"></div>
-            <div className="absolute inset-2 bg-affinia-darker rounded-full flex items-center justify-center">
-              <div className="w-12 h-12 border-4 border-affinia-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full animate-ping opacity-20"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 bg-gray-800 rounded-full flex items-center justify-center">
+              <Loader className="w-8 h-8 text-purple-600 animate-spin" />
             </div>
           </div>
         </div>
@@ -236,7 +248,7 @@ export const AuthCallback: React.FC = () => {
           </p>
           
           {debugInfo.isNewUser && (
-            <div className="mt-6 p-4 bg-purple-600/20 border border-purple-500/30 rounded-lg">
+            <div className="mt-6 p-4 bg-purple-600/20 border border-purple-500/30 rounded-lg backdrop-blur-sm">
               <p className="text-purple-300 text-sm">
                 ✨ Bienvenue dans la communauté Affinia !<br/>
                 Préparation de ton questionnaire de personnalité...
@@ -247,18 +259,18 @@ export const AuthCallback: React.FC = () => {
         
         {/* Debug info en dev */}
         {import.meta.env.DEV && (
-          <div className="mt-8 text-xs text-gray-500 bg-gray-800/50 p-4 rounded-lg border">
-            <p className="font-semibold mb-2">🔍 Debug Info:</p>
+          <div className="mt-8 text-xs text-gray-400 bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 backdrop-blur-sm">
+            <p className="font-semibold mb-2 text-gray-300">🔍 Debug Info:</p>
             <div className="text-left space-y-1">
               <p>URL: {window.location.href}</p>
               <p>Step: {debugInfo.step}</p>
               <p>Details: {debugInfo.details}</p>
               <p>New User: {debugInfo.isNewUser ? 'Oui' : 'Non'}</p>
             </div>
-            <p className="mt-4 text-center">Si bloqué plus de 10s :</p>
+            <p className="mt-4 text-center text-gray-300">Si bloqué plus de 15s :</p>
             <button 
-              onClick={() => window.location.href = '/'}
-              className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded mt-2 transition-colors"
+              onClick={() => navigate('/', { replace: true })}
+              className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 px-3 py-1 rounded mt-2 transition-colors border border-purple-500/30"
             >
               Forcer redirection
             </button>
