@@ -144,7 +144,7 @@ function AppContent() {
       <div className={user ? 'pt-16' : ''}>
         <Routes>
           {/* Routes publiques */}
-          <Route path="/auth/callback" element={<div>AuthCallback</div>} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/confirm" element={<AuthConfirm />} />
           <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
 
