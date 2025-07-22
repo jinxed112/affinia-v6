@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { AuthCallback } from './components/AuthCallback'
+import AuthConfirm from './components/AuthConfirm'  // 👈 NOUVEAU
 import { Header } from './components/Header'
 import { OnboardingGuard } from './components/OnboardingGuard'
 // ✅ Import corrigé - utilise l'export par défaut pour plus de simplicité
@@ -150,6 +151,7 @@ function AppContent() {
         <Routes>
           {/* ✅ ROUTES PUBLIQUES - Pas de protection */}
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/confirm" element={<AuthConfirm />} />  {/* 👈 NOUVEAU */}
           <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
           
           {/* ✅ ROUTES PRIVÉES - Avec OnboardingGuard */}

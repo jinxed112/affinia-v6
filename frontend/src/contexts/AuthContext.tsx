@@ -2,11 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
+export type AuthProvider = 'google' | 'facebook'
+
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
   signInWithGoogle: (redirectTo?: string) => Promise<void>
+  signInWithProvider: (provider: AuthProvider, redirectTo?: string) => Promise<void>
+  signInWithEmail: (email: string, password: string) => Promise<void>
+  signUpWithEmail: (email: string, password: string) => Promise<any>
   signOut: () => Promise<void>
   isWebView: boolean
 }
@@ -126,6 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [])
 
+  // Fonction Google existante (garde ton code)
   const signInWithGoogle = async (customRedirectTo?: string) => {
     try {
       console.log('🔄 Début signInWithGoogle')
@@ -220,6 +226,141 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  // NOUVELLE FONCTION: Support multi-provider
+  const signInWithProvider = async (provider: AuthProvider, customRedirectTo?: string) => {
+    try {
+      console.log(`🔄 Début signInWith${provider}`)
+      console.log('📱 WebView détecté:', isWebView)
+      
+      // Si c'est Google, utilise la fonction existante
+      if (provider === 'google') {
+        return signInWithGoogle(customRedirectTo)
+      }
+      
+      // URL de redirection dynamique basée sur l'environnement
+      const redirectTo = customRedirectTo || `${window.location.origin}/auth/callback`
+      console.log('🔍 Redirect URL:', redirectTo)
+
+      // 🚨 Gestion spécifique des WebViews
+      if (isWebView) {
+        console.log('⚠️ WebView détecté - Configuration spéciale')
+        
+        try {
+          // Créer l'URL d'auth manuellement
+          const authUrl = `${supabase.supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`
+          
+          // Ouvrir dans le navigateur externe
+          window.open(authUrl, '_blank', 'noopener,noreferrer')
+          
+          // Informer l'utilisateur
+          throw new Error('WEBVIEW_REDIRECT')
+          
+        } catch (webViewError) {
+          if (webViewError.message === 'WEBVIEW_REDIRECT') {
+            throw webViewError
+          }
+          console.warn('⚠️ Impossible d\'ouvrir le navigateur externe, essai normal...')
+        }
+      }
+
+      // Configuration Facebook
+      const facebookConfig = {
+        provider: 'facebook' as const,
+        options: {
+          redirectTo: redirectTo,
+          scopes: 'email public_profile',
+          skipBrowserRedirect: false
+        }
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth(facebookConfig)
+
+      if (error) {
+        console.error(`❌ Erreur signInWithOAuth ${provider}:`, error)
+        
+        if (error.message.includes('disallowed_useragent')) {
+          console.error('🔍 WebView bloqué par le provider - tentative d\'ouverture externe')
+          const fallbackUrl = `${window.location.origin}/auth/${provider}-fallback`
+          window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+          throw new Error('WEBVIEW_BLOCKED')
+        }
+        
+        throw error
+      }
+
+      console.log(`✅ signInWithOAuth ${provider} initialisé:`, data)
+      
+    } catch (error) {
+      console.error(`❌ Erreur dans signInWith${provider}:`, error)
+      
+      // Gestion spécifique des erreurs WebView
+      if (error.message === 'WEBVIEW_REDIRECT') {
+        console.log('📱 Redirection vers navigateur externe en cours...')
+        return
+      }
+      
+      if (error.message === 'WEBVIEW_BLOCKED') {
+        console.log('🚫 WebView bloqué, redirection fallback activée')
+        return
+      }
+      
+      throw error
+    }
+  }
+
+  // NOUVELLE FONCTION: Connexion email
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      console.log('🔄 Début signInWithEmail:', email)
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        console.error('❌ Erreur signInWithEmail:', error)
+        throw error
+      }
+
+      console.log('✅ SignIn email réussi:', data.user?.email)
+      
+    } catch (error) {
+      console.error('❌ Erreur dans signInWithEmail:', error)
+      throw error
+    }
+  }
+
+  // NOUVELLE FONCTION: Inscription email
+  const signUpWithEmail = async (email: string, password: string) => {
+    try {
+      console.log('🔄 Début signUpWithEmail:', email)
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // Rediriger vers une page de confirmation
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
+        }
+      })
+
+      if (error) {
+        console.error('❌ Erreur signUpWithEmail:', error)
+        throw error
+      }
+
+      console.log('✅ SignUp email réussi:', data.user?.email)
+      
+      // Retourner les données pour informer l'utilisateur
+      return data
+      
+    } catch (error) {
+      console.error('❌ Erreur dans signUpWithEmail:', error)
+      throw error
+    }
+  }
+
   const signOut = async () => {
     try {
       console.log('🔄 Début signOut')
@@ -257,6 +398,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session,
     loading,
     signInWithGoogle,
+    signInWithProvider, // NOUVEAU
+    signInWithEmail,    // NOUVEAU
+    signUpWithEmail,    // NOUVEAU
     signOut,
     isWebView
   }
