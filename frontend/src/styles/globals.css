@@ -101,3 +101,175 @@ body {
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
+
+/* ========================================
+   🚀 CORRECTIONS SAFARI MOBILE UNIQUEMENT
+   ======================================== */
+
+/* Détection Safari mobile spécifique */
+@supports (-webkit-touch-callout: none) {
+  @media screen and (max-width: 768px) {
+    
+    /* Désactiver les animations complexes SEULEMENT sur Safari mobile */
+    .animate-shimmer {
+      animation: none;
+      background: transparent;
+    }
+    
+    .animate-pulse {
+      animation: none;
+    }
+    
+    .animate-float {
+      animation: none;
+    }
+    
+    .animate-pulse-glow {
+      animation: none;
+    }
+    
+    /* Réduire les effets hover sur mobile */
+    .hover\:scale-105:hover {
+      transform: none;
+    }
+    
+    .hover\:rotate-12:hover {
+      transform: none;
+    }
+    
+    /* Simplifier les ombres sur mobile */
+    .mystical-glow {
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+    }
+    
+    .shadow-2xl {
+      box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    
+    .shadow-xl {
+      box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+/* Backup pour backdrop-blur SEULEMENT si pas supporté */
+@supports not (backdrop-filter: blur(12px)) {
+  .backdrop-blur-sm {
+    background-color: rgba(31, 41, 55, 0.8);
+  }
+  
+  [data-theme="light"] .backdrop-blur-sm {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .glass {
+    background: rgba(15, 13, 21, 0.8);
+    backdrop-filter: none;
+  }
+  
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: none;
+  }
+}
+
+/* Fix viewport Safari iOS SANS affecter desktop */
+@media screen and (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+  
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Safe area pour iPhone avec encoche SEULEMENT */
+@supports (padding: max(0px)) and (max-width: 768px) {
+  .pt-20 {
+    padding-top: max(5rem, env(safe-area-inset-top));
+  }
+}
+
+/* Améliorer les performances transform SANS casser les interactions */
+.transform,
+.hover\:scale-105,
+.hover\:rotate-12 {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Optimisation scrolling sur Safari mobile SEULEMENT */
+@media screen and (max-width: 768px) and (-webkit-min-device-pixel-ratio: 1) {
+  .overflow-auto,
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Fix pour les grilles SEULEMENT sur très petits écrans */
+@media screen and (max-width: 640px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .lg\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .lg\:col-span-2 {
+    grid-column: 1;
+  }
+}
+
+/* Fix pour le débordement horizontal GLOBAL */
+body, html {
+  overflow-x: hidden;
+}
+
+/* Fix inputs pour Safari SANS affecter les autres navigateurs */
+@supports (-webkit-appearance: none) {
+  input, select, textarea {
+    -webkit-appearance: none;
+  }
+}
+
+/* Optimisation des gradients pour webkit */
+.bg-gradient-to-br,
+.bg-gradient-to-r {
+  background-image: -webkit-linear-gradient(135deg, var(--tw-gradient-stops));
+  background-image: linear-gradient(135deg, var(--tw-gradient-stops));
+}
+
+.gradient-text {
+  background: -webkit-linear-gradient(135deg, #ec4899, #8b5cf6);
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* IMPORTANT: Garder les interactions sur desktop */
+@media screen and (min-width: 769px) {
+  .hover\:scale-105:hover {
+    transform: scale(1.05);
+  }
+  
+  .hover\:rotate-12:hover {
+    transform: rotate(12deg);
+  }
+  
+  .group:hover .group-hover\:scale-105 {
+    transform: scale(1.05);
+  }
+  
+  .group:hover .group-hover\:rotate-12 {
+    transform: rotate(12deg);
+  }
+}

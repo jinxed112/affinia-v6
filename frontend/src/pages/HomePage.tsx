@@ -1,4 +1,4 @@
-// src/pages/HomePage-Onboarding.tsx
+// src/pages/HomePage-SafariMobile.tsx
 import React, { useState, useEffect } from 'react'
 import { 
   Heart, Sparkles, Shield, Star, Trophy, Zap, Brain, 
@@ -27,7 +27,15 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
   const [xpProgress, setXpProgress] = useState(0)
   const [photos, setPhotos] = useState<ProfilePhoto[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(true)
+  const [isSafari, setIsSafari] = useState(false)
   const designSystem = useDesignSystem(isDarkMode)
+
+  // Détection Safari pour optimisations
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isSafariBrowser = /safari/.test(userAgent) && !/chrome/.test(userAgent)
+    setIsSafari(isSafariBrowser)
+  }, [])
 
   // Calculer la progression XP
   const calculateXpProgress = () => {
@@ -75,7 +83,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
     }
   }, [profile])
 
-  // Composant pour les cartes de statistiques
+  // Composant pour les cartes de statistiques - Version Safari optimisée
   const StatCard = ({ icon: Icon, label, value, gradient, delay = 0 }) => {
     const [isAnimated, setIsAnimated] = useState(false)
     
@@ -86,16 +94,18 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
     
     return (
       <div 
-        className={`group cursor-pointer mystical-glow ${
+        className={`group cursor-pointer ${!isSafari ? 'mystical-glow' : ''} ${
           isAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
         } transition-all duration-500`}
       >
         <BaseComponents.Card
           isDarkMode={isDarkMode}
           variant="default"
-          className="relative overflow-hidden p-6 group-hover:scale-105"
+          className={`relative overflow-hidden p-6 ${!isSafari ? 'group-hover:scale-105' : ''}`}
         >
-          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
+          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10 ${
+            !isSafari ? 'group-hover:opacity-20' : ''
+          } transition-opacity`} />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between">
@@ -107,12 +117,12 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                 </p>
                 <p className={`text-3xl font-bold ${designSystem.getTextClasses('primary')}`}>
                   {typeof value === 'number' ? (
-                    <span className="animate-pulse">{value}</span>
+                    <span className={!isSafari ? "animate-pulse" : ""}>{value}</span>
                   ) : value}
                 </p>
               </div>
               <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center 
-                transform group-hover:rotate-12 transition-transform shadow-lg`}>
+                ${!isSafari ? 'transform group-hover:rotate-12 transition-transform' : ''} shadow-lg`}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -122,7 +132,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
     )
   }
 
-  // ✨ NOUVELLE SECTION - Quêtes "Bientôt disponible"
+  // ✨ Quêtes "Bientôt disponible" - Version Safari optimisée
   const PlaceholderQuestItem = ({ title, description, icon: Icon, gradient, index = 0 }) => {
     const [isAnimated, setIsAnimated] = useState(false)
     
@@ -183,12 +193,13 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
 
   if (loading || loadingPhotos) {
     return (
-      <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}>
+      <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}
+        style={isSafari ? { minHeight: '-webkit-fill-available' } : {}}>
         <BaseComponents.MysticalBackground isDarkMode={isDarkMode} intensity="medium" />
         <div className="relative z-10 pt-20">
           <div className="max-w-6xl mx-auto px-4 flex items-center justify-center h-64">
             <div className="flex items-center gap-3">
-              <Trophy className="w-6 h-6 animate-spin text-purple-400" />
+              <Trophy className={`w-6 h-6 ${!isSafari ? 'animate-spin' : ''} text-purple-400`} />
               <span className={`text-lg ${designSystem.getTextClasses('secondary')}`}>
                 Chargement de votre dashboard...
               </span>
@@ -204,7 +215,8 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
   const nextLevelXp = currentLevel ** 2 * 100
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}>
+    <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}
+      style={isSafari ? { minHeight: '-webkit-fill-available' } : {}}>
       <BaseComponents.MysticalBackground isDarkMode={isDarkMode} intensity="medium" />
 
       <div className="relative z-10 pt-20">
@@ -218,7 +230,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
               className="p-6 mb-8 border-yellow-500/30 bg-yellow-500/10"
             >
               <div className="flex items-center gap-4">
-                <AlertTriangle className="w-6 h-6 text-yellow-400 animate-pulse" />
+                <AlertTriangle className={`w-6 h-6 text-yellow-400 ${!isSafari ? 'animate-pulse' : ''}`} />
                 <div>
                   <h3 className={`font-bold ${designSystem.getTextClasses('primary')}`}>
                     Questionnaire en attente
@@ -239,7 +251,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
             </BaseComponents.Card>
           )}
           
-          {/* Stats Cards - VRAIES DONNÉES */}
+          {/* Stats Cards - VRAIES DONNÉES - Mobile responsive */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
             <StatCard 
               icon={Trophy} 
@@ -271,6 +283,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
             />
           </div>
 
+          {/* Grid responsive pour Safari mobile */}
           <div className="grid lg:grid-cols-3 gap-8">
             
             {/* Left Column */}
@@ -280,12 +293,14 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
               <BaseComponents.Card
                 isDarkMode={isDarkMode}
                 variant="highlighted"
-                className="p-8 mystical-glow"
+                className={`p-8 ${!isSafari ? 'mystical-glow' : ''}`}
               >
                 <div className="flex items-start space-x-6">
                   <div className="relative">
-                    <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-2xl 
-                      flex items-center justify-center shadow-2xl transform hover:rotate-12 transition-transform">
+                    <div className={`w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-2xl 
+                      flex items-center justify-center shadow-2xl ${
+                        !isSafari ? 'transform hover:rotate-12 transition-transform' : ''
+                      }`}>
                       <Gift className="w-8 h-8 text-white" />
                     </div>
                   </div>
@@ -342,7 +357,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                       variant={hasCompletedQuestionnaire ? "secondary" : "primary"}
                       size="medium"
                       onClick={() => window.location.href = hasCompletedQuestionnaire ? '/profil' : '/questionnaire'}
-                      className={!hasCompletedQuestionnaire ? "mystical-glow animate-shimmer" : ""}
+                      className={!hasCompletedQuestionnaire && !isSafari ? "mystical-glow animate-shimmer" : ""}
                     >
                       <User className="w-4 h-4 mr-2" />
                       {hasCompletedQuestionnaire ? "Voir mon profil" : "Compléter le questionnaire"}
@@ -354,7 +369,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
               {/* Progression Section - DYNAMIQUE */}
               <BaseComponents.Card isDarkMode={isDarkMode} variant="default" className="p-8">
                 <h3 className={`text-xl font-bold mb-6 flex items-center ${designSystem.getTextClasses('primary')}`}>
-                  <Sparkles className="w-6 h-6 mr-3 text-purple-400 animate-pulse" />
+                  <Sparkles className={`w-6 h-6 mr-3 text-purple-400 ${!isSafari ? 'animate-pulse' : ''}`} />
                   Progression
                 </h3>
                 
@@ -372,14 +387,16 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                     isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
                   }`}>
                     <div 
-                      className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full 
-                        transition-all duration-1000 ease-out animate-shimmer"
+                      className={`absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full 
+                        transition-all duration-1000 ease-out ${!isSafari ? 'animate-shimmer' : ''}`}
                       style={{ width: `${Math.min(xpProgress, 100)}%` }}
                     />
                     
                     {xpProgress > 0 && (
                       <Star 
-                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-400 animate-pulse"
+                        className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-400 ${
+                          !isSafari ? 'animate-pulse' : ''
+                        }`}
                         style={{ left: `calc(${Math.min(xpProgress, 100)}% - 10px)` }}
                       />
                     )}
@@ -459,13 +476,13 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                 {questionnaire?.profile_json && hasCompletedQuestionnaire ? (
                   // Vraie carte si questionnaire complété
                   <div className="flex justify-center">
-                    <div className="mystical-glow w-full">
+                    <div className={`${!isSafari ? 'mystical-glow' : ''} w-full`}>
                       <div className="overflow-visible flex flex-col items-center justify-start pt-4 pb-4">
                         <AffiniaCard 
                           photos={photos}
                           profile={profile}
                           questionnaire={questionnaire}
-                          className="transform hover:scale-105 transition-transform duration-300"
+                          className={`${!isSafari ? 'transform hover:scale-105 transition-transform duration-300' : ''}`}
                         />
                       </div>
                     </div>
@@ -500,11 +517,11 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
               <BaseComponents.Card 
                 isDarkMode={isDarkMode} 
                 variant="highlighted" 
-                className="p-6 mystical-glow"
+                className={`p-6 ${!isSafari ? 'mystical-glow' : ''}`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-lg font-bold flex items-center ${designSystem.getTextClasses('primary')}`}>
-                    <Brain className="w-5 h-5 mr-2 text-green-500 animate-pulse" />
+                    <Brain className={`w-5 h-5 mr-2 text-green-500 ${!isSafari ? 'animate-pulse' : ''}`} />
                     Questionnaire V8
                   </h3>
                   {hasCompletedQuestionnaire ? (
