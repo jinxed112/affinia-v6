@@ -285,159 +285,214 @@ const SafariMobileApp = () => {
 }
 
 // =============================================================================
-// VERSION DESKTOP - Composants légers
+// VERSION DESKTOP - Avec tes composants originaux complets
 // =============================================================================
 
-// Login page simple pour desktop
-const SimpleLogin = ({ isDarkMode }) => (
-  <div style={{
-    minHeight: '100vh',
-    backgroundColor: isDarkMode ? '#0f0d15' : '#f9fafb',
-    color: isDarkMode ? 'white' : '#1f2937',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: 'Arial, sans-serif'
-  }}>
-    <div style={{ textAlign: 'center', maxWidth: '400px', padding: '2rem' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '2rem', color: '#ec4899' }}>💜 Affinia</h1>
-      <div style={{
-        padding: '2rem',
-        backgroundColor: isDarkMode ? '#1f2937' : 'white',
-        borderRadius: '12px',
-        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>Connexion</h2>
-        <p style={{ color: '#9ca3af', marginBottom: '2rem' }}>
-          Version simplifiée pour le debug
-        </p>
-        <button
-          onClick={() => window.location.href = '/'}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            backgroundColor: '#ec4899',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
-        >
-          Simuler connexion
-        </button>
-      </div>
-    </div>
-  </div>
-)
+// Imports de tes composants originaux pour desktop
+import { Header } from './components/Header'
+import { OnboardingGuard } from './components/OnboardingGuard'
+import AuthConfirm from './components/AuthConfirm'
+import Login from './pages/Login'
+import { HomePage } from './pages/HomePage'
+import { ProfilePage } from './pages/ProfilePage'
+import { MiroirPage } from './pages/MiroirPage'
+import { DiscoveryPage } from './pages/DiscoveryPage'
+import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
+import QuestionnairePage from './pages/QuestionnairePage'
+import { AdminPage } from './pages/AdminPage'
 
-// HomePage simple pour desktop
-const SimpleHomePage = ({ isDarkMode }) => (
-  <div style={{
-    minHeight: '100vh',
-    backgroundColor: isDarkMode ? '#0f0d15' : '#f9fafb',
-    color: isDarkMode ? 'white' : '#1f2937',
-    padding: '1rem',
-    paddingTop: '5rem',
-    fontFamily: 'Arial, sans-serif'
-  }}>
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🖥️ Version Desktop</h1>
-        <p style={{ color: '#9ca3af' }}>Interface simplifiée pour éviter les crashes Safari mobile</p>
-      </div>
-
-      <div style={{
-        padding: '2rem',
-        backgroundColor: isDarkMode ? '#1f2937' : 'white',
-        borderRadius: '12px',
-        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
-        textAlign: 'center'
-      }}>
-        <h2 style={{ marginBottom: '1rem' }}>✅ Diagnostic terminé</h2>
-        <p style={{ marginBottom: '1rem' }}>
-          Le problème Safari mobile a été identifié et résolu avec une version dédiée.
-        </p>
-        <p style={{ color: '#9ca3af' }}>
-          Vous pouvez maintenant réintégrer progressivement vos composants complexes pour la version desktop.
-        </p>
-      </div>
-    </div>
-  </div>
-)
-
-// Composant wrapper pour éviter les crashes
+// Composant wrapper pour les routes privées
 const PrivateRoute = ({ children }) => {
-  try {
-    const { user, loading } = useAuth()
-    if (loading) return <div>Loading...</div>
-    if (!user) return <Navigate to="/login" />
-    return <>{children}</>
-  } catch (error) {
+  const { user, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0f0d15',
+        color: 'white'
+      }}>
+        <div>Chargement...</div>
+      </div>
+    )
+  }
+  
+  if (!user) {
     return <Navigate to="/login" />
   }
+  
+  return <>{children}</>
 }
 
+// Placeholder pour les pages en construction
+const MatchesPage = ({ isDarkMode }) => (
+  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
+    <div className="max-w-7xl mx-auto">
+      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>💖 Mes Matchs</h1>
+      <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-6">
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+          🚧 Système de matching en construction
+        </h2>
+        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+          Le système de matching basé sur vos profils psychologiques est en cours de développement. Bientôt disponible !
+        </p>
+      </div>
+    </div>
+  </div>
+)
+
+const ArenaPage = ({ isDarkMode }) => (
+  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
+    <div className="max-w-7xl mx-auto">
+      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>⚔️ Arène de Combat</h1>
+      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-6">
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+          🚧 Mini-jeux en préparation
+        </h2>
+        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+          L'arène de combat psychologique et les mini-jeux de compatibilité arrivent bientôt !
+        </p>
+      </div>
+    </div>
+  </div>
+)
+
 const DesktopApp = () => {
-  const [isDarkMode, setIsDarkMode] = useState(true)
+  const AppContent = () => {
+    const { user } = useAuth()
+    const [isDarkMode, setIsDarkMode] = useState(true)
+
+    // Gestion du thème
+    useEffect(() => {
+      try {
+        const savedTheme = localStorage.getItem('theme')
+        if (savedTheme) {
+          setIsDarkMode(savedTheme === 'dark')
+        } else if (window.matchMedia) {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          setIsDarkMode(prefersDark)
+        }
+      } catch (err) {
+        console.log('Theme fallback:', err)
+        setIsDarkMode(true)
+      }
+    }, [])
+
+    const handleThemeToggle = () => {
+      try {
+        const newTheme = !isDarkMode
+        setIsDarkMode(newTheme)
+        localStorage.setItem('theme', newTheme ? 'dark' : 'light')
+      } catch (err) {
+        setIsDarkMode(!isDarkMode)
+      }
+    }
+
+    return (
+      <div className={isDarkMode ? 'dark' : ''}>
+        {/* Header complet */}
+        {user && <Header isDarkMode={isDarkMode} onThemeToggle={handleThemeToggle} />}
+
+        {/* Contenu principal */}
+        <div className={user ? 'pt-16' : ''}>
+          <Routes>
+            {/* Routes publiques */}
+            <Route path="/auth/callback" element={<div>AuthCallback</div>} />
+            <Route path="/auth/confirm" element={<AuthConfirm />} />
+            <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
+
+            {/* Routes privées avec OnboardingGuard */}
+            <Route path="/" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <HomePage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/profil" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <ProfilePage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/miroir" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <MiroirPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/miroir/:profileId" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <MiroirPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/decouverte" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <DiscoveryPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/demandes-miroir" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <MirrorRequestsPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/questionnaire" element={
+              <PrivateRoute>
+                <QuestionnairePage isDarkMode={isDarkMode} />
+              </PrivateRoute>
+            } />
+
+            <Route path="/admin" element={
+              <PrivateRoute>
+                <AdminPage isDarkMode={isDarkMode} />
+              </PrivateRoute>
+            } />
+
+            <Route path="/matches" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <MatchesPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="/arena" element={
+              <PrivateRoute>
+                <OnboardingGuard isDarkMode={isDarkMode}>
+                  <ArenaPage isDarkMode={isDarkMode} />
+                </OnboardingGuard>
+              </PrivateRoute>
+            } />
+
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Router>
       <AuthProvider>
         <NotificationProvider>
-          <div className={isDarkMode ? 'dark' : ''}>
-            {/* Header simple */}
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: isDarkMode ? 'rgba(15, 13, 21, 0.95)' : 'rgba(249, 250, 251, 0.95)',
-              padding: '1rem',
-              borderBottom: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
-              zIndex: 50,
-              backdropFilter: 'blur(10px)'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                maxWidth: '1200px',
-                margin: '0 auto'
-              }}>
-                <h1 style={{ 
-                  margin: 0, 
-                  fontSize: '1.2rem', 
-                  color: '#ec4899' 
-                }}>
-                  💜 Affinia
-                </h1>
-                <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  style={{
-                    padding: '0.5rem',
-                    backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                    color: isDarkMode ? 'white' : '#1f2937',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isDarkMode ? '☀️' : '🌙'}
-                </button>
-              </div>
-            </div>
-
-            <Routes>
-              <Route path="/login" element={<SimpleLogin isDarkMode={isDarkMode} />} />
-              <Route path="/" element={
-                <PrivateRoute>
-                  <SimpleHomePage isDarkMode={isDarkMode} />
-                </PrivateRoute>
-              } />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </div>
+          <AppContent />
         </NotificationProvider>
       </AuthProvider>
     </Router>
@@ -448,6 +503,64 @@ const DesktopApp = () => {
 // APP PRINCIPAL
 // =============================================================================
 
+// CSS optimisé pour desktop
+const addOptimizedStyles = () => {
+  if (document.querySelector('#optimized-styles')) return
+
+  const style = document.createElement('style')
+  style.id = 'optimized-styles'
+  style.textContent = `
+    .dark { color-scheme: dark; }
+    .pt-16 { padding-top: 4rem; }
+    
+    .bg-galaxy {
+      background-color: #0A0E27;
+      background-image:
+        radial-gradient(ellipse at top, #1B2951 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, #FF6B6B1A 0%, transparent 50%);
+    }
+
+    .from-affinia-primary { --tw-gradient-from: #FF6B6B; }
+    .to-affinia-accent { --tw-gradient-to: #4ECDC4; }
+    .bg-affinia-darker { background-color: #0A0E27; }
+    .border-affinia-primary { border-color: #FF6B6B; }
+    .text-affinia-primary { color: #FF6B6B; }
+    .text-affinia-accent { color: #4ECDC4; }
+
+    /* Animations pour desktop */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes bounce-gentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; }
+    .animate-shimmer { animation: shimmer 2s infinite; }
+  `
+
+  try {
+    document.head.appendChild(style)
+  } catch (err) {
+    console.log('Style injection fallback:', err)
+  }
+}
+
 export default function App() {
   const [showSafariMessage, setShowSafariMessage] = useState(isSafariMobile)
 
@@ -455,6 +568,9 @@ export default function App() {
     if (isSafariMobile) {
       const timer = setTimeout(() => setShowSafariMessage(false), 2000)
       return () => clearTimeout(timer)
+    } else {
+      // Initialiser les styles CSS pour desktop
+      addOptimizedStyles()
     }
   }, [])
 
