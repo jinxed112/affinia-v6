@@ -1,4 +1,4 @@
-// App.tsx - Interface unique avec optimisations Safari mobile invisibles
+// App.tsx - Debug Safari mobile avec imports ES6 standards
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -15,437 +15,373 @@ import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
 import QuestionnairePage from './pages/QuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 
-// Détection Safari mobile pour optimisations INVISIBLES
+// Détection Safari mobile
 const isSafariMobile = (() => {
   try {
     const ua = navigator.userAgent.toLowerCase()
     return /safari/.test(ua) && !/chrome/.test(ua) && (/mobile|iphone|ipad/.test(ua) || window.innerWidth <= 768)
   } catch (e) {
-    return false
+    return true
   }
 })()
 
-// Wrapper pour optimiser Safari mobile SANS changer l'interface
-const SafariOptimizedWrapper = ({ children, fallback = null }) => {
-  const [isReady, setIsReady] = useState(!isSafariMobile)
+// Debug Safari mobile - étapes progressives
+const SafariDebugger = () => {
+  const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState(null)
+  const [logs, setLogs] = useState(['🔍 Début debug Safari mobile...'])
 
-  useEffect(() => {
-    if (isSafariMobile) {
-      // Chargement progressif invisible pour Safari mobile
-      const timer = setTimeout(() => {
-        setIsReady(true)
-      }, 100) // Délai minimal pour Safari mobile
-      
-      return () => clearTimeout(timer)
-    }
-  }, [])
-
-  // Error boundary pour Safari mobile
-  if (error && isSafariMobile && fallback) {
-    return fallback
+  const addLog = (message) => {
+    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
   }
 
-  if (!isReady) {
-    // Loader minimal qui ressemble à ton interface
+  useEffect(() => {
+    const steps = [
+      {
+        name: 'Test 1: React basique',
+        test: () => {
+          addLog('✅ React useState/useEffect - OK')
+          return true
+        }
+      },
+      {
+        name: 'Test 2: Router basique',
+        test: () => {
+          addLog('✅ React Router imports - OK')
+          return true
+        }
+      },
+      {
+        name: 'Test 3: AuthContext',
+        test: () => {
+          addLog('✅ AuthContext import - OK')
+          return true
+        }
+      },
+      {
+        name: 'Test 4: HomePage import',
+        test: () => {
+          addLog('✅ HomePage import - OK')
+          return true
+        }
+      },
+      {
+        name: 'Test 5: Tous les imports',
+        test: () => {
+          addLog('✅ Tous les imports - OK')
+          return true
+        }
+      }
+    ]
+
+    if (currentStep < steps.length) {
+      const timer = setTimeout(() => {
+        try {
+          const step = steps[currentStep]
+          addLog(`🧪 Test: ${step.name}`)
+          step.test()
+          setCurrentStep(currentStep + 1)
+        } catch (err) {
+          addLog(`❌ ERREUR: ${err.message}`)
+          setError(err)
+        }
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [currentStep])
+
+  // Si erreur
+  if (error) {
     return (
       <div style={{
         minHeight: '100vh',
-        backgroundColor: '#0f0d15',
+        backgroundColor: '#ef4444',
         color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
+        padding: '1rem',
+        fontFamily: 'monospace'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-            borderRadius: '50%',
-            margin: '0 auto 1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem'
-          }}>
-            💜
-          </div>
-          <h2 style={{ fontSize: '1.5rem', margin: '0 0 1rem 0' }}>Affinia</h2>
-          <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>Optimisation en cours...</p>
+        <h1>🚨 CRASH DÉTECTÉ À L'ÉTAPE {currentStep + 1}</h1>
+        <p>Erreur: {error.message}</p>
+        <div style={{ marginTop: '2rem', fontSize: '0.8rem' }}>
+          <h3>Logs:</h3>
+          {logs.map((log, index) => (
+            <div key={index} style={{ padding: '0.25rem 0' }}>{log}</div>
+          ))}
         </div>
       </div>
     )
   }
 
-  try {
-    return children
-  } catch (err) {
-    if (isSafariMobile) {
-      setError(err)
-      console.error('Safari mobile error caught:', err)
-    }
-    return children
-  }
-}
-
-// Pages placeholder pour construction (même style que ton interface)
-const MatchesPage = ({ isDarkMode }) => (
-  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
-    <div className="max-w-7xl mx-auto">
-      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>💖 Mes Matchs</h1>
-      <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-6">
-        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-          🚧 Système de matching en construction
-        </h2>
-        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-          Le système de matching basé sur vos profils psychologiques est en cours de développement. Bientôt disponible !
-        </p>
-      </div>
-    </div>
-  </div>
-)
-
-const ArenaPage = ({ isDarkMode }) => (
-  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
-    <div className="max-w-7xl mx-auto">
-      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>⚔️ Arène de Combat</h1>
-      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-6">
-        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-          🚧 Mini-jeux en préparation
-        </h2>
-        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-          L'arène de combat psychologique et les mini-jeux de compatibilité arrivent bientôt !
-        </p>
-      </div>
-    </div>
-  </div>
-)
-
-// PrivateRoute optimisé pour Safari mobile
-const PrivateRoute = ({ children }) => {
-  const [authState, setAuthState] = useState({ user: null, loading: true })
-
-  useEffect(() => {
-    // Simulation auth pour éviter les problèmes useAuth sur Safari mobile
-    if (isSafariMobile) {
-      const timer = setTimeout(() => {
-        setAuthState({ user: { id: 'safari-user' }, loading: false })
-      }, 200)
-      return () => clearTimeout(timer)
-    }
-  }, [])
-
-  // Utilise useAuth normalement sauf sur Safari mobile problématique
-  let user, loading
-  
-  if (isSafariMobile) {
-    user = authState.user
-    loading = authState.loading
-  } else {
-    try {
-      const auth = useAuth()
-      user = auth.user
-      loading = auth.loading
-    } catch (err) {
-      // Fallback si useAuth échoue
-      user = authState.user
-      loading = authState.loading
-    }
+  // Tests terminés sans erreur → Essayer le rendu progressif
+  if (currentStep >= 5) {
+    return <ProgressiveRender />
   }
 
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f0d15',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div>Chargement...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <Navigate to="/login" />
-  }
-
-  return <>{children}</>
-}
-
-// Contenu principal de l'app
-function AppContent() {
-  const [isDarkMode, setIsDarkMode] = useState(true)
-  const [user, setUser] = useState(null)
-
-  // Gestion thème optimisée Safari mobile
-  useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem('theme')
-      if (savedTheme) {
-        setIsDarkMode(savedTheme === 'dark')
-      } else if (window.matchMedia) {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        setIsDarkMode(prefersDark)
-      }
-    } catch (err) {
-      console.log('Theme fallback:', err)
-      setIsDarkMode(true)
-    }
-  }, [])
-
-  // Gestion user optimisée Safari mobile
-  useEffect(() => {
-    if (isSafariMobile) {
-      // Auth simplifiée pour Safari mobile
-      setTimeout(() => {
-        setUser({ id: 'safari-user', email: 'user@affinia.app' })
-      }, 300)
-    } else {
-      // Auth normale pour desktop
-      try {
-        const { user: authUser } = useAuth()
-        setUser(authUser)
-      } catch (err) {
-        console.log('Auth fallback Safari mobile')
-        setUser({ id: 'fallback-user', email: 'user@affinia.app' })
-      }
-    }
-  }, [])
-
-  const handleThemeToggle = () => {
-    try {
-      const newTheme = !isDarkMode
-      setIsDarkMode(newTheme)
-      localStorage.setItem('theme', newTheme ? 'dark' : 'light')
-    } catch (err) {
-      setIsDarkMode(!isDarkMode)
-    }
-  }
-
+  // Interface de debug
   return (
-    <SafariOptimizedWrapper>
-      <div className={isDarkMode ? 'dark' : ''}>
-        {/* Header - même sur toutes les plateformes */}
-        {user && (
-          <SafariOptimizedWrapper fallback={
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0f0d15',
+      color: 'white',
+      padding: '1rem',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          🔍 Debug Safari Mobile
+        </h1>
+        
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{
+            width: '100%',
+            height: '8px',
+            backgroundColor: '#374151',
+            borderRadius: '4px',
+            overflow: 'hidden'
+          }}>
             <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, height: '64px',
-              backgroundColor: '#0f0d15', zIndex: 50
+              width: `${(currentStep / 5) * 100}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #10b981, #059669)',
+              transition: 'width 0.5s ease'
             }} />
-          }>
-            <Header isDarkMode={isDarkMode} onThemeToggle={handleThemeToggle} />
-          </SafariOptimizedWrapper>
-        )}
+          </div>
+          <p style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+            Étape {currentStep}/5
+          </p>
+        </div>
 
-        {/* Contenu principal */}
-        <div className={user ? 'pt-16' : ''}>
-          <Routes>
-            {/* Routes publiques */}
-            <Route path="/auth/callback" element={<div>AuthCallback</div>} />
-            <Route path="/auth/confirm" element={
-              <SafariOptimizedWrapper fallback={<div>Auth Confirm Loading...</div>}>
-                <AuthConfirm />
-              </SafariOptimizedWrapper>
-            } />
-            <Route path="/login" element={
-              <SafariOptimizedWrapper fallback={<div>Login Loading...</div>}>
-                <Login isDarkMode={isDarkMode} />
-              </SafariOptimizedWrapper>
-            } />
-
-            {/* Routes privées - MÊME INTERFACE partout */}
-            <Route path="/" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>HomePage Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <HomePage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/profil" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Profile Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <ProfilePage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/miroir" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Miroir Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <MiroirPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/miroir/:profileId" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Miroir Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <MiroirPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/decouverte" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Découverte Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <DiscoveryPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/demandes-miroir" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Demandes Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <MirrorRequestsPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/questionnaire" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Questionnaire Loading...</div>}>
-                  <QuestionnairePage isDarkMode={isDarkMode} />
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/admin" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Admin Loading...</div>}>
-                  <AdminPage isDarkMode={isDarkMode} />
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/matches" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Matches Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <MatchesPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="/arena" element={
-              <PrivateRoute>
-                <SafariOptimizedWrapper fallback={<div>Arena Loading...</div>}>
-                  <OnboardingGuard isDarkMode={isDarkMode}>
-                    <ArenaPage isDarkMode={isDarkMode} />
-                  </OnboardingGuard>
-                </SafariOptimizedWrapper>
-              </PrivateRoute>
-            } />
-
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+        <div style={{
+          backgroundColor: '#1f2937',
+          borderRadius: '8px',
+          padding: '1rem',
+          maxHeight: '400px',
+          overflowY: 'auto'
+        }}>
+          {logs.map((log, index) => (
+            <div key={index} style={{
+              padding: '0.25rem 0',
+              fontSize: '0.9rem',
+              fontFamily: 'monospace'
+            }}>
+              {log}
+            </div>
+          ))}
         </div>
       </div>
-    </SafariOptimizedWrapper>
+    </div>
   )
 }
 
-// CSS optimisé
-const addOptimizedStyles = () => {
-  if (document.querySelector('#optimized-styles')) return
+// Rendu progressif des composants
+const ProgressiveRender = () => {
+  const [renderStep, setRenderStep] = useState(0)
+  const [error, setError] = useState(null)
 
-  const style = document.createElement('style')
-  style.id = 'optimized-styles'
-  style.textContent = `
-    .dark { color-scheme: dark; }
-    .pt-16 { padding-top: 4rem; }
-    
-    .bg-galaxy {
-      background-color: #0A0E27;
-      background-image:
-        radial-gradient(ellipse at top, #1B2951 0%, transparent 50%),
-        radial-gradient(ellipse at bottom, #FF6B6B1A 0%, transparent 50%);
-    }
-
-    .from-affinia-primary { --tw-gradient-from: #FF6B6B; }
-    .to-affinia-accent { --tw-gradient-to: #4ECDC4; }
-    .bg-affinia-darker { background-color: #0A0E27; }
-    .border-affinia-primary { border-color: #FF6B6B; }
-    .text-affinia-primary { color: #FF6B6B; }
-    .text-affinia-accent { color: #4ECDC4; }
-
-    /* Animations conditionnelles selon la plateforme */
-    ${!isSafariMobile ? `
-      @keyframes pulse-glow {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-      }
-
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-      }
-
-      @keyframes bounce-gentle {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-5px); }
-      }
-
-      @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-      }
-
-      .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-      .animate-float { animation: float 3s ease-in-out infinite; }
-      .animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; }
-      .animate-shimmer { animation: shimmer 2s infinite; }
-    ` : `
-      /* Pas d'animations sur Safari mobile */
-      .animate-pulse-glow { opacity: 0.8; }
-      .animate-float { transform: none; }
-      .animate-bounce-gentle { transform: none; }
-      .animate-shimmer { transform: none; }
-    `}
-  `
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRenderStep(renderStep + 1)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [renderStep])
 
   try {
-    document.head.appendChild(style)
+    // Étape 0: Juste un div
+    if (renderStep === 0) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#8b5cf6',
+          color: 'white',
+          padding: '2rem',
+          textAlign: 'center'
+        }}>
+          <h1>🟣 Étape 0: Div basique - OK</h1>
+          <p>Prochaine étape dans 1 seconde...</p>
+        </div>
+      )
+    }
+
+    // Étape 1: Router seul
+    if (renderStep === 1) {
+      return (
+        <Router>
+          <div style={{
+            minHeight: '100vh',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            padding: '2rem',
+            textAlign: 'center'
+          }}>
+            <h1>🔵 Étape 1: Router - OK</h1>
+            <p>Prochaine étape dans 1 seconde...</p>
+          </div>
+        </Router>
+      )
+    }
+
+    // Étape 2: Router + AuthProvider
+    if (renderStep === 2) {
+      return (
+        <Router>
+          <AuthProvider>
+            <div style={{
+              minHeight: '100vh',
+              backgroundColor: '#10b981',
+              color: 'white',
+              padding: '2rem',
+              textAlign: 'center'
+            }}>
+              <h1>🟢 Étape 2: Router + AuthProvider - OK</h1>
+              <p>Prochaine étape dans 1 seconde...</p>
+            </div>
+          </AuthProvider>
+        </Router>
+      )
+    }
+
+    // Étape 3: + NotificationProvider
+    if (renderStep === 3) {
+      return (
+        <Router>
+          <AuthProvider>
+            <NotificationProvider>
+              <div style={{
+                minHeight: '100vh',
+                backgroundColor: '#f59e0b',
+                color: 'white',
+                padding: '2rem',
+                textAlign: 'center'
+              }}>
+                <h1>🟡 Étape 3: + NotificationProvider - OK</h1>
+                <p>Prochaine étape dans 1 seconde...</p>
+              </div>
+            </NotificationProvider>
+          </AuthProvider>
+        </Router>
+      )
+    }
+
+    // Étape 4: + useAuth hook
+    if (renderStep === 4) {
+      const TestUseAuth = () => {
+        const { user, loading } = useAuth()
+        return (
+          <div style={{
+            minHeight: '100vh',
+            backgroundColor: '#ec4899',
+            color: 'white',
+            padding: '2rem',
+            textAlign: 'center'
+          }}>
+            <h1>🩷 Étape 4: + useAuth hook - OK</h1>
+            <p>Loading: {loading ? 'true' : 'false'}</p>
+            <p>User: {user ? 'connecté' : 'non connecté'}</p>
+            <p>Prochaine étape dans 1 seconde...</p>
+          </div>
+        )
+      }
+
+      return (
+        <Router>
+          <AuthProvider>
+            <NotificationProvider>
+              <TestUseAuth />
+            </NotificationProvider>
+          </AuthProvider>
+        </Router>
+      )
+    }
+
+    // Étape 5: + Routes
+    if (renderStep === 5) {
+      return (
+        <Router>
+          <AuthProvider>
+            <NotificationProvider>
+              <Routes>
+                <Route path="*" element={
+                  <div style={{
+                    minHeight: '100vh',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    padding: '2rem',
+                    textAlign: 'center'
+                  }}>
+                    <h1>🔴 Étape 5: + Routes - OK</h1>
+                    <p>Prochaine étape: HomePage complète dans 1 seconde...</p>
+                  </div>
+                } />
+              </Routes>
+            </NotificationProvider>
+          </AuthProvider>
+        </Router>
+      )
+    }
+
+    // Étape finale: HomePage complète
+    const PrivateRoute = ({ children }) => {
+      const { user, loading } = useAuth()
+      if (loading) return <div>Loading...</div>
+      return children // Pas de redirect pour le test
+    }
+
+    return (
+      <Router>
+        <AuthProvider>
+          <NotificationProvider>
+            <div className="dark">
+              <Header isDarkMode={true} onThemeToggle={() => {}} />
+              <div className="pt-16">
+                <Routes>
+                  <Route path="/login" element={<Login isDarkMode={true} />} />
+                  <Route path="/" element={
+                    <PrivateRoute>
+                      <OnboardingGuard isDarkMode={true}>
+                        <HomePage isDarkMode={true} />
+                      </OnboardingGuard>
+                    </PrivateRoute>
+                  } />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </div>
+            </div>
+          </NotificationProvider>
+        </AuthProvider>
+      </Router>
+    )
+
   } catch (err) {
-    console.log('Style injection fallback:', err)
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#7f1d1d',
+        color: 'white',
+        padding: '2rem',
+        textAlign: 'center'
+      }}>
+        <h1>💥 CRASH À L'ÉTAPE {renderStep}</h1>
+        <p>Erreur: {err.message}</p>
+        <p>Stack: {err.stack}</p>
+      </div>
+    )
   }
 }
 
-// App principal avec providers optimisés
+// App principal
 export default function App() {
-  const [isReady, setIsReady] = useState(false)
+  const [showLoader, setShowLoader] = useState(true)
 
   useEffect(() => {
-    // Initialiser les styles
-    addOptimizedStyles()
-    
-    // Délai minimal pour Safari mobile
     const timer = setTimeout(() => {
-      setIsReady(true)
-    }, isSafariMobile ? 200 : 0)
-    
+      setShowLoader(false)
+    }, 1000)
     return () => clearTimeout(timer)
   }, [])
 
-  if (!isReady) {
+  // Loader
+  if (showLoader) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -454,7 +390,7 @@ export default function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
+        fontFamily: 'Arial, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -471,21 +407,35 @@ export default function App() {
             💜
           </div>
           <h2 style={{ fontSize: '1.5rem', margin: '0 0 1rem 0' }}>Affinia</h2>
-          <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
-            {isSafariMobile ? 'Optimisation Safari...' : 'Initialisation...'}
+          <p style={{ color: '#9ca3af' }}>
+            {isSafariMobile ? 'Debug Safari Mobile...' : 'Chargement...'}
           </p>
         </div>
       </div>
     )
   }
 
-  return (
-    <Router>
-      <AuthProvider>
-        <NotificationProvider>
-          <AppContent />
-        </NotificationProvider>
-      </AuthProvider>
-    </Router>
-  )
+  // Après le loader
+  if (isSafariMobile) {
+    return <SafariDebugger />
+  } else {
+    // Desktop: version normale simplifiée
+    return (
+      <Router>
+        <AuthProvider>
+          <NotificationProvider>
+            <div className="dark">
+              <Header isDarkMode={true} onThemeToggle={() => {}} />
+              <div className="pt-16">
+                <Routes>
+                  <Route path="/" element={<HomePage isDarkMode={true} />} />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </div>
+            </div>
+          </NotificationProvider>
+        </AuthProvider>
+      </Router>
+    )
+  }
 }
