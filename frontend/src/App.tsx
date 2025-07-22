@@ -1,4 +1,4 @@
-// App.tsx - Debug Safari mobile avec imports ES6 standards
+// App.tsx - Fix NotificationProvider Safari mobile
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -21,367 +21,67 @@ const isSafariMobile = (() => {
     const ua = navigator.userAgent.toLowerCase()
     return /safari/.test(ua) && !/chrome/.test(ua) && (/mobile|iphone|ipad/.test(ua) || window.innerWidth <= 768)
   } catch (e) {
-    return true
+    return false
   }
 })()
 
-// Debug Safari mobile - étapes progressives
-const SafariDebugger = () => {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [error, setError] = useState(null)
-  const [logs, setLogs] = useState(['🔍 Début debug Safari mobile...'])
+console.log('🔍 Safari mobile détecté:', isSafariMobile)
 
-  const addLog = (message) => {
-    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
+// NotificationProvider vide pour Safari mobile (pour éviter le crash)
+const SafariNotificationProvider = ({ children }) => {
+  // Contexte notifications minimal pour Safari mobile
+  const mockNotificationContext = {
+    notifications: [],
+    addNotification: () => console.log('Notification ignorée sur Safari mobile'),
+    removeNotification: () => {},
+    clearNotifications: () => {}
   }
 
-  useEffect(() => {
-    const steps = [
-      {
-        name: 'Test 1: React basique',
-        test: () => {
-          addLog('✅ React useState/useEffect - OK')
-          return true
-        }
-      },
-      {
-        name: 'Test 2: Router basique',
-        test: () => {
-          addLog('✅ React Router imports - OK')
-          return true
-        }
-      },
-      {
-        name: 'Test 3: AuthContext',
-        test: () => {
-          addLog('✅ AuthContext import - OK')
-          return true
-        }
-      },
-      {
-        name: 'Test 4: HomePage import',
-        test: () => {
-          addLog('✅ HomePage import - OK')
-          return true
-        }
-      },
-      {
-        name: 'Test 5: Tous les imports',
-        test: () => {
-          addLog('✅ Tous les imports - OK')
-          return true
-        }
-      }
-    ]
-
-    if (currentStep < steps.length) {
-      const timer = setTimeout(() => {
-        try {
-          const step = steps[currentStep]
-          addLog(`🧪 Test: ${step.name}`)
-          step.test()
-          setCurrentStep(currentStep + 1)
-        } catch (err) {
-          addLog(`❌ ERREUR: ${err.message}`)
-          setError(err)
-        }
-      }, 1000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [currentStep])
-
-  // Si erreur
-  if (error) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#ef4444',
-        color: 'white',
-        padding: '1rem',
-        fontFamily: 'monospace'
-      }}>
-        <h1>🚨 CRASH DÉTECTÉ À L'ÉTAPE {currentStep + 1}</h1>
-        <p>Erreur: {error.message}</p>
-        <div style={{ marginTop: '2rem', fontSize: '0.8rem' }}>
-          <h3>Logs:</h3>
-          {logs.map((log, index) => (
-            <div key={index} style={{ padding: '0.25rem 0' }}>{log}</div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  // Tests terminés sans erreur → Essayer le rendu progressif
-  if (currentStep >= 5) {
-    return <ProgressiveRender />
-  }
-
-  // Interface de debug
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#0f0d15',
-      color: 'white',
-      padding: '1rem',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          🔍 Debug Safari Mobile
-        </h1>
-        
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{
-            width: '100%',
-            height: '8px',
-            backgroundColor: '#374151',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${(currentStep / 5) * 100}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg, #10b981, #059669)',
-              transition: 'width 0.5s ease'
-            }} />
-          </div>
-          <p style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-            Étape {currentStep}/5
-          </p>
-        </div>
-
-        <div style={{
-          backgroundColor: '#1f2937',
-          borderRadius: '8px',
-          padding: '1rem',
-          maxHeight: '400px',
-          overflowY: 'auto'
-        }}>
-          {logs.map((log, index) => (
-            <div key={index} style={{
-              padding: '0.25rem 0',
-              fontSize: '0.9rem',
-              fontFamily: 'monospace'
-            }}>
-              {log}
-            </div>
-          ))}
-        </div>
-      </div>
+    <div>
+      {children}
     </div>
   )
 }
 
-// Rendu progressif des composants
-const ProgressiveRender = () => {
-  const [renderStep, setRenderStep] = useState(0)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setRenderStep(renderStep + 1)
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [renderStep])
-
-  try {
-    // Étape 0: Juste un div
-    if (renderStep === 0) {
-      return (
-        <div style={{
-          minHeight: '100vh',
-          backgroundColor: '#8b5cf6',
-          color: 'white',
-          padding: '2rem',
-          textAlign: 'center'
-        }}>
-          <h1>🟣 Étape 0: Div basique - OK</h1>
-          <p>Prochaine étape dans 1 seconde...</p>
-        </div>
-      )
-    }
-
-    // Étape 1: Router seul
-    if (renderStep === 1) {
-      return (
-        <Router>
-          <div style={{
-            minHeight: '100vh',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            padding: '2rem',
-            textAlign: 'center'
-          }}>
-            <h1>🔵 Étape 1: Router - OK</h1>
-            <p>Prochaine étape dans 1 seconde...</p>
-          </div>
-        </Router>
-      )
-    }
-
-    // Étape 2: Router + AuthProvider
-    if (renderStep === 2) {
-      return (
-        <Router>
-          <AuthProvider>
-            <div style={{
-              minHeight: '100vh',
-              backgroundColor: '#10b981',
-              color: 'white',
-              padding: '2rem',
-              textAlign: 'center'
-            }}>
-              <h1>🟢 Étape 2: Router + AuthProvider - OK</h1>
-              <p>Prochaine étape dans 1 seconde...</p>
-            </div>
-          </AuthProvider>
-        </Router>
-      )
-    }
-
-    // Étape 3: + NotificationProvider
-    if (renderStep === 3) {
-      return (
-        <Router>
-          <AuthProvider>
-            <NotificationProvider>
-              <div style={{
-                minHeight: '100vh',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                padding: '2rem',
-                textAlign: 'center'
-              }}>
-                <h1>🟡 Étape 3: + NotificationProvider - OK</h1>
-                <p>Prochaine étape dans 1 seconde...</p>
-              </div>
-            </NotificationProvider>
-          </AuthProvider>
-        </Router>
-      )
-    }
-
-    // Étape 4: + useAuth hook
-    if (renderStep === 4) {
-      const TestUseAuth = () => {
-        const { user, loading } = useAuth()
-        return (
-          <div style={{
-            minHeight: '100vh',
-            backgroundColor: '#ec4899',
-            color: 'white',
-            padding: '2rem',
-            textAlign: 'center'
-          }}>
-            <h1>🩷 Étape 4: + useAuth hook - OK</h1>
-            <p>Loading: {loading ? 'true' : 'false'}</p>
-            <p>User: {user ? 'connecté' : 'non connecté'}</p>
-            <p>Prochaine étape dans 1 seconde...</p>
-          </div>
-        )
-      }
-
-      return (
-        <Router>
-          <AuthProvider>
-            <NotificationProvider>
-              <TestUseAuth />
-            </NotificationProvider>
-          </AuthProvider>
-        </Router>
-      )
-    }
-
-    // Étape 5: + Routes
-    if (renderStep === 5) {
-      return (
-        <Router>
-          <AuthProvider>
-            <NotificationProvider>
-              <Routes>
-                <Route path="*" element={
-                  <div style={{
-                    minHeight: '100vh',
-                    backgroundColor: '#ef4444',
-                    color: 'white',
-                    padding: '2rem',
-                    textAlign: 'center'
-                  }}>
-                    <h1>🔴 Étape 5: + Routes - OK</h1>
-                    <p>Prochaine étape: HomePage complète dans 1 seconde...</p>
-                  </div>
-                } />
-              </Routes>
-            </NotificationProvider>
-          </AuthProvider>
-        </Router>
-      )
-    }
-
-    // Étape finale: HomePage complète
-    const PrivateRoute = ({ children }) => {
-      const { user, loading } = useAuth()
-      if (loading) return <div>Loading...</div>
-      return children // Pas de redirect pour le test
-    }
-
-    return (
-      <Router>
-        <AuthProvider>
-          <NotificationProvider>
-            <div className="dark">
-              <Header isDarkMode={true} onThemeToggle={() => {}} />
-              <div className="pt-16">
-                <Routes>
-                  <Route path="/login" element={<Login isDarkMode={true} />} />
-                  <Route path="/" element={
-                    <PrivateRoute>
-                      <OnboardingGuard isDarkMode={true}>
-                        <HomePage isDarkMode={true} />
-                      </OnboardingGuard>
-                    </PrivateRoute>
-                  } />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </div>
-            </div>
-          </NotificationProvider>
-        </AuthProvider>
-      </Router>
-    )
-
-  } catch (err) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#7f1d1d',
-        color: 'white',
-        padding: '2rem',
-        textAlign: 'center'
-      }}>
-        <h1>💥 CRASH À L'ÉTAPE {renderStep}</h1>
-        <p>Erreur: {err.message}</p>
-        <p>Stack: {err.stack}</p>
+// Pages placeholder pour construction
+const MatchesPage = ({ isDarkMode }) => (
+  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
+    <div className="max-w-7xl mx-auto">
+      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>💖 Mes Matchs</h1>
+      <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-6">
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+          🚧 Système de matching en construction
+        </h2>
+        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+          Le système de matching basé sur vos profils psychologiques est en cours de développement. Bientôt disponible !
+        </p>
       </div>
-    )
-  }
-}
+    </div>
+  </div>
+)
 
-// App principal
-export default function App() {
-  const [showLoader, setShowLoader] = useState(true)
+const ArenaPage = ({ isDarkMode }) => (
+  <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'} p-6`}>
+    <div className="max-w-7xl mx-auto">
+      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>⚔️ Arène de Combat</h1>
+      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-6">
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+          🚧 Mini-jeux en préparation
+        </h2>
+        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+          L'arène de combat psychologique et les mini-jeux de compatibilité arrivent bientôt !
+        </p>
+      </div>
+    </div>
+  </div>
+)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoader(false)
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [])
+// PrivateRoute
+const PrivateRoute = ({ children }) => {
+  const { user, loading } = useAuth()
 
-  // Loader
-  if (showLoader) {
+  if (loading) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -389,53 +89,234 @@ export default function App() {
         color: 'white',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'Arial, sans-serif'
+        justifyContent: 'center'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-            borderRadius: '50%',
-            margin: '0 auto 1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem'
-          }}>
-            💜
-          </div>
-          <h2 style={{ fontSize: '1.5rem', margin: '0 0 1rem 0' }}>Affinia</h2>
-          <p style={{ color: '#9ca3af' }}>
-            {isSafariMobile ? 'Debug Safari Mobile...' : 'Chargement...'}
-          </p>
-        </div>
+        <div>Chargement...</div>
       </div>
     )
   }
 
-  // Après le loader
-  if (isSafariMobile) {
-    return <SafariDebugger />
-  } else {
-    // Desktop: version normale simplifiée
-    return (
-      <Router>
-        <AuthProvider>
-          <NotificationProvider>
-            <div className="dark">
-              <Header isDarkMode={true} onThemeToggle={() => {}} />
-              <div className="pt-16">
-                <Routes>
-                  <Route path="/" element={<HomePage isDarkMode={true} />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </div>
-            </div>
-          </NotificationProvider>
-        </AuthProvider>
-      </Router>
-    )
+  if (!user) {
+    return <Navigate to="/login" />
   }
+
+  return <>{children}</>
+}
+
+// Contenu principal de l'app
+function AppContent() {
+  const { user } = useAuth()
+  const [isDarkMode, setIsDarkMode] = useState(true)
+
+  // Gestion thème
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('theme')
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === 'dark')
+      } else if (window.matchMedia) {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        setIsDarkMode(prefersDark)
+      }
+    } catch (err) {
+      console.log('Theme fallback:', err)
+      setIsDarkMode(true)
+    }
+  }, [])
+
+  const handleThemeToggle = () => {
+    try {
+      const newTheme = !isDarkMode
+      setIsDarkMode(newTheme)
+      localStorage.setItem('theme', newTheme ? 'dark' : 'light')
+    } catch (err) {
+      setIsDarkMode(!isDarkMode)
+    }
+  }
+
+  return (
+    <div className={isDarkMode ? 'dark' : ''}>
+      {/* Header */}
+      {user && <Header isDarkMode={isDarkMode} onThemeToggle={handleThemeToggle} />}
+
+      {/* Contenu principal */}
+      <div className={user ? 'pt-16' : ''}>
+        <Routes>
+          {/* Routes publiques */}
+          <Route path="/auth/callback" element={<div>AuthCallback</div>} />
+          <Route path="/auth/confirm" element={<AuthConfirm />} />
+          <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
+
+          {/* Routes privées */}
+          <Route path="/" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <HomePage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/profil" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <ProfilePage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/miroir" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MiroirPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/miroir/:profileId" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MiroirPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/decouverte" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <DiscoveryPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/demandes-miroir" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MirrorRequestsPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/questionnaire" element={
+            <PrivateRoute>
+              <QuestionnairePage isDarkMode={isDarkMode} />
+            </PrivateRoute>
+          } />
+
+          <Route path="/admin" element={
+            <PrivateRoute>
+              <AdminPage isDarkMode={isDarkMode} />
+            </PrivateRoute>
+          } />
+
+          <Route path="/matches" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MatchesPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/arena" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <ArenaPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
+    </div>
+  )
+}
+
+// CSS optimisé
+const addOptimizedStyles = () => {
+  if (document.querySelector('#optimized-styles')) return
+
+  const style = document.createElement('style')
+  style.id = 'optimized-styles'
+  style.textContent = `
+    .dark { color-scheme: dark; }
+    .pt-16 { padding-top: 4rem; }
+    
+    .bg-galaxy {
+      background-color: #0A0E27;
+      background-image:
+        radial-gradient(ellipse at top, #1B2951 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, #FF6B6B1A 0%, transparent 50%);
+    }
+
+    .from-affinia-primary { --tw-gradient-from: #FF6B6B; }
+    .to-affinia-accent { --tw-gradient-to: #4ECDC4; }
+    .bg-affinia-darker { background-color: #0A0E27; }
+    .border-affinia-primary { border-color: #FF6B6B; }
+    .text-affinia-primary { color: #FF6B6B; }
+    .text-affinia-accent { color: #4ECDC4; }
+
+    /* Animations conditionnelles */
+    ${!isSafariMobile ? `
+      @keyframes pulse-glow {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+      }
+
+      @keyframes bounce-gentle {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+      }
+
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+
+      .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+      .animate-float { animation: float 3s ease-in-out infinite; }
+      .animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; }
+      .animate-shimmer { animation: shimmer 2s infinite; }
+    ` : `
+      /* Pas d'animations sur Safari mobile */
+      .animate-pulse-glow { opacity: 0.8; }
+      .animate-float { transform: none; }
+      .animate-bounce-gentle { transform: none; }
+      .animate-shimmer { transform: none; }
+    `}
+  `
+
+  try {
+    document.head.appendChild(style)
+  } catch (err) {
+    console.log('Style injection fallback:', err)
+  }
+}
+
+// App principal
+export default function App() {
+  useEffect(() => {
+    addOptimizedStyles()
+  }, [])
+
+  return (
+    <Router>
+      <AuthProvider>
+        {/* NotificationProvider conditionnel selon la plateforme */}
+        {isSafariMobile ? (
+          <SafariNotificationProvider>
+            <AppContent />
+          </SafariNotificationProvider>
+        ) : (
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
+        )}
+      </AuthProvider>
+    </Router>
+  )
 }
