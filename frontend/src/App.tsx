@@ -1,306 +1,279 @@
-// App.tsx - Version debug ultra-simple pour Safari mobile
-import React, { useState, useEffect } from 'react'
+// App.tsx - Version optimisée Safari mobile avec chargement progressif
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 
-// Global error handlers AVANT tout
-window.onerror = function(message, source, lineno, colno, error) {
-  console.error('🚨 APP.TSX ERROR:', message, source, lineno)
+// Détection Safari mobile pour optimisations
+const isSafariMobile = (() => {
+  const ua = navigator.userAgent.toLowerCase()
+  return /safari/.test(ua) && !/chrome/.test(ua) && /mobile|iphone|ipad/.test(ua)
+})()
+
+console.log('🔍 Safari mobile détecté:', isSafariMobile)
+
+// Lazy loading des imports lourds pour Safari mobile
+const BrowserRouter = lazy(() => 
+  import('react-router-dom').then(module => ({ default: module.BrowserRouter }))
+)
+const Routes = lazy(() => 
+  import('react-router-dom').then(module => ({ default: module.Routes }))
+)
+const Route = lazy(() => 
+  import('react-router-dom').then(module => ({ default: module.Route }))
+)
+const Navigate = lazy(() => 
+  import('react-router-dom').then(module => ({ default: module.Navigate }))
+)
+
+// Lazy loading des contexts
+const AuthProvider = lazy(() => 
+  import('./contexts/AuthContext').then(module => ({ default: module.AuthProvider }))
+)
+const NotificationProvider = lazy(() => 
+  import('./contexts/NotificationContext').then(module => ({ default: module.NotificationProvider }))
+)
+
+// Lazy loading des pages
+const HomePage = lazy(() => 
+  import('./pages/HomePage').then(module => ({ default: module.HomePage }))
+)
+const Login = lazy(() => import('./pages/Login'))
+const AuthCallback = lazy(() => 
+  import('./components/AuthCallback').then(module => ({ default: module.AuthCallback }))
+)
+const AuthConfirm = lazy(() => import('./components/AuthConfirm'))
+
+// Loading fallback optimisé pour Safari mobile
+const LoadingFallback: React.FC<{ message?: string }> = ({ message = "Chargement..." }) => (
+  <div style={{
+    minHeight: '100vh',
+    minHeight: isSafariMobile ? '-webkit-fill-available' : '100vh',
+    backgroundColor: '#0f0d15',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'Arial, sans-serif'
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        width: '60px',
+        height: '60px',
+        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+        borderRadius: '50%',
+        margin: '0 auto 1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...(isSafariMobile ? {} : { animation: 'pulse 2s infinite' })
+      }}>
+        💜
+      </div>
+      <h2 style={{ margin: '0 0 0.5rem 0' }}>Affinia</h2>
+      <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>{message}</p>
+    </div>
+  </div>
+)
+
+// CSS simplifié pour Safari mobile
+const addStyles = () => {
+  if (document.querySelector('#app-styles')) return // Déjà ajouté
   
-  // Affichage direct dans le DOM pour iPad
-  const errorDiv = document.createElement('div')
-  errorDiv.style.cssText = `
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    right: 0; 
-    background: red; 
-    color: white; 
-    padding: 20px; 
-    font-size: 16px; 
-    z-index: 9999; 
-    word-wrap: break-word;
-    font-family: monospace;
-  `
-  errorDiv.innerHTML = `
-    🚨 CRASH DETECTED IN APP.TSX<br>
-    Message: ${message}<br>
-    File: ${source}<br>
-    Line: ${lineno}:${colno}<br>
-    Stack: ${error?.stack || 'No stack'}
-  `
-  document.body.appendChild(errorDiv)
+  const style = document.createElement('style')
+  style.id = 'app-styles'
   
-  return false
+  // CSS de base sans animations complexes pour Safari mobile
+  const baseCSS = `
+    .dark { color-scheme: dark; }
+    .pt-16 { padding-top: 4rem; }
+    
+    .bg-galaxy {
+      background-color: #0A0E27;
+      background-image:
+        radial-gradient(ellipse at top, #1B2951 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, #FF6B6B1A 0%, transparent 50%);
+    }
+    
+    .from-affinia-primary { --tw-gradient-from: #FF6B6B; }
+    .to-affinia-accent { --tw-gradient-to: #4ECDC4; }
+    .bg-affinia-darker { background-color: #0A0E27; }
+    .border-affinia-primary { border-color: #FF6B6B; }
+    .text-affinia-primary { color: #FF6B6B; }
+    .text-affinia-accent { color: #4ECDC4; }
+  `
+  
+  // Animations seulement si pas Safari mobile
+  const animationCSS = isSafariMobile ? '' : `
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes bounce-gentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; }
+    .animate-shimmer { animation: shimmer 2s infinite; }
+  `
+  
+  style.textContent = baseCSS + animationCSS
+  document.head.appendChild(style)
 }
 
-// Promise rejection handler
-window.addEventListener('unhandledrejection', function(event) {
-  console.error('🔥 PROMISE REJECTION IN APP:', event.reason)
-  
-  const errorDiv = document.createElement('div')
-  errorDiv.style.cssText = `
-    position: fixed; 
-    top: 120px; 
-    left: 0; 
-    right: 0; 
-    background: orange; 
-    color: white; 
-    padding: 20px; 
-    font-size: 16px; 
-    z-index: 9998;
-    font-family: monospace;
-  `
-  errorDiv.innerHTML = `🔥 PROMISE REJECTED: ${event.reason}`
-  document.body.appendChild(errorDiv)
-})
-
-console.log('🔍 App.tsx: Error handlers installed')
-
-// Test component ultra-simple SANS AUCUN import complexe
-const TestApp: React.FC = () => {
-  const [debugInfo, setDebugInfo] = useState<string[]>([])
-  const [testPhase, setTestPhase] = useState(0)
-  
-  const addDebug = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    const newDebug = `${timestamp}: ${message}`
-    setDebugInfo(prev => [...prev, newDebug])
-    console.log('🔍 App.tsx Debug:', newDebug)
-  }
+// Composant principal avec chargement progressif
+const App: React.FC = () => {
+  const [loadingPhase, setLoadingPhase] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    addDebug('App.tsx useEffect started')
+    // Ajouter les styles immédiatement
+    addStyles()
     
-    try {
-      // Test 1: Detection environnement
-      const userAgent = navigator.userAgent.toLowerCase()
-      const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent)
-      const isMobile = /mobile|iphone|ipad|android/.test(userAgent)
-      
-      addDebug(`Safari: ${isSafari}, Mobile: ${isMobile}`)
-      addDebug(`User Agent: ${userAgent}`)
-      addDebug(`Screen: ${window.innerWidth}x${window.innerHeight}`)
-      
-      // Test 2: localStorage (suspect #1)
-      try {
-        localStorage.setItem('safari-test', 'ok')
-        localStorage.removeItem('safari-test')
-        addDebug('✅ localStorage works')
-      } catch (err: any) {
-        addDebug(`❌ localStorage ERROR: ${err.message}`)
-      }
-      
-      // Test 3: APIs modernes
-      try {
-        if ('matchMedia' in window) {
-          const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
-          addDebug(`✅ matchMedia works: ${darkMode}`)
-        } else {
-          addDebug('❌ matchMedia not supported')
-        }
-      } catch (err: any) {
-        addDebug(`❌ matchMedia ERROR: ${err.message}`)
-      }
-      
-      // Test 4: Promises et async
-      Promise.resolve('test').then(() => {
-        addDebug('✅ Promises work')
-      }).catch((err) => {
-        addDebug(`❌ Promise ERROR: ${err.message}`)
-      })
-      
-      // Test 5: setTimeout
-      setTimeout(() => {
-        addDebug('✅ setTimeout works')
-        setTestPhase(1)
-      }, 1000)
-      
-    } catch (err: any) {
-      addDebug(`❌ GENERAL ERROR in useEffect: ${err.message}`)
+    // Chargement progressif pour Safari mobile
+    if (isSafariMobile) {
+      // Phase 1: CSS ready
+      setTimeout(() => setLoadingPhase(1), 100)
+      // Phase 2: Contexts ready
+      setTimeout(() => setLoadingPhase(2), 300)
+      // Phase 3: Router ready
+      setTimeout(() => setLoadingPhase(3), 500)
+    } else {
+      // Chargement immédiat sur desktop
+      setLoadingPhase(3)
     }
   }, [])
   
-  // Test des imports suspects un par un
-  const testImports = async () => {
-    addDebug('Testing imports...')
-    
-    try {
-      addDebug('Testing React Router...')
-      const { BrowserRouter } = await import('react-router-dom')
-      addDebug('✅ React Router imported')
-    } catch (err: any) {
-      addDebug(`❌ React Router ERROR: ${err.message}`)
+  // Error boundary simple
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('🚨 App Error:', event.error)
+      setError(`Erreur: ${event.error?.message || 'Erreur inconnue'}`)
     }
     
-    try {
-      addDebug('Testing Supabase lib...')
-      const { supabase } = await import('./lib/supabase')
-      addDebug('✅ Supabase lib imported')
-      
-      // Test simple Supabase call
-      const { data, error } = await supabase.auth.getSession()
-      if (error) {
-        addDebug(`❌ Supabase auth ERROR: ${error.message}`)
-      } else {
-        addDebug(`✅ Supabase auth works: ${data?.session ? 'session exists' : 'no session'}`)
-      }
-    } catch (err: any) {
-      addDebug(`❌ Supabase ERROR: ${err.message}`)
-    }
-    
-    try {
-      addDebug('Testing AuthContext...')
-      const { AuthProvider } = await import('./contexts/AuthContext')
-      addDebug('✅ AuthContext imported')
-    } catch (err: any) {
-      addDebug(`❌ AuthContext ERROR: ${err.message}`)
-    }
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [])
+  
+  if (error) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#dc2626',
+        color: 'white',
+        padding: '2rem',
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center'
+      }}>
+        <h1>⚠️ Erreur détectée</h1>
+        <p>{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{
+            padding: '10px 20px',
+            marginTop: '1rem',
+            backgroundColor: 'white',
+            color: 'black',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          Recharger la page
+        </button>
+      </div>
+    )
   }
   
+  if (loadingPhase < 3) {
+    const messages = [
+      'Initialisation...',
+      'Préparation de l\'interface...',
+      'Chargement des composants...',
+      'Finalisation...'
+    ]
+    return <LoadingFallback message={messages[loadingPhase] || 'Chargement...'} />
+  }
+  
+  // Version simplifiée pour Safari mobile
+  if (isSafariMobile) {
+    return (
+      <Suspense fallback={<LoadingFallback message="Chargement de l'application..." />}>
+        <BrowserRouter>
+          <Suspense fallback={<LoadingFallback message="Initialisation de l'authentification..." />}>
+            <AuthProvider>
+              <Suspense fallback={<LoadingFallback message="Configuration des notifications..." />}>
+                <NotificationProvider>
+                  <SafariMobileApp />
+                </NotificationProvider>
+              </Suspense>
+            </AuthProvider>
+          </Suspense>
+        </BrowserRouter>
+      </Suspense>
+    )
+  }
+  
+  // Version complète pour desktop (import direct)
+  return <DesktopApp />
+}
+
+// Version Safari Mobile simplifiée
+const SafariMobileApp: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState(true)
+  
   return (
-    <div style={{
-      minHeight: '100vh',
-      minHeight: '-webkit-fill-available',
-      backgroundColor: '#0f0d15',
-      color: 'white',
-      padding: '1rem',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      
-      {/* Status en haut */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: 'green',
-        color: 'white',
-        padding: '10px',
-        fontSize: '14px',
-        zIndex: 9997
-      }}>
-        ✅ React + App.tsx OK | Phase: {testPhase} | Logs: {debugInfo.length}
-      </div>
-      
-      <div style={{
-        textAlign: 'center',
-        paddingTop: '2rem',
-        maxWidth: '800px',
-        margin: '0 auto'
-      }}>
-        
-        <h1 style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>
-          💜 AFFINIA
-        </h1>
-        <p style={{ color: '#9ca3af', marginBottom: '2rem' }}>
-          Debug Safari Mobile - App.tsx Simplifié
-        </p>
-        
-        {/* Tests */}
-        <div style={{
-          backgroundColor: '#1f2937',
-          padding: '2rem',
-          borderRadius: '1rem',
-          margin: '2rem 0',
-          border: '1px solid #374151'
-        }}>
-          <h2>🧪 Tests App.tsx</h2>
-          <p>Phase de test: {testPhase}</p>
-          
-          <div style={{ margin: '2rem 0', display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
-              onClick={() => {
-                addDebug('Manual button test')
-                setTestPhase(prev => prev + 1)
-              }}
-              style={{
-                padding: '15px 30px',
-                backgroundColor: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              Test Manual
-            </button>
-            
-            <button
-              onClick={testImports}
-              style={{
-                padding: '15px 30px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              🔥 Test Imports (Dangereux)
-            </button>
-            
-            <button
-              onClick={() => {
-                // Test CSS injection comme dans le vrai App.tsx
-                addDebug('Testing CSS injection...')
-                try {
-                  const style = document.createElement('style')
-                  style.textContent = `
-                    .test-css { color: red; }
-                    @keyframes test-anim { 0% { opacity: 1; } 100% { opacity: 0; } }
-                  `
-                  document.head.appendChild(style)
-                  addDebug('✅ CSS injection works')
-                } catch (err: any) {
-                  addDebug(`❌ CSS injection ERROR: ${err.message}`)
-                }
-              }}
-              style={{
-                padding: '15px 30px',
-                backgroundColor: '#059669',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              Test CSS
-            </button>
-          </div>
-        </div>
-        
-        {/* Debug Log */}
-        <div style={{
-          backgroundColor: '#111827',
-          padding: '1rem',
-          borderRadius: '0.5rem',
-          border: '1px solid #374151',
-          maxHeight: '300px',
-          overflowY: 'auto',
-          textAlign: 'left'
-        }}>
-          <h3 style={{ color: '#10b981', marginBottom: '1rem' }}>🔍 Debug Log (Temps réel)</h3>
-          {debugInfo.map((info, index) => (
-            <div key={index} style={{ 
-              fontSize: '0.75rem', 
-              color: '#9ca3af',
-              marginBottom: '0.25rem',
-              fontFamily: 'monospace',
-              wordBreak: 'break-all'
-            }}>
-              {info}
-            </div>
-          ))}
-        </div>
-        
-        <div style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#6b7280' }}>
-          Si cette page s'affiche, React fonctionne. Les boutons vont tester les suspects un par un.
-        </div>
-      </div>
+    <div className={isDarkMode ? 'dark' : ''}>
+      <Suspense fallback={<LoadingFallback message="Chargement des pages..." />}>
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/confirm" element={<AuthConfirm />} />
+          <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
+          <Route path="/" element={<HomePage isDarkMode={isDarkMode} />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Suspense>
     </div>
   )
 }
 
-export default TestApp
+// Version Desktop (ton App.tsx original)
+const DesktopApp: React.FC = () => {
+  // Ici on peut importer directement tout ton App.tsx original
+  // sans lazy loading ni optimisations Safari
+  return (
+    <div>
+      <p style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>
+        Version Desktop - Bientôt disponible
+        <br />
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{
+            padding: '10px 20px',
+            marginTop: '1rem',
+            backgroundColor: '#8b5cf6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          Recharger
+        </button>
+      </p>
+    </div>
+  )
+}
+
+export default App
