@@ -30,88 +30,55 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
     }
   }, [propIsDarkMode])
 
-  // Récupération et validation du code au chargement
+  // Récupération et validation de la session au chargement
   useEffect(() => {
-    const validateCode = async () => {
+    const handlePasswordReset = async () => {
       try {
-        // Récupérer le code depuis les URL params (nouveau format Supabase)
+        // Vérifier si on a des paramètres d'URL (Supabase les traite automatiquement)
         const urlParams = new URLSearchParams(window.location.search)
         const code = urlParams.get('code')
-
-        console.log('🔑 Code récupéré:', { code: !!code })
-
-        if (!code) {
-          // Fallback: essayer l'ancien format avec tokens dans le hash
-          const hashParams = new URLSearchParams(window.location.hash.substring(1))
-          const accessToken = hashParams.get('access_token')
-          const refreshToken = hashParams.get('refresh_token')
-
-          if (accessToken && refreshToken) {
-            console.log('🔄 Utilisation ancien format tokens')
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            })
-
-            if (error) {
-              console.error('❌ Erreur validation tokens:', error)
-              setError('Lien de réinitialisation invalide ou expiré')
-              setTokensValid(false)
-              return
-            }
-
-            if (data.session) {
-              console.log('✅ Session établie avec tokens')
-              setTokensValid(true)
-            } else {
-              setError('Impossible d\'établir la session')
-              setTokensValid(false)
-            }
-            return
-          }
-
-          setError('Lien de réinitialisation invalide ou expiré')
-          setTokensValid(false)
-          return
+        
+        if (code) {
+          console.log('🔄 Code détecté, attente du traitement automatique Supabase...')
+          // Attendre que Supabase traite automatiquement le code
+          await new Promise(resolve => setTimeout(resolve, 2000))
         }
 
-        // Échanger le code contre une session (nouveau format Supabase PKCE)
-        console.log('🔄 Échange du code contre une session...')
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        // Vérifier la session après traitement automatique
+        console.log('🔄 Vérification de la session...')
+        const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('❌ Erreur échange code:', error)
-          
-          if (error.message?.includes('expired')) {
-            setError('Le lien de réinitialisation a expiré. Demandez un nouveau lien.')
-          } else if (error.message?.includes('invalid')) {
-            setError('Lien de réinitialisation invalide')
-          } else {
-            setError('Erreur lors de la validation du lien')
-          }
+          console.error('❌ Erreur session:', error)
+          setError('Erreur lors de la validation')
           setTokensValid(false)
           return
         }
 
-        if (data.session) {
-          console.log('✅ Session établie avec succès via code')
+        if (session && session.user) {
+          console.log('✅ Session valide trouvée:', session.user.email)
           setTokensValid(true)
           
-          // Nettoyer l'URL pour éviter de réutiliser le code
-          window.history.replaceState({}, document.title, '/reset-password')
-        } else {
-          setError('Impossible d\'établir la session')
-          setTokensValid(false)
+          // Nettoyer l'URL
+          if (code) {
+            window.history.replaceState({}, document.title, '/reset-password')
+          }
+          return
         }
 
+        // Si toujours pas de session après 2s, c'est que le lien est invalide/expiré
+        console.log('❌ Aucune session trouvée après traitement')
+        setError('Le lien de réinitialisation a expiré ou est invalide')
+        setTokensValid(false)
+
       } catch (error: any) {
-        console.error('❌ Erreur lors de la validation:', error)
-        setError('Une erreur est survenue lors de la validation')
+        console.error('❌ Erreur lors du traitement:', error)
+        setError('Une erreur est survenue')
         setTokensValid(false)
       }
     }
 
-    validateCode()
+    handlePasswordReset()
   }, [])
 
   // Gestion du thème
