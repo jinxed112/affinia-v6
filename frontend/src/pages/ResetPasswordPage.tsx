@@ -38,12 +38,31 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        const error = hashParams.get('error')
+        const errorCode = hashParams.get('error_code')
         
         console.log('🔑 Tokens détectés:', { 
           accessToken: !!accessToken, 
           refreshToken: !!refreshToken,
+          error,
+          errorCode,
           hash: window.location.hash.substring(0, 50) + '...'
         })
+
+        // Gérer les erreurs dans l'URL
+        if (error || errorCode) {
+          console.error('❌ Erreur dans URL:', { error, errorCode })
+          
+          if (errorCode === 'otp_expired') {
+            setError('Le lien de réinitialisation a expiré. Demandez un nouveau lien.')
+          } else if (error === 'access_denied') {
+            setError('Accès refusé. Le lien n\'est plus valide.')
+          } else {
+            setError('Erreur lors de la validation du lien')
+          }
+          setTokensValid(false)
+          return
+        }
 
         if (accessToken && refreshToken) {
           console.log('✅ Flow implicit - Établissement de la session avec tokens')
