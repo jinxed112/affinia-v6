@@ -30,52 +30,88 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
     }
   }, [propIsDarkMode])
 
-  // Récupération et validation des tokens au chargement
+  // Récupération et validation du code au chargement
   useEffect(() => {
-    const validateTokens = async () => {
+    const validateCode = async () => {
       try {
-        // Récupérer les tokens depuis l'URL (hash fragments)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
+        // Récupérer le code depuis les URL params (nouveau format Supabase)
+        const urlParams = new URLSearchParams(window.location.search)
+        const code = urlParams.get('code')
 
-        console.log('🔑 Tokens récupérés:', { accessToken: !!accessToken, refreshToken: !!refreshToken })
+        console.log('🔑 Code récupéré:', { code: !!code })
 
-        if (!accessToken || !refreshToken) {
+        if (!code) {
+          // Fallback: essayer l'ancien format avec tokens dans le hash
+          const hashParams = new URLSearchParams(window.location.hash.substring(1))
+          const accessToken = hashParams.get('access_token')
+          const refreshToken = hashParams.get('refresh_token')
+
+          if (accessToken && refreshToken) {
+            console.log('🔄 Utilisation ancien format tokens')
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            })
+
+            if (error) {
+              console.error('❌ Erreur validation tokens:', error)
+              setError('Lien de réinitialisation invalide ou expiré')
+              setTokensValid(false)
+              return
+            }
+
+            if (data.session) {
+              console.log('✅ Session établie avec tokens')
+              setTokensValid(true)
+            } else {
+              setError('Impossible d\'établir la session')
+              setTokensValid(false)
+            }
+            return
+          }
+
           setError('Lien de réinitialisation invalide ou expiré')
           setTokensValid(false)
           return
         }
 
-        // Définir la session avec les tokens
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        })
+        // Échanger le code contre une session (nouveau format Supabase PKCE)
+        console.log('🔄 Échange du code contre une session...')
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (error) {
-          console.error('❌ Erreur validation tokens:', error)
-          setError('Lien de réinitialisation invalide ou expiré')
+          console.error('❌ Erreur échange code:', error)
+          
+          if (error.message?.includes('expired')) {
+            setError('Le lien de réinitialisation a expiré. Demandez un nouveau lien.')
+          } else if (error.message?.includes('invalid')) {
+            setError('Lien de réinitialisation invalide')
+          } else {
+            setError('Erreur lors de la validation du lien')
+          }
           setTokensValid(false)
           return
         }
 
         if (data.session) {
-          console.log('✅ Session établie avec succès')
+          console.log('✅ Session établie avec succès via code')
           setTokensValid(true)
+          
+          // Nettoyer l'URL pour éviter de réutiliser le code
+          window.history.replaceState({}, document.title, '/reset-password')
         } else {
           setError('Impossible d\'établir la session')
           setTokensValid(false)
         }
 
       } catch (error: any) {
-        console.error('❌ Erreur lors de la validation des tokens:', error)
+        console.error('❌ Erreur lors de la validation:', error)
         setError('Une erreur est survenue lors de la validation')
         setTokensValid(false)
       }
     }
 
-    validateTokens()
+    validateCode()
   }, [])
 
   // Gestion du thème
