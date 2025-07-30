@@ -2,8 +2,9 @@
 export { AdminPage } from './AdminPage';
 export { DiscoveryPage } from './DiscoveryPage';
 export { HomePage } from './HomePage';
-export { Login } from './Login';
+export { default as Login } from './Login';
 export { MiroirPage } from './MiroirPage';
 export { MirrorRequestsPage } from './MirrorRequestsPage';
 export { ProfilePage } from './ProfilePage';
-export { QuestionnairePage } from './QuestionnairePage';
+export { default as QuestionnairePage } from './QuestionnairePage';
+export { default as ResetPasswordPage } from './ResetPasswordPage';

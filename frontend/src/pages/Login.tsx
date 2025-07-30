@@ -357,7 +357,7 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
 export { AffiniaLanding }
 export default AffiniaLanding
 
-// Composant formulaire de login avec nouvelles options
+// Composant formulaire de login avec nouvelles options ET reset password
 const LoginForm: React.FC<{
   isDarkMode: boolean
   handleProviderAuth: (provider: 'google' | 'facebook') => void
@@ -426,6 +426,40 @@ const LoginForm: React.FC<{
       } else {
         setAuthError(error.message || 'Erreur de connexion')
       }
+    } finally {
+      setLoadingProvider(null)
+    }
+  }
+
+  // 🔥 NOUVELLE FONCTION : Reset Password
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setAuthError('Veuillez entrer votre email d\'abord')
+      return
+    }
+    
+    try {
+      setAuthError('')
+      setLoadingProvider('email')
+      
+      console.log('🔄 Envoi email reset password pour:', email)
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      })
+      
+      if (error) {
+        console.error('❌ Erreur reset password:', error)
+        setAuthError('Erreur lors de l\'envoi de l\'email')
+        return
+      }
+      
+      console.log('✅ Email de reset envoyé avec succès')
+      setAuthError('✅ Email de réinitialisation envoyé ! Vérifiez votre boîte mail.')
+      
+    } catch (error: any) {
+      console.error('❌ Erreur reset password:', error)
+      setAuthError('Une erreur est survenue')
     } finally {
       setLoadingProvider(null)
     }
@@ -541,6 +575,29 @@ const LoginForm: React.FC<{
                 {loadingProvider === 'email' ? 'Connexion...' : isSignUp ? 'Créer mon compte' : 'Se connecter'}
               </button>
             </form>
+
+            {/* 🔥 BOUTON MOT DE PASSE OUBLIÉ */}
+            {!isSignUp && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={!email || loadingProvider !== null}
+                  className={`text-sm hover:underline transition-colors ${
+                    isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
+                  } ${(!email || loadingProvider !== null) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {loadingProvider === 'email' ? 'Envoi en cours...' : 'Mot de passe oublié ?'}
+                </button>
+                {!email && (
+                  <p className={`text-xs mt-1 ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
+                    Entrez votre email d'abord
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 text-center">
               <button

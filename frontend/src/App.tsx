@@ -15,6 +15,7 @@ import { DiscoveryPage } from './pages/DiscoveryPage'
 import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
 import QuestionnairePage from './pages/QuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
+import { ResetPasswordPage } from "./pages"
 
 // Détection Safari mobile
 const isSafariMobile = (() => {
@@ -147,6 +148,7 @@ function AppContent() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/confirm" element={<AuthConfirm />} />
           <Route path="/login" element={<Login isDarkMode={isDarkMode} />} />
+          <Route path="/reset-password" element={<ResetPasswordPage isDarkMode={isDarkMode} />} />
 
           {/* Routes privées */}
           <Route path="/" element={
