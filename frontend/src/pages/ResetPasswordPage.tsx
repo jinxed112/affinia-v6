@@ -30,45 +30,87 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
     }
   }, [propIsDarkMode])
 
-  // Récupération et validation de la session au chargement
+  // Récupération et validation des tokens au chargement (Flow Implicit)
   useEffect(() => {
     const handlePasswordReset = async () => {
       try {
-        // Vérifier si on a des paramètres d'URL (Supabase les traite automatiquement)
-        const urlParams = new URLSearchParams(window.location.search)
-        const code = urlParams.get('code')
+        // Le flow implicit utilise des tokens dans le hash URL
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
         
-        if (code) {
-          console.log('🔄 Code détecté, attente du traitement automatique Supabase...')
-          // Attendre que Supabase traite automatiquement le code
-          await new Promise(resolve => setTimeout(resolve, 2000))
+        console.log('🔑 Tokens détectés:', { 
+          accessToken: !!accessToken, 
+          refreshToken: !!refreshToken,
+          hash: window.location.hash.substring(0, 50) + '...'
+        })
+
+        if (accessToken && refreshToken) {
+          console.log('✅ Flow implicit - Établissement de la session avec tokens')
+          
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (error) {
+            console.error('❌ Erreur établissement session:', error)
+            if (error.message?.includes('expired')) {
+              setError('Le lien de réinitialisation a expiré. Demandez un nouveau lien.')
+            } else {
+              setError('Lien de réinitialisation invalide')
+            }
+            setTokensValid(false)
+            return
+          }
+
+          if (data.session && data.user) {
+            console.log('✅ Session établie avec succès:', data.user.email)
+            setTokensValid(true)
+            
+            // Nettoyer l'URL pour éviter de réutiliser les tokens
+            window.history.replaceState({}, document.title, '/reset-password')
+            return
+          }
         }
 
-        // Vérifier la session après traitement automatique
-        console.log('🔄 Vérification de la session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Fallback: vérifier s'il y a déjà une session active
+        console.log('🔄 Vérification session existante...')
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-        if (error) {
-          console.error('❌ Erreur session:', error)
+        if (sessionError) {
+          console.error('❌ Erreur session:', sessionError)
           setError('Erreur lors de la validation')
           setTokensValid(false)
           return
         }
 
         if (session && session.user) {
-          console.log('✅ Session valide trouvée:', session.user.email)
+          console.log('✅ Session existante trouvée:', session.user.email)
           setTokensValid(true)
-          
-          // Nettoyer l'URL
-          if (code) {
-            window.history.replaceState({}, document.title, '/reset-password')
-          }
           return
         }
 
-        // Si toujours pas de session après 2s, c'est que le lien est invalide/expiré
-        console.log('❌ Aucune session trouvée après traitement')
-        setError('Le lien de réinitialisation a expiré ou est invalide')
+        // Fallback: essayer le format code (au cas où)
+        const urlParams = new URLSearchParams(window.location.search)
+        const code = urlParams.get('code')
+
+        if (code) {
+          console.log('🔄 Code détecté, tentative de traitement...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          const { data: { session: newSession } } = await supabase.auth.getSession()
+          if (newSession) {
+            console.log('✅ Session établie via code')
+            setTokensValid(true)
+            window.history.replaceState({}, document.title, '/reset-password')
+            return
+          }
+        }
+
+        // Aucune méthode n'a fonctionné
+        console.log('❌ Aucune session valide trouvée')
+        setError('Lien de réinitialisation invalide ou expiré')
         setTokensValid(false)
 
       } catch (error: any) {
