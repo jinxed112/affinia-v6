@@ -181,10 +181,10 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       }
 
       // Chercher n'importe quel code de validation : aff_[nombre]_[sessionId]
-      // Si sessionId est vide, on cherche n'importe quel pattern aff_
+      // Gérer les backslashes d'échappement : aff\_[nombre]\_[sessionId]
       const validationRegex = sessionId 
-        ? new RegExp(`aff_(\\d+)_${sessionId}`, 'i')
-        : /aff_(\d+)_([a-z0-9]+)/i;
+        ? new RegExp(`aff[_\\\\]*(\\d+)[_\\\\]*${sessionId}`, 'i')
+        : /aff[_\\]*(\d+)[_\\]*([a-z0-9]+)/i;
       const validationMatch = cleanText.match(validationRegex);
       
       if (!validationMatch) {
