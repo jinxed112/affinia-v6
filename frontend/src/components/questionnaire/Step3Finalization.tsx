@@ -116,6 +116,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       }
 
       const data = await response.json()
+      console.log('🔍 DEBUG API Response:', data) // 🆕 DEBUG
       return {
         prompt: data.data.prompt,
         sessionId: data.data.sessionId
@@ -179,8 +180,11 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         return false;
       }
 
-      // Chercher le code de validation : aff_[nombre]_[sessionId]
-      const validationRegex = new RegExp(`aff_(\\d+)_${sessionId}`, 'i');
+      // Chercher n'importe quel code de validation : aff_[nombre]_[sessionId]
+      // Si sessionId est vide, on cherche n'importe quel pattern aff_
+      const validationRegex = sessionId 
+        ? new RegExp(`aff_(\\d+)_${sessionId}`, 'i')
+        : /aff_(\d+)_([a-z0-9]+)/i;
       const validationMatch = cleanText.match(validationRegex);
       
       if (!validationMatch) {
@@ -289,6 +293,8 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         console.log('✅ Prompt généré:', { sessionId: result.sessionId })
         setGeneratedPrompt(result.prompt)
         setSessionId(result.sessionId)
+        
+        console.log('🔑 SessionId stocké:', result.sessionId) // 🆕 DEBUG
         
         // 🆕 SAUVEGARDE ROBUSTE - Toujours sauvegarder les réponses
         if (user?.id) {
