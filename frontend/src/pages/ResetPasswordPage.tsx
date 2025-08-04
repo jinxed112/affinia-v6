@@ -30,7 +30,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
     }
   }, [propIsDarkMode])
 
-  // Récupération et validation des tokens au chargement (Flow Implicit)
+  // Récupération et validation des tokens au chargement (Flow Implicit + PKCE)
   useEffect(() => {
     const handlePasswordReset = async () => {
       try {
@@ -110,19 +110,33 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ isDarkMode: propI
           return
         }
 
-        // Fallback: essayer le format code (au cas où)
+        // Traitement correct du code PKCE
         const urlParams = new URLSearchParams(window.location.search)
         const code = urlParams.get('code')
 
         if (code) {
-          console.log('🔄 Code détecté, tentative de traitement...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          console.log('🔄 Code PKCE détecté, traitement...', code)
           
-          const { data: { session: newSession } } = await supabase.auth.getSession()
-          if (newSession) {
-            console.log('✅ Session établie via code')
-            setTokensValid(true)
-            window.history.replaceState({}, document.title, '/reset-password')
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+            
+            if (error) {
+              console.error('❌ Erreur exchange code:', error)
+              setError('Lien de réinitialisation invalide ou expiré')
+              setTokensValid(false)
+              return
+            }
+
+            if (data.session && data.user) {
+              console.log('✅ Session établie via code PKCE:', data.user.email)
+              setTokensValid(true)
+              window.history.replaceState({}, document.title, '/reset-password')
+              return
+            }
+          } catch (err) {
+            console.error('❌ Erreur traitement code:', err)
+            setError('Erreur lors du traitement du lien')
+            setTokensValid(false)
             return
           }
         }
