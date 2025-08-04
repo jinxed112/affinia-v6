@@ -87,6 +87,14 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
   const canGoNext = isStepComplete(currentStep)
   const isLastStep = currentStep === steps.length - 1
 
+  // Scroll automatique vers le haut quand on change d'étape
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }, [currentStep])
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')} pb-24`}>
       {/* Background mystique unifié */}
@@ -245,26 +253,7 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
           </div>
         </nav>
 
-        {/* Conseil flottant - Version mobile */}
-        <div className="fixed bottom-24 left-4 right-4 z-20 pointer-events-none">
-          <div className="max-w-2xl mx-auto">
-            <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-3 opacity-90 pointer-events-auto">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white flex-shrink-0">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className={`font-semibold text-sm mb-1 ${designSystem.getTextClasses('primary')}`}>
-                    💡 Conseil
-                  </h4>
-                  <p className={`text-xs ${designSystem.getTextClasses('secondary')}`}>
-                    Sois authentique pour des matchs plus compatibles.
-                  </p>
-                </div>
-              </div>
-            </BaseComponents.Card>
-          </div>
-        </div>
+
       </div>
     </div>
   )
