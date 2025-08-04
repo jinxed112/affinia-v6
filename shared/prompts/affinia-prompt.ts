@@ -258,7 +258,7 @@ const getConflictDescription = (approach: string): string => {
   return descriptions[approach as keyof typeof descriptions] || approach
 }
 
-// 🆕 VERSION SÉCURISÉE FINALE - Simple et robuste
+// 🆕 VERSION SÉCURISÉE FINALE - Avec hash MD5
 const generateAffiniaPromptV8Secure = (
   answers: QuestionnaireAnswers, 
   messageCount: number = 0, 
@@ -271,16 +271,19 @@ const generateAffiniaPromptV8Secure = (
   // Générer un ID unique pour cette session
   const sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2)
   
-  // Instructions finales optimisées
+  // Instructions finales optimisées avec HASH MD5
   const securePrompt = `${basePrompt}
 
 🔒 **VALIDATION D'INTÉGRITÉ :**
 
-À la fin de ta réponse, après le JSON, inclus cette ligne EXACTEMENT :
+À la fin de ta réponse, après le JSON, calcule le hash MD5 de ta réponse complète et inclus cette ligne EXACTEMENT :
 
-🔐 Code de validation : **aff_[nombre total de caractères de ta réponse complète]_${sessionId}**
+🔐 Code de validation : **aff_[hash_md5_de_ta_réponse_complète]_${sessionId}**
 
-Exemple : Si ta réponse fait 2847 caractères → aff_2847_${sessionId}
+**IMPORTANT** : 
+- Le hash MD5 doit être calculé sur l'intégralité de ta réponse, de "**PARTIE 1**" jusqu'à cette ligne de validation incluse.
+- Utilise un calculateur MD5 en ligne si nécessaire (par exemple md5hashgenerator.com).
+- Le hash doit être en minuscules et faire exactement 32 caractères.
 
 🚫 **RÈGLES STRICTES :**
 - Termine par le JSON puis la ligne de validation, POINT FINAL
