@@ -377,62 +377,40 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       const expectedHash = validationMatch[1];
       console.log('🔍 DEBUG Expected hash:', expectedHash);
       
-  // 🆕 VALIDATION ULTRA-SIMPLIFIÉE (PLUS DE SESSIONID NON PLUS)
-  const validateProfileIntegrity = (profileText: string): boolean => {
+  // 🆕 VALIDATION BASIQUE - JUSTE ANTI-INJECTION
+  const validateAndSanitizeProfile = (profileText: string): { isValid: boolean, sanitizedText: string, message: string } => {
     try {
-      const cleanText = profileText.trim();
+      let cleanText = profileText.trim();
       
-      // Vérifications de base
-      if (cleanText.length < 800) {
-        setProfileValidation({
+      // Vérification basique - pas vide
+      if (cleanText.length < 50) {
+        return {
           isValid: false,
-          message: '❌ Le profil est trop court. Copie bien toute la réponse de l\'IA.'
-        });
-        return false;
+          sanitizedText: '',
+          message: '❌ Le profil est trop court.'
+        };
       }
 
-      // Vérifier que les sections essentielles sont présentes
-      const hasAnalysis = /PARTIE\s*1|ANALYSE\s+PERSONNELLE/i.test(cleanText);
-      const hasJson = /```\s*json|"reliability_score"|"strength_signals"/i.test(cleanText);
-      const hasValidationCode = /🔐.*aff_/i.test(cleanText);
-      
-      if (!hasAnalysis) {
-        setProfileValidation({
-          isValid: false,
-          message: '❌ Section d\'analyse manquante. Copie depuis le début de la réponse.'
-        });
-        return false;
-      }
+      // Sanitize basique - supprime les scripts et trucs dangereux
+      cleanText = cleanText
+        .replace(/<script[^>]*>.*?<\/script>/gi, '') // Supprime les scripts
+        .replace(/<[^>]*>/g, '') // Supprime les balises HTML
+        .replace(/javascript:/gi, '') // Supprime javascript:
+        .replace(/on\w+\s*=/gi, '') // Supprime les event handlers
+        .trim();
 
-      if (!hasJson) {
-        setProfileValidation({
-          isValid: false,
-          message: '❌ Données JSON manquantes. Copie jusqu\'à la fin de la réponse.'
-        });
-        return false;
-      }
-
-      if (!hasValidationCode) {
-        setProfileValidation({
-          isValid: false,
-          message: '❌ Code de validation manquant. Assure-toi de copier toute la réponse.'
-        });
-        return false;
-      }
-
-      // ✅ Structure complète !
-      setProfileValidation({
+      return {
         isValid: true,
-        message: `✅ Profil complet ! Structure validée (${cleanText.length} caractères). Tu peux le sauvegarder.`
-      });
-      return true;
+        sanitizedText: cleanText,
+        message: `✅ Profil prêt ! ${cleanText.length} caractères. Sauvegarde en cours...`
+      };
       
     } catch (error) {
-      setProfileValidation({
+      return {
         isValid: false,
-        message: '❌ Erreur lors de la vérification. Réessaye.'
-      });
-      return false;
+        sanitizedText: '',
+        message: '❌ Erreur lors du traitement. Réessaye.'
+      };
     }
   };
       
@@ -539,69 +517,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setGeneratedProfile(e.target.value)
-    if (profileValidation) {
-      setProfileValidation(null)
-    }
-  }
-
-  // 🆕 FONCTION HANDLESAVEPROFILE CORRIGÉE AVEC DEBUG
-  const handleSaveProfile = async () => {
-    if (!generatedProfile.trim() || !user?.id || !currentResponseId) {
-      console.error('❌ Données manquantes:', {
-        hasProfile: !!generatedProfile.trim(),
-        hasUserId: !!user?.id,
-        hasResponseId: !!currentResponseId
-      });
-      return;
-    }
-    
-    if (!profileValidation?.isValid) {
-      await handleVerifyProfile()
-      if (!profileValidation?.isValid) return
-    }
-    
-    setIsSavingProfile(true)
-    
-    try {
-      console.log('🔄 Sauvegarde du profil:', {
-        responseId: currentResponseId,
-        userId: user.id,
-        profileLength: generatedProfile.length
-      });
-
-      const result = await questionnaireService.updateGeneratedProfile(
-        currentResponseId,
-        user.id,
-        generatedProfile
-      )
-      
-      console.log('📝 Résultat sauvegarde:', result);
-      
-      if (result.error) {
-        console.error('❌ Erreur service:', result.error);
-        setProfileValidation({
-          isValid: false,
-          message: `❌ Erreur: ${result.error.message || 'Sauvegarde échouée'}`
-        })
-      } else {
-        console.log('✅ Profil sauvegardé avec succès');
-        setShowSaveSuccess(true)
-        setTimeout(() => setShowSaveSuccess(false), 3000)
-        
-        // 🆕 REDIRECT vers le miroir après sauvegarde réussie
-        setTimeout(() => {
-          navigate('/miroir')
-        }, 1500)
-      }
-    } catch (error) {
-      console.error('❌ Exception sauvegarde:', error);
-      setProfileValidation({
-        isValid: false,
-        message: `❌ Exception: ${error.message || 'Erreur technique'}`
-      })
-    } finally {
-      setIsSavingProfile(false)
-    }
+    // Plus besoin de reset la validation
   }
 
   // Page de résultat avec le prompt généré
@@ -651,7 +567,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
             </div>
             <div className="flex items-center gap-2">
               <span className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">3</span>
-              <span>Colle TOUTE la réponse ici</span>
+              <span>Colle la réponse ici et sauvegarde</span>
             </div>
           </div>
         </BaseComponents.Card>
@@ -697,7 +613,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
           <textarea
             value={generatedProfile}
             onChange={handleProfileChange}
-            placeholder="Colle ici la réponse COMPLÈTE de l'IA..."
+            placeholder="Colle ici la réponse de l'IA et clique sur sauvegarder..."
             rows={6}
             className={`w-full px-3 py-2 rounded-lg backdrop-blur-sm border-2 transition-all duration-300 resize-none text-sm
               focus:outline-none focus:ring-4 focus:ring-purple-500/20
@@ -707,7 +623,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
               } focus:border-purple-500`}
           />
           
-          {/* Validation */}
+          {/* Affichage du résultat de sauvegarde */}
           {profileValidation && (
             <div className={`mt-2 p-2 rounded-lg flex items-start gap-2 text-sm ${
               profileValidation.isValid 
@@ -728,26 +644,14 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
           {/* Actions sur le profil */}
           {generatedProfile && (
             <div className="mt-3 flex items-center gap-3">
-              {!profileValidation && (
-                <BaseComponents.Button
-                  variant="secondary"
-                  size="small"
-                  onClick={handleVerifyProfile}
-                >
-                  🔍 Vérifier
-                </BaseComponents.Button>
-              )}
-              
-              {profileValidation?.isValid && (
-                <BaseComponents.Button
-                  variant="primary"
-                  size="small"
-                  onClick={handleSaveProfile}
-                  disabled={isSavingProfile || !currentResponseId}
-                >
-                  {isSavingProfile ? 'Sauvegarde...' : showSaveSuccess ? '✓ Sauvé !' : '💾 Sauvegarder'}
-                </BaseComponents.Button>
-              )}
+              <BaseComponents.Button
+                variant="primary"
+                size="small"
+                onClick={handleVerifyProfile}
+                disabled={isSavingProfile}
+              >
+                {isSavingProfile ? 'Sauvegarde...' : showSaveSuccess ? '✓ Sauvé !' : '💾 Sauvegarder maintenant'}
+              </BaseComponents.Button>
             </div>
           )}
         </div>

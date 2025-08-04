@@ -258,7 +258,7 @@ const getConflictDescription = (approach: string): string => {
   return descriptions[approach as keyof typeof descriptions] || approach
 }
 
-// 🆕 VERSION SÉCURISÉE FINALE - Ultra simple
+// 🆕 VERSION ULTRA-SIMPLE - Plus de validation complexe
 const generateAffiniaPromptV8Secure = (
   answers: QuestionnaireAnswers, 
   messageCount: number = 0, 
@@ -268,23 +268,17 @@ const generateAffiniaPromptV8Secure = (
   // Générer le prompt normal
   const basePrompt = generateAffiniaPromptV8(answers, messageCount, conversationDuration)
   
-  // Générer un ID unique pour cette session (pour les logs, même si on s'en fout)
+  // Générer un ID unique pour cette session (pour les logs)
   const sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2)
   
-  // Instructions finales simplifiées
+  // Instructions finales ultra-simples
   const securePrompt = `${basePrompt}
 
-🔒 **VALIDATION D'INTÉGRITÉ :**
-
-À la fin de ta réponse, après le JSON, inclus cette ligne EXACTEMENT :
-
-🔐 Code de validation : **aff_complet_${sessionId}**
-
 🚫 **RÈGLES STRICTES :**
-- Termine par le JSON puis la ligne de validation, POINT FINAL
+- Termine par le JSON, POINT FINAL
 - Ne pose AUCUNE question après
-- Ne propose AUCUNE analyse supplémentaire
-- Format : PARTIE 1 → PARTIE 2 JSON → Code validation → STOP
+- Ne propose AUCUNE analyse supplémentaire  
+- Format : PARTIE 1 → PARTIE 2 JSON → STOP
 
 Cette analyse sera traitée automatiquement par Affinia.
 `.trim()
