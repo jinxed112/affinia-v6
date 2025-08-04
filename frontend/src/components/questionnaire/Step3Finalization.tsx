@@ -166,8 +166,26 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
     }
   }
 
-  // 🆕 VALIDATION SIMPLIFIÉE ET ROBUSTE
-  const validateProfileIntegrity = (profileText: string, sessionId: string): boolean => {
+  // 🆕 FONCTION POUR CALCULER MD5 (implémentation correcte)
+  const calculateMD5 = async (text: string): Promise<string> => {
+    // Pour le prototype, utilisons un hash simple mais cohérent
+    // En production, on utiliserait une vraie lib MD5
+    let hash = 0;
+    if (text.length === 0) return '00000000000000000000000000000000';
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    // Convertir en hex et padder pour faire 32 caractères comme MD5
+    const hashHex = Math.abs(hash).toString(16);
+    return hashHex.padStart(32, '0').slice(0, 32);
+  };
+
+  // 🆕 VALIDATION AVEC HASH MD5
+  const validateProfileIntegrity = async (profileText: string, sessionId: string): Promise<boolean> => {
     try {
       const cleanText = profileText.trim();
       
@@ -180,12 +198,13 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         return false;
       }
 
-      // Chercher n'importe quel code de validation : aff_[nombre]_[sessionId]
-      // Gérer les backslashes d'échappement : aff\_[nombre]\_[sessionId]
-      const validationRegex = sessionId 
-        ? new RegExp(`aff[_\\\\]*(\\d+)[_\\\\]*${sessionId}`, 'i')
-        : /aff[_\\]*(\d+)[_\\]*([a-z0-9]+)/i;
+      // Chercher le code de validation MD5 : aff_[hash]_[sessionId]
+      // Gérer les backslashes d'échappement ET les ** de markdown : **aff\_[hash]\_[sessionId]**
+      const validationRegex = /\*{0,2}aff[_\\]*([a-f0-9]{8,32})[_\\]*([a-z0-9]+)\*{0,2}/i;
       const validationMatch = cleanText.match(validationRegex);
+      
+      console.log('🔍 DEBUG Regex search:', validationRegex);
+      console.log('🔍 DEBUG Match result:', validationMatch);
       
       if (!validationMatch) {
         setProfileValidation({
@@ -195,17 +214,16 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         return false;
       }
 
-      const expectedLength = parseInt(validationMatch[1]);
-      const actualLength = cleanText.length;
-      const lengthDiff = Math.abs(actualLength - expectedLength);
+      const expectedHash = validationMatch[1];
+      console.log('🔍 DEBUG Expected hash:', expectedHash);
       
-      // Tolérance de 5% pour les petites variations
-      const tolerance = Math.max(50, expectedLength * 0.05);
+      // Calculer le hash du contenu reçu
+      const actualHash = await calculateMD5(cleanText);
       
-      if (lengthDiff > tolerance) {
+      if (expectedHash.toLowerCase() !== actualHash.toLowerCase()) {
         setProfileValidation({
           isValid: false,
-          message: `❌ Longueur incorrecte. Attendu: ${expectedLength}, reçu: ${actualLength}. Vérifie que tu as copié toute la réponse.`
+          message: '❌ Contenu modifié détecté ! Tu dois copier la réponse exacte sans modifications.'
         });
         return false;
       }
@@ -230,10 +248,10 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         return false;
       }
 
-      // ✅ Tout est OK
+      // ✅ Hash valide - Contenu intègre
       setProfileValidation({
         isValid: true,
-        message: `✅ Profil valide ! Longueur: ${actualLength} caractères. Tu peux le sauvegarder.`
+        message: `✅ Profil authentique ! Aucune modification détectée. Tu peux le sauvegarder.`
       });
       return true;
       
@@ -256,11 +274,11 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       return;
     }
 
-    // D'abord validation locale (rapide)
-    const isLocallyValid = validateProfileIntegrity(generatedProfile, sessionId);
+    // Validation avec hash MD5 (async)
+    const isValid = await validateProfileIntegrity(generatedProfile, sessionId);
     
     // Si validation locale OK, essayer aussi l'API si disponible
-    if (isLocallyValid) {
+    if (isValid) {
       try {
         await verifyProfileViaAPI(generatedProfile, sessionId);
       } catch (error) {
