@@ -6,9 +6,15 @@ import { BaseComponents } from '../ui/BaseComponents'
 
 interface Step1PsychologyProps {
   isDarkMode: boolean
+  onAutoNext?: () => void // Callback pour auto-passage
+  isTransitioning?: boolean
 }
 
-const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
+const Step1Psychology: React.FC<Step1PsychologyProps> = ({ 
+  isDarkMode, 
+  onAutoNext, 
+  isTransitioning = false 
+}) => {
   const { answers, setAnswer } = useQuestionnaireStore()
   const designSystem = useDesignSystem(isDarkMode)
   
@@ -31,6 +37,17 @@ const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
       setAnswer('communicationStyle', localData.communicationStyle as any)
     }
   }, [localData.communicationStyle])
+
+  // 🆕 Auto-passage quand toutes les réponses sont complètes
+  useEffect(() => {
+    const isComplete = localData.energySource && localData.communicationStyle
+
+    if (isComplete && onAutoNext && !isTransitioning) {
+      setTimeout(() => {
+        onAutoNext()
+      }, 1000) // Délai pour voir le message de complétion
+    }
+  }, [localData, onAutoNext, isTransitioning])
 
   const energyOptions = [
     { 
@@ -109,7 +126,7 @@ const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
   const hasAnsweredCurrent = localData[currentQ.field as keyof typeof localData]
   const canNavigateToNext = hasAnsweredCurrent && !isLastQuestion
 
-  // Auto-avancement vers la question suivante après réponse
+  // Auto-avancement vers la question suivante après réponse (logique interne conservée)
   useEffect(() => {
     if (hasAnsweredCurrent && !isLastQuestion) {
       const timer = setTimeout(() => {
@@ -120,8 +137,12 @@ const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
     }
   }, [hasAnsweredCurrent, isLastQuestion, currentQuestion])
 
+  const isComplete = localData.energySource && localData.communicationStyle
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-all duration-200 ${
+      isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+    }`}>
       {/* Progress indicator pour les sous-questions */}
       <div className="flex justify-center gap-2 mb-6">
         {questions.map((_, index) => (
@@ -245,7 +266,7 @@ const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
       )}
 
       {/* Indicateur de completion global */}
-      {localData.energySource && localData.communicationStyle && (
+      {isComplete && (
         <BaseComponents.Card isDarkMode={isDarkMode} variant="highlighted" className="p-4">
           <div className="flex items-center justify-center gap-2">
             <span className="text-2xl animate-bounce-gentle">🧠</span>
@@ -254,7 +275,10 @@ const Step1Psychology: React.FC<Step1PsychologyProps> = ({ isDarkMode }) => {
                 Psychologie complète !
               </p>
               <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Passons à l'amour ❤️
+                {onAutoNext && !isTransitioning 
+                  ? 'Passage automatique à l\'amour ❤️'
+                  : 'Passons à l\'amour ❤️'
+                }
               </p>
             </div>
           </div>

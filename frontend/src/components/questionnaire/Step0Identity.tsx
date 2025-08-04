@@ -6,9 +6,15 @@ import { BaseComponents } from '../ui/BaseComponents'
 
 interface Step0IdentityProps {
   isDarkMode: boolean
+  onAutoNext?: () => void // Callback pour auto-passage
+  isTransitioning?: boolean
 }
 
-const Step0Identity: React.FC<Step0IdentityProps> = ({ isDarkMode }) => {
+const Step0Identity: React.FC<Step0IdentityProps> = ({ 
+  isDarkMode, 
+  onAutoNext, 
+  isTransitioning = false 
+}) => {
   const { answers, setAnswer } = useQuestionnaireStore()
   const designSystem = useDesignSystem(isDarkMode)
   
@@ -49,6 +55,21 @@ const Step0Identity: React.FC<Step0IdentityProps> = ({ isDarkMode }) => {
     }
   }, [localData.orientation])
 
+  // 🆕 Auto-passage quand toutes les réponses sont complètes
+  useEffect(() => {
+    const isComplete = localData.firstName.trim().length >= 2 && 
+                      Number(localData.age) >= 18 && 
+                      Number(localData.age) <= 100 &&
+                      localData.gender && 
+                      localData.orientation
+
+    if (isComplete && onAutoNext && !isTransitioning) {
+      setTimeout(() => {
+        onAutoNext()
+      }, 800) // Délai pour voir le feedback de complétion
+    }
+  }, [localData, onAutoNext, isTransitioning])
+
   // Validation des champs individuels
   const validateField = (field: 'firstName' | 'age'): boolean => {
     if (field === 'firstName') {
@@ -81,8 +102,16 @@ const Step0Identity: React.FC<Step0IdentityProps> = ({ isDarkMode }) => {
     { value: 'autre', label: 'Autre', icon: '💫', color: 'from-indigo-500 to-purple-500' }
   ]
 
+  // Vérifier si c'est complet pour l'affichage
+  const isComplete = localData.firstName.trim().length >= 2 && 
+                    localData.age && Number(localData.age) >= 18 && Number(localData.age) <= 100 &&
+                    localData.gender && 
+                    localData.orientation
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-all duration-200 ${
+      isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+    }`}>
       {/* Prénom et Âge - Stack sur mobile, Grid sur desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Prénom */}
@@ -254,13 +283,16 @@ const Step0Identity: React.FC<Step0IdentityProps> = ({ isDarkMode }) => {
         </div>
       </div>
 
-      {/* Indicateur de completion */}
-      {localData.firstName && localData.age && localData.gender && localData.orientation && (
+      {/* Indicateur de completion avec animation */}
+      {isComplete && (
         <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-4">
           <div className="flex items-center justify-center gap-2 text-green-400">
             <span className="animate-bounce-gentle">🎉</span>
             <span className="text-sm font-medium">
-              Parfait ! Tu peux passer à l'étape suivante
+              {onAutoNext && !isTransitioning 
+                ? 'Parfait ! Passage à l\'étape suivante...'
+                : 'Parfait ! Tu peux passer à l\'étape suivante'
+              }
             </span>
           </div>
         </BaseComponents.Card>

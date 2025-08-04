@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuestionnaireStore } from '../stores/questionnaireStore'
@@ -20,8 +20,9 @@ interface QuestionnairePageProps {
 const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { currentStep, nextStep, previousStep, goToStep, isStepComplete, getProgress } = useQuestionnaireStore()
+  const { currentStep, nextStep, previousStep, isStepComplete, getProgress } = useQuestionnaireStore()
   const designSystem = useDesignSystem(isDarkMode)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -37,7 +38,8 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
       subtitle: "Qui êtes-vous ?",
       icon: <User className="w-5 h-5" />,
       emoji: "👤",
-      estimatedTime: "2 min"
+      estimatedTime: "2 min",
+      hasMultipleChoice: true
     },
     {
       id: 1,
@@ -45,7 +47,8 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
       subtitle: "Comment fonctionnez-vous ?",
       icon: <Brain className="w-5 h-5" />,
       emoji: "🧠",
-      estimatedTime: "8 min"
+      estimatedTime: "8 min",
+      hasMultipleChoice: true
     },
     {
       id: 2,
@@ -53,7 +56,8 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
       subtitle: "Comment aimez-vous ?",
       icon: <Heart className="w-5 h-5" />,
       emoji: "💝",
-      estimatedTime: "5 min"
+      estimatedTime: "5 min",
+      hasMultipleChoice: true
     },
     {
       id: 3,
@@ -61,23 +65,62 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
       subtitle: "Génération de votre profil",
       icon: <Sparkles className="w-5 h-5" />,
       emoji: "✨",
-      estimatedTime: "3 min"
+      estimatedTime: "3 min",
+      hasMultipleChoice: false
     }
   ]
 
-  // Fonction pour rendre le composant de l'étape actuelle
+  // Auto-passage avec animation fluide
+  const handleAutoNext = () => {
+    if (isTransitioning) return
+    
+    setIsTransitioning(true)
+    
+    // Animation de transition
+    setTimeout(() => {
+      nextStep()
+      setIsTransitioning(false)
+    }, 200)
+  }
+
+  // Navigation manuelle avec bouton
+  const handleManualNext = () => {
+    if (isLastStep) {
+      navigate('/miroir')
+    } else {
+      handleAutoNext()
+    }
+  }
+
+  const handlePrevious = () => {
+    if (isTransitioning) return
+    
+    setIsTransitioning(true)
+    setTimeout(() => {
+      previousStep()
+      setIsTransitioning(false)
+    }, 200)
+  }
+
+  // Fonction pour rendre le composant de l'étape actuelle avec props d'auto-navigation
   const renderCurrentStep = () => {
+    const commonProps = {
+      isDarkMode,
+      onAutoNext: handleAutoNext, // Pour les choix multiples
+      isTransitioning
+    }
+
     switch (currentStep) {
       case 0:
-        return <Step0Identity isDarkMode={isDarkMode} />
+        return <Step0Identity {...commonProps} />
       case 1:
-        return <Step1Psychology isDarkMode={isDarkMode} />
+        return <Step1Psychology {...commonProps} />
       case 2:
-        return <Step2Love isDarkMode={isDarkMode} />
+        return <Step2Love {...commonProps} />
       case 3:
         return <Step3Finalization isDarkMode={isDarkMode} />
       default:
-        return <Step0Identity isDarkMode={isDarkMode} />
+        return <Step0Identity {...commonProps} />
     }
   }
 
@@ -86,6 +129,7 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
   const canGoBack = currentStep > 0
   const canGoNext = isStepComplete(currentStep)
   const isLastStep = currentStep === steps.length - 1
+  const showContinueButton = !currentStepData.hasMultipleChoice || !canGoNext
 
   // Scroll automatique vers le haut quand on change d'étape
   useEffect(() => {
@@ -189,71 +233,99 @@ const QuestionnairePage: React.FC<QuestionnairePageProps> = ({ isDarkMode }) => 
                       {currentStepData.estimatedTime}
                     </span>
                   </div>
+                  {currentStepData.hasMultipleChoice && (
+                    <div className="flex items-center gap-1">
+                      <span className="w-3 h-3 text-blue-400">⚡</span>
+                      <span className={`${designSystem.getTextClasses('muted')}`}>
+                        Auto-passage
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </BaseComponents.Card>
 
-            {/* Contenu de l'étape */}
-            {renderCurrentStep()}
+            {/* Contenu de l'étape avec animation */}
+            <div className={`transition-all duration-200 ${
+              isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+            }`}>
+              {renderCurrentStep()}
+            </div>
           </div>
         </main>
 
-        {/* Navigation fixe en bas */}
-        <nav className={`fixed bottom-0 left-0 right-0 z-30 ${designSystem.getBgClasses('primary')} border-t ${designSystem.border} backdrop-blur-md bg-opacity-95`}>
-          <div className="max-w-2xl mx-auto p-4">
-            <div className="flex items-center gap-4">
-              {/* Bouton Retour */}
-              <BaseComponents.Button
-                variant="secondary"
-                size="medium"
-                onClick={previousStep}
-                disabled={!canGoBack}
-                className={`flex items-center gap-2 ${!canGoBack ? 'opacity-50' : ''}`}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Retour</span>
-              </BaseComponents.Button>
+        {/* Navigation fixe en bas - conditionnelle */}
+        {showContinueButton && (
+          <nav className={`fixed bottom-0 left-0 right-0 z-30 ${designSystem.getBgClasses('primary')} border-t ${designSystem.border} backdrop-blur-md bg-opacity-95`}>
+            <div className="max-w-2xl mx-auto p-4">
+              <div className="flex items-center gap-4">
+                {/* Bouton Retour */}
+                <BaseComponents.Button
+                  variant="secondary"
+                  size="medium"
+                  onClick={handlePrevious}
+                  disabled={!canGoBack || isTransitioning}
+                  className={`flex items-center gap-2 ${!canGoBack ? 'opacity-50' : ''}`}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Retour</span>
+                </BaseComponents.Button>
 
-              {/* Info centrale */}
-              <div className="flex-1 text-center">
-                <p className={`text-sm ${designSystem.getTextClasses('muted')}`}>
-                  {currentStep + 1} / {steps.length}
-                </p>
+                {/* Info centrale */}
+                <div className="flex-1 text-center">
+                  <p className={`text-sm ${designSystem.getTextClasses('muted')}`}>
+                    {currentStep + 1} / {steps.length}
+                  </p>
+                </div>
+
+                {/* Bouton Continuer - conditionnel */}
+                <BaseComponents.Button
+                  variant="primary"
+                  size="medium"
+                  onClick={handleManualNext}
+                  disabled={(!canGoNext && !isLastStep) || isTransitioning}
+                  className={`flex items-center gap-2 ${
+                    (canGoNext || isLastStep) && !isTransitioning ? 'animate-pulse-glow' : 'opacity-50'
+                  }`}
+                >
+                  <span>
+                    {isLastStep ? 'Terminer' : 'Continuer'}
+                  </span>
+                  {!isLastStep && <ArrowRight className="w-4 h-4" />}
+                  {isLastStep && <Sparkles className="w-4 h-4" />}
+                </BaseComponents.Button>
               </div>
 
-              {/* Bouton Continuer */}
-              <BaseComponents.Button
-                variant="primary"
-                size="medium"
-                onClick={isLastStep ? () => navigate('/miroir') : nextStep}
-                disabled={!canGoNext && !isLastStep}
-                className={`flex items-center gap-2 ${
-                  canGoNext || isLastStep ? 'animate-pulse-glow' : 'opacity-50'
-                }`}
-              >
-                <span>
-                  {isLastStep ? 'Terminer' : 'Continuer'}
-                </span>
-                {!isLastStep && <ArrowRight className="w-4 h-4" />}
-                {isLastStep && <Sparkles className="w-4 h-4" />}
-              </BaseComponents.Button>
+              {/* Message d'encouragement */}
+              {canGoNext && !isTransitioning && (
+                <div className="mt-2 text-center">
+                  <p className={`text-xs ${designSystem.getTextClasses('muted')} animate-pulse`}>
+                    {isLastStep 
+                      ? '✨ Prêt à découvrir ton profil !' 
+                      : currentStepData.hasMultipleChoice
+                      ? '⚡ Sélectionne une option pour continuer'
+                      : '🎉 Parfait ! Tu peux continuer'
+                    }
+                  </p>
+                </div>
+              )}
             </div>
+          </nav>
+        )}
 
-            {/* Message d'encouragement */}
-            {canGoNext && (
-              <div className="mt-2 text-center">
-                <p className={`text-xs ${designSystem.getTextClasses('muted')} animate-pulse`}>
-                  {isLastStep 
-                    ? '✨ Prêt à découvrir ton profil !' 
-                    : '🎉 Parfait ! Tu peux continuer'
-                  }
-                </p>
+        {/* Message d'auto-passage pour les étapes avec choix multiples */}
+        {currentStepData.hasMultipleChoice && canGoNext && !showContinueButton && (
+          <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-30`}>
+            <div className={`${designSystem.cardBackground} ${designSystem.border} backdrop-blur-md rounded-full px-4 py-2 animate-bounce-gentle`}>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className={designSystem.getTextClasses('muted')}>
+                  Passage automatique...
+                </span>
               </div>
-            )}
+            </div>
           </div>
-        </nav>
-
-
+        )}
       </div>
     </div>
   )

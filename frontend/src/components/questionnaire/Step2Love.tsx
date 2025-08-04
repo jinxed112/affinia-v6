@@ -6,9 +6,15 @@ import { BaseComponents } from '../ui/BaseComponents'
 
 interface Step2LoveProps {
   isDarkMode: boolean
+  onAutoNext?: () => void // Callback pour auto-passage
+  isTransitioning?: boolean
 }
 
-const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
+const Step2Love: React.FC<Step2LoveProps> = ({ 
+  isDarkMode, 
+  onAutoNext, 
+  isTransitioning = false 
+}) => {
   const { answers, setAnswer } = useQuestionnaireStore()
   const designSystem = useDesignSystem(isDarkMode)
   
@@ -31,6 +37,17 @@ const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
       setAnswer('conflictApproach', localData.conflictApproach as any)
     }
   }, [localData.conflictApproach])
+
+  // 🆕 Auto-passage quand toutes les réponses sont complètes
+  useEffect(() => {
+    const isComplete = localData.lovePriority && localData.conflictApproach
+
+    if (isComplete && onAutoNext && !isTransitioning) {
+      setTimeout(() => {
+        onAutoNext()
+      }, 1200) // Délai un peu plus long pour laisser lire les citations
+    }
+  }, [localData, onAutoNext, isTransitioning])
 
   const lovePriorityOptions = [
     { 
@@ -123,7 +140,7 @@ const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
   const isLastQuestion = currentQuestion === questions.length - 1
   const hasAnsweredCurrent = localData[currentQ.field as keyof typeof localData]
 
-  // Auto-avancement vers la question suivante
+  // Auto-avancement vers la question suivante (logique interne conservée)
   useEffect(() => {
     if (hasAnsweredCurrent && !isLastQuestion) {
       const timer = setTimeout(() => {
@@ -134,8 +151,12 @@ const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
     }
   }, [hasAnsweredCurrent, isLastQuestion, currentQuestion])
 
+  const isComplete = localData.lovePriority && localData.conflictApproach
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-all duration-200 ${
+      isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+    }`}>
       {/* Progress indicator pour les sous-questions */}
       <div className="flex justify-center gap-2 mb-6">
         {questions.map((_, index) => (
@@ -272,7 +293,7 @@ const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
       )}
 
       {/* Indicateur de completion global */}
-      {localData.lovePriority && localData.conflictApproach && (
+      {isComplete && (
         <BaseComponents.Card isDarkMode={isDarkMode} variant="highlighted" className="p-4">
           <div className="flex items-center justify-center gap-2">
             <span className="text-2xl animate-bounce-gentle">💖</span>
@@ -281,7 +302,10 @@ const Step2Love: React.FC<Step2LoveProps> = ({ isDarkMode }) => {
                 Profil amoureux complété !
               </p>
               <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Finalisons ton questionnaire ✨
+                {onAutoNext && !isTransitioning 
+                  ? 'Finalisation automatique en cours ✨'
+                  : 'Finalisons ton questionnaire ✨'
+                }
               </p>
             </div>
           </div>

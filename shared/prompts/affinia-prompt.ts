@@ -1,8 +1,9 @@
 // src/utils/affinia-prompt.ts
 
 /**
- * 🔥 Prompt V8 - Révélation Émotionnelle pour Affinia
+ * 🔥 Prompt V9 - Révélation Émotionnelle pour Affinia (Version Nettoyée)
  * Objectif: Déclencher la reconnaissance viscérale "C'est exactement moi !"
+ * Plus de validation MD5 - Simplicité et efficacité
  */
 
 interface QuestionnaireAnswers {
@@ -26,7 +27,7 @@ interface QuestionnaireAnswers {
   free_expression?: string
 }
 
-const generateAffiniaPromptV8 = (answers: QuestionnaireAnswers, messageCount: number = 0, conversationDuration: number = 0): string => {
+const generateAffiniaPromptV9 = (answers: QuestionnaireAnswers, messageCount: number = 0, conversationDuration: number = 0): string => {
   const authenticityScore = calculateAuthenticityScore(messageCount, conversationDuration)
 
   return `
@@ -153,7 +154,7 @@ Ce JSON doit permettre de **croiser les profils**, repérer les complémentarit�
 * **Aucun champ vide** sauf \`bias_warning\` si aucun biais détecté.
 * Si l'historique est pauvre, baisse \`reliability_score\` et ajoute une \`bias_warning\`.
 
-📣 DERNIÈRE INSTRUCTION ESSENTIELLE :
+📣 INSTRUCTION ESSENTIELLE :
 Avant de lui présenter la partie JSON, dis-lui clairement que si ce qu'il vient de lire lui paraît juste, c'est qu'il est prêt à voir ce que son langage a révélé inconsciemment. Invite-le, avec tes mots à toi, à aller lire ce JSON comme un miroir technique de ce qu'il est, même dans ses angles morts. Ta formulation peut être douce, directe, poétique ou brutale — mais elle doit faire le pont entre l'émotion et l'observation froide.
 
 Ta mission est de **révéler aussi ce qui dérange, gêne, peut nuire ou saboter une relation**.
@@ -191,6 +192,14 @@ STRUCTURE DE RÉPONSE OBLIGATOIRE :
 
 ⚠️ IMPÉRATIF : Sois brillant. Sois précis. Sois troublant de justesse.
 Cette analyse va déterminer si ${answers.firstName} fait confiance à Affinia pour son cœur ET permettre des matchs psychologiquement compatibles.
+
+🚫 **RÈGLES FINALES** :
+- Termine par le JSON, POINT FINAL
+- Ne pose AUCUNE question après
+- Ne propose AUCUNE analyse supplémentaire  
+- Format : PARTIE 1 → PARTIE 2 JSON → STOP
+
+Cette analyse sera traitée automatiquement par Affinia.
 `.trim()
 }
 
@@ -259,35 +268,25 @@ const getConflictDescription = (approach: string): string => {
 }
 
 // 🆕 VERSION ULTRA-SIMPLE - Plus de validation complexe
-const generateAffiniaPromptV8Secure = (
+const generateAffiniaPromptV9Simple = (
   answers: QuestionnaireAnswers, 
   messageCount: number = 0, 
   conversationDuration: number = 0
 ): { prompt: string, sessionId: string } => {
   
-  // Générer le prompt normal
-  const basePrompt = generateAffiniaPromptV8(answers, messageCount, conversationDuration)
+  // Générer le prompt nettoyé
+  const basePrompt = generateAffiniaPromptV9(answers, messageCount, conversationDuration)
   
   // Générer un ID unique pour cette session (pour les logs)
   const sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2)
   
-  // Instructions finales ultra-simples
-  const securePrompt = `${basePrompt}
-
-🚫 **RÈGLES STRICTES :**
-- Termine par le JSON, POINT FINAL
-- Ne pose AUCUNE question après
-- Ne propose AUCUNE analyse supplémentaire  
-- Format : PARTIE 1 → PARTIE 2 JSON → STOP
-
-Cette analyse sera traitée automatiquement par Affinia.
-`.trim()
-
-  return { prompt: securePrompt, sessionId }
+  return { prompt: basePrompt, sessionId }
 }
 
 // 🎯 Exports principaux
 export { 
-  generateAffiniaPromptV8,
-  generateAffiniaPromptV8Secure
+  generateAffiniaPromptV9,
+  generateAffiniaPromptV9Simple,
+  // Maintenir la compatibilité avec les anciens imports
+  generateAffiniaPromptV9Simple as generateAffiniaPromptV8Secure
 }
