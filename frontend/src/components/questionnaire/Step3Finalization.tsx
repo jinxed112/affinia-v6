@@ -210,7 +210,8 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       if (currentResponseId && user?.id) {
         const saveResult = await questionnaireService.saveProfile(
           currentResponseId,
-          generatedProfile.trim()
+          generatedProfile.trim(),
+          user.id // ✅ Ajouter userId
         )
 
         if (saveResult.success) {
