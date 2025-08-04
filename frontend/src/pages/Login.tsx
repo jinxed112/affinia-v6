@@ -149,25 +149,25 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
 
   const steps = [
     {
-      icon: <Brain className="w-8 h-8" />,
+      icon: <Brain className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Découvre ton miroir",
       description: "L'IA analyse ta personnalité profonde en quelques questions",
       gradient: "from-purple-600 to-pink-600"
     },
     {
-      icon: <Eye className="w-8 h-8" />,
+      icon: <Eye className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Révèle ton essence",
       description: "Obtiens un profil authentique qui révèle qui tu es vraiment",
       gradient: "from-blue-600 to-cyan-600"
     },
     {
-      icon: <Users className="w-8 h-8" />,
+      icon: <Users className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Connecte authentiquement",
       description: "Rencontre des personnes qui résonnent avec ton être profond",
       gradient: "from-green-600 to-emerald-600"
     },
     {
-      icon: <Heart className="w-8 h-8" />,
+      icon: <Heart className="w-6 h-6 md:w-8 md:h-8" />,
       title: "Vis des connexions vraies",
       description: "Construis des relations basées sur l'authenticité, pas l'apparence",
       gradient: "from-pink-600 to-rose-600"
@@ -179,21 +179,21 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
       title: "Ton miroir intérieur",
       subtitle: "Pas un profil, une révélation",
       content: "Notre IA ne crée pas un profil de rencontre classique. Elle révèle ton essence profonde, tes valeurs cachées, tes rêves enfouis. Pour la première fois, vois-toi vraiment.",
-      icon: <Brain className="w-12 h-12" />,
+      icon: <Brain className="w-8 h-8 md:w-12 md:h-12" />,
       gradient: "from-purple-600 to-pink-600"
     },
     {
       title: "Connexions d'âmes",
       subtitle: "Pas un catalogue, une quête",
       content: "Fini les swipes infinis et les conversations vides. Affinia t'aide à découvrir des personnes qui vibrent sur la même fréquence que toi. L'amour n'est pas un algorithme.",
-      icon: <Users className="w-12 h-12" />,
+      icon: <Users className="w-8 h-8 md:w-12 md:h-12" />,
       gradient: "from-blue-600 to-cyan-600"
     },
     {
       title: "Technologie humaine",
       subtitle: "L'IA au service du cœur",
       content: "Le jour où la technologie dépassera nos échanges humains… cette prophétie n'a pas eu lieu. Avec Affinia, c'est le lien qui renaît. Une intelligence artificielle qui rallume le feu humain.",
-      icon: <Sparkles className="w-12 h-12" />,
+      icon: <Sparkles className="w-8 h-8 md:w-12 md:h-12" />,
       gradient: "from-green-600 to-emerald-600"
     }
   ]
@@ -203,28 +203,28 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
       title: "Affinia",
       subtitle: "Où la technologie rallume le feu humain",
       content: `"Le jour où la technologie dépassera nos échanges humains…" — Cette prophétie n'a pas eu lieu. Avec Affinia, c'est le lien qui renaît.`,
-      icon: <Sparkles className="w-6 h-6" />,
+      icon: <Sparkles className="w-5 h-5 md:w-6 md:h-6" />,
       gradient: "from-purple-600 to-pink-600"
     },
     {
       title: "Un miroir authentique",
       subtitle: "Découvre qui tu es vraiment",
       content: `Affinia utilise l'intelligence artificielle pour révéler ta vraie personnalité, au-delà des masques sociaux. Un outil qui t'aide à entendre ta propre voix intérieure et à t'accepter pleinement.`,
-      icon: <Brain className="w-6 h-6" />,
+      icon: <Brain className="w-5 h-5 md:w-6 md:h-6" />,
       gradient: "from-blue-600 to-cyan-600"
     },
     {
       title: "Des connexions authentiques",
       subtitle: "Trouve ceux qui vibrent vraiment avec toi",
       content: `Fini les swipes infinis. Affinia t'aide à découvrir des personnes qui résonnent avec ton essence profonde. Parce que la vraie complicité naît de l'authenticité, pas de l'apparence.`,
-      icon: <Users className="w-6 h-6" />,
+      icon: <Users className="w-5 h-5 md:w-6 md:h-6" />,
       gradient: "from-green-600 to-emerald-600"
     },
     {
       title: "Une quête, pas un supermarché",
       subtitle: "L'amour n'est pas un algorithme",
       content: `Ce n'est pas un catalogue de profils. C'est une aventure de découverte de soi et de rencontre profonde. Une technologie au service de l'humain, pour créer des liens qui durent.`,
-      icon: <Heart className="w-6 h-6" />,
+      icon: <Heart className="w-5 h-5 md:w-6 md:h-6" />,
       gradient: "from-pink-600 to-rose-600"
     }
   ]
@@ -263,28 +263,28 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
       {/* Theme Toggle */}
       <button
         onClick={handleThemeToggle}
-        className={`fixed top-6 right-6 z-50 p-3 rounded-xl transition-all duration-300 ${
+        className={`fixed top-4 right-4 md:top-6 md:right-6 z-50 p-2.5 md:p-3 rounded-xl transition-all duration-300 ${
           isDarkMode
             ? 'bg-gray-800/80 hover:bg-gray-700/80 text-yellow-400'
             : 'bg-white/80 hover:bg-white text-gray-800'
         } backdrop-blur-sm shadow-lg hover:scale-110`}
       >
-        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {isDarkMode ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
       </button>
 
       {/* Avertissement WebView */}
       {showWebViewWarning && (
-        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-50 max-w-md p-4 rounded-xl ${
+        <div className={`fixed top-16 md:top-20 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 z-50 max-w-md md:mx-auto p-3 md:p-4 rounded-xl ${
           isDarkMode ? 'bg-orange-900/90 border border-orange-500/50 text-orange-200' : 'bg-orange-100/90 border border-orange-300/50 text-orange-800'
         } backdrop-blur-sm shadow-xl`}>
-          <div className="flex items-start gap-3">
-            <Smartphone className="w-5 h-5 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2 md:gap-3">
+            <Smartphone className="w-4 h-4 md:w-5 md:h-5 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="font-medium mb-1">App détectée</p>
-              <p className="text-sm">Pour te connecter, ouvre Affinia dans Chrome ou Safari.</p>
+              <p className="font-medium mb-1 text-sm md:text-base">App détectée</p>
+              <p className="text-xs md:text-sm">Pour te connecter, ouvre Affinia dans Chrome ou Safari.</p>
               <button 
                 onClick={openInBrowser}
-                className="mt-2 text-sm underline flex items-center gap-1 hover:opacity-80"
+                className="mt-2 text-xs md:text-sm underline flex items-center gap-1 hover:opacity-80"
               >
                 Copier le lien <ExternalLink className="w-3 h-3" />
               </button>
@@ -301,13 +301,13 @@ const AffiniaLanding: React.FC<AffiniaLandingProps> = ({ isDarkMode: propIsDarkM
 
       {/* Message d'erreur */}
       {authError && (
-        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-50 max-w-md p-4 rounded-xl ${
+        <div className={`fixed top-16 md:top-20 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 z-50 max-w-md md:mx-auto p-3 md:p-4 rounded-xl ${
           isDarkMode ? 'bg-red-900/90 border border-red-500/50 text-red-200' : 'bg-red-100/90 border border-red-300/50 text-red-800'
         } backdrop-blur-sm shadow-xl`}>
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2 md:gap-3">
+            <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm">{authError}</p>
+              <p className="text-xs md:text-sm">{authError}</p>
             </div>
             <button 
               onClick={() => setAuthError('')}
@@ -466,8 +466,8 @@ const LoginForm: React.FC<{
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 relative z-10">
-      <div className={`w-full max-w-md p-8 rounded-2xl ${
+    <div className="min-h-screen flex items-center justify-center px-4 md:px-6 relative z-10">
+      <div className={`w-full max-w-md p-6 md:p-8 rounded-2xl ${
         isDarkMode 
           ? 'bg-gray-800/50 border border-gray-700/50' 
           : 'bg-white/50 border border-gray-200/50'
@@ -477,7 +477,7 @@ const LoginForm: React.FC<{
         {!showEmailForm && (
           <button
             onClick={handleBackToLanding}
-            className={`mb-6 flex items-center gap-2 text-sm ${
+            className={`mb-4 md:mb-6 flex items-center gap-2 text-sm ${
               isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
             } transition-colors`}
           >
@@ -487,10 +487,10 @@ const LoginForm: React.FC<{
         )}
 
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Heart className="w-8 h-8 text-purple-600" />
-            <span className={`text-2xl font-bold ${
+            <Heart className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
+            <span className={`text-xl md:text-2xl font-bold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Affinia
@@ -501,8 +501,8 @@ const LoginForm: React.FC<{
         {showEmailForm ? (
           // Formulaire email
           <div>
-            <div className="text-center mb-8">
-              <h2 className={`text-2xl font-bold mb-2 ${
+            <div className="text-center mb-6 md:mb-8">
+              <h2 className={`text-xl md:text-2xl font-bold mb-2 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
                 {isSignUp ? 'Créer un compte' : 'Se connecter'}
@@ -565,7 +565,7 @@ const LoginForm: React.FC<{
               <button
                 type="submit"
                 disabled={loadingProvider === 'email'}
-                className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-medium bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 px-6 py-3 md:py-4 rounded-xl font-medium bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50"
               >
                 {loadingProvider === 'email' ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -624,8 +624,8 @@ const LoginForm: React.FC<{
         ) : (
           // Options de connexion
           <div>
-            <div className="text-center mb-8">
-              <h2 className={`text-2xl font-bold mb-2 ${
+            <div className="text-center mb-6 md:mb-8">
+              <h2 className={`text-xl md:text-2xl font-bold mb-2 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
                 Se connecter
@@ -639,12 +639,12 @@ const LoginForm: React.FC<{
 
             {/* Avertissement WebView */}
             {isWebView && (
-              <div className={`mb-6 p-4 rounded-xl ${
+              <div className={`mb-6 p-3 md:p-4 rounded-xl ${
                 isDarkMode ? 'bg-orange-900/30 border border-orange-500/30 text-orange-200' : 'bg-orange-100/50 border border-orange-300/50 text-orange-700'
               }`}>
-                <div className="flex items-start gap-3">
-                  <Smartphone className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
+                <div className="flex items-start gap-2 md:gap-3">
+                  <Smartphone className="w-4 h-4 md:w-5 md:h-5 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs md:text-sm">
                     <p className="font-medium mb-1">Navigation dans une app</p>
                     <p>Pour te connecter, ces liens s'ouvriront dans ton navigateur.</p>
                   </div>
@@ -658,7 +658,7 @@ const LoginForm: React.FC<{
               <button
                 onClick={() => handleProviderAuth('google')}
                 disabled={loadingProvider !== null}
-                className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50 ${
+                className={`w-full flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50 ${
                   isDarkMode
                     ? 'bg-white hover:bg-gray-100 text-gray-900'
                     : 'bg-gray-900 hover:bg-gray-800 text-white'
@@ -666,11 +666,11 @@ const LoginForm: React.FC<{
               >
                 <div className="flex items-center justify-center">
                   {loadingProvider === 'google' ? (
-                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                   ) : isWebView ? (
-                    <ExternalLink className="w-5 h-5" />
+                    <ExternalLink className="w-4 h-4 md:w-5 md:h-5" />
                   ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24">
                       <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                       <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -680,7 +680,7 @@ const LoginForm: React.FC<{
                 </div>
                 
                 <div className="flex-1 text-left">
-                  <div className="font-semibold">
+                  <div className="font-semibold text-sm md:text-base">
                     {loadingProvider === 'google' 
                       ? 'Connexion...' 
                       : isWebView 
@@ -689,7 +689,7 @@ const LoginForm: React.FC<{
                     }
                   </div>
                   {loadingProvider !== 'google' && (
-                    <div className="text-sm opacity-80">
+                    <div className="text-xs md:text-sm opacity-80">
                       Gmail, YouTube, Drive...
                     </div>
                   )}
@@ -700,22 +700,22 @@ const LoginForm: React.FC<{
               <button
                 onClick={() => handleProviderAuth('facebook')}
                 disabled={loadingProvider !== null}
-                className="w-full flex items-center gap-4 px-6 py-4 rounded-xl font-medium bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50"
+                className="w-full flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 rounded-xl font-medium bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50"
               >
                 <div className="flex items-center justify-center">
                   {loadingProvider === 'facebook' ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : isWebView ? (
-                    <ExternalLink className="w-5 h-5" />
+                    <ExternalLink className="w-4 h-4 md:w-5 md:h-5" />
                   ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                   )}
                 </div>
                 
                 <div className="flex-1 text-left">
-                  <div className="font-semibold">
+                  <div className="font-semibold text-sm md:text-base">
                     {loadingProvider === 'facebook' 
                       ? 'Connexion...' 
                       : isWebView 
@@ -724,7 +724,7 @@ const LoginForm: React.FC<{
                     }
                   </div>
                   {loadingProvider !== 'facebook' && (
-                    <div className="text-sm opacity-80">
+                    <div className="text-xs md:text-sm opacity-80">
                       Facebook, Instagram, Messenger...
                     </div>
                   )}
@@ -752,18 +752,18 @@ const LoginForm: React.FC<{
             <button
               onClick={() => setShowEmailForm(true)}
               disabled={loadingProvider !== null}
-              className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-medium transition-all duration-300 hover:scale-105 disabled:scale-100 disabled:opacity-50 ${
+              className={`w-full flex items-center justify-center gap-3 px-4 md:px-6 py-3 md:py-4 rounded-xl font-medium transition-all duration-300 hover:scale-105 disabled:scale-100 disabled:opacity-50 ${
                 isDarkMode 
                   ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700' 
                   : 'bg-white/50 text-gray-900 hover:bg-white border border-gray-200'
               } backdrop-blur-sm shadow-lg hover:shadow-xl`}
             >
-              <Mail className="w-5 h-5" />
+              <Mail className="w-4 h-4 md:w-5 md:h-5" />
               Continuer avec un email
             </button>
 
             {/* Footer */}
-            <div className="mt-8 text-center">
+            <div className="mt-6 md:mt-8 text-center">
               <p className={`text-xs leading-relaxed ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>
@@ -777,7 +777,7 @@ const LoginForm: React.FC<{
   )
 }
 
-// Composant contenu de la landing page (garde tes composants existants)
+// Composant contenu de la landing page avec optimisations mobile
 const LandingContent: React.FC<{
   isDarkMode: boolean
   handleProviderAuth: (provider: 'google' | 'facebook') => void
@@ -809,22 +809,22 @@ const LandingContent: React.FC<{
 }) => {
   return (
     <>
-      {/* HERO SECTION */}
-      <section className="relative z-10 min-h-screen flex items-center justify-center px-6">
+      {/* HERO SECTION - Optimisé mobile */}
+      <section className="relative z-10 min-h-screen flex items-center justify-center px-4 md:px-6">
         <div className="max-w-6xl mx-auto text-center">
           
           {/* Logo et titre principal */}
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-xl">
-                <Heart className="w-12 h-12 text-white" />
+          <div className="mb-6 md:mb-8">
+            <div className="flex items-center justify-center gap-2 md:gap-4 mb-4 md:mb-6">
+              <div className="p-2 md:p-4 rounded-xl md:rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-xl">
+                <Heart className="w-8 h-8 md:w-12 md:h-12 text-white" />
               </div>
-              <h1 className={`text-6xl md:text-8xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent`}>
+              <h1 className={`text-4xl md:text-6xl lg:text-8xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent`}>
                 Affinia
               </h1>
             </div>
             
-            <h2 className={`text-3xl md:text-5xl font-bold mb-6 ${
+            <h2 className={`text-xl md:text-3xl lg:text-5xl font-bold mb-4 md:mb-6 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Où la technologie rallume<br />
@@ -833,7 +833,7 @@ const LandingContent: React.FC<{
               </span>
             </h2>
             
-            <p className={`text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed ${
+            <p className={`text-base md:text-xl lg:text-2xl mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed px-4 md:px-0 ${
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
               Découvre qui tu es vraiment. Connecte-toi à ton essence profonde. 
@@ -841,59 +841,89 @@ const LandingContent: React.FC<{
             </p>
           </div>
 
-          {/* CTA Principal - Ouvrir les options */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
+          {/* CTA Principal - Mobile optimized */}
+          <div className="flex flex-col gap-4 md:gap-6 justify-center items-center mb-8 md:mb-12 px-4 md:px-0">
             <button 
               onClick={handleLoginRedirect}
               disabled={loadingProvider !== null}
-              className={`group px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center gap-3 disabled:opacity-50 bg-gradient-to-r from-purple-600 to-pink-600 text-white`}
+              className={`w-full md:w-auto group px-6 md:px-8 py-3 md:py-4 rounded-xl font-semibold text-base md:text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50 bg-gradient-to-r from-purple-600 to-pink-600 text-white`}
             >
               {loadingProvider ? (
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-5 h-5 md:w-6 md:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <Brain className="w-6 h-6" />
+                <Brain className="w-5 h-5 md:w-6 md:h-6" />
               )}
               {loadingProvider ? 'Connexion...' : 'Découvre ton miroir'}
-              {!loadingProvider && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+              {!loadingProvider && <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />}
             </button>
             
             <button 
               onClick={handleLoginRedirect}
               disabled={loadingProvider !== null}
-              className={`group px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-3 disabled:opacity-50 cursor-pointer ${
+              className={`w-full md:w-auto group px-6 md:px-8 py-3 md:py-4 rounded-xl font-semibold text-base md:text-lg transition-all duration-300 hover:scale-105 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer ${
                 isDarkMode 
                   ? 'bg-gray-800/50 text-white hover:bg-gray-700/50 border border-gray-700' 
                   : 'bg-white/50 text-gray-900 hover:bg-white border border-gray-200'
               } backdrop-blur-sm`}
             >
-              <LogIn className="w-6 h-6" />
+              <LogIn className="w-5 h-5 md:w-6 md:h-6" />
               J'ai déjà un compte
             </button>
           </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-8 text-center">
+          {/* VIDÉO DE PRÉSENTATION */}
+          <div className="mb-8 md:mb-12">
+            <div className={`relative max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl ${
+              isDarkMode ? 'bg-gray-800/50 border border-gray-700/50' : 'bg-white/50 border border-gray-200/50'
+            } backdrop-blur-sm`}>
+              <div className="aspect-video">
+                <iframe
+                  src="https://www.youtube.com/embed/xfn_UPHL6B8"
+                  title="Présentation Affinia"
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+              <div className="p-4 md:p-6 text-center">
+                <h3 className={`text-lg md:text-xl font-bold mb-2 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Découvre Affinia en 2 minutes
+                </h3>
+                <p className={`text-sm md:text-base ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Comment l'IA révèle ton véritable toi et crée des connexions authentiques
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats - Mobile responsive */}
+          <div className="grid grid-cols-3 gap-4 md:gap-8 text-center max-w-md md:max-w-none mx-auto">
             <div>
-              <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className={`text-2xl md:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 3
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs md:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Moyens de connexion
               </div>
             </div>
             <div>
-              <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className={`text-2xl md:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 16
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs md:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Types de personnalité
               </div>
             </div>
             <div>
-              <div className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className={`text-2xl md:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 ∞
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs md:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Facettes uniques
               </div>
             </div>
@@ -901,17 +931,17 @@ const LandingContent: React.FC<{
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <ChevronDown className={`w-8 h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+        <div className="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <ChevronDown className={`w-6 h-6 md:w-8 md:h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
         </div>
       </section>
 
-      {/* CONCEPTS SECTION */}
-      <section className="relative z-10 py-20 px-6">
+      {/* CONCEPTS SECTION - Optimisé mobile */}
+      <section className="relative z-10 py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className={`text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Une révolution dans la façon<br />
@@ -919,7 +949,7 @@ const LandingContent: React.FC<{
                 de se rencontrer
               </span>
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto ${
+            <p className={`text-base md:text-xl max-w-3xl mx-auto ${
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
               Affinia repense complètement l'approche des rencontres. 
@@ -927,33 +957,33 @@ const LandingContent: React.FC<{
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid gap-6 md:gap-8 md:grid-cols-3">
             {concepts.map((concept, index) => (
               <div
                 key={index}
-                className={`p-8 rounded-2xl transition-all duration-500 hover:scale-105 ${
+                className={`p-6 md:p-8 rounded-2xl transition-all duration-500 hover:scale-105 ${
                   isDarkMode 
                     ? 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700/50' 
                     : 'bg-white/50 hover:bg-white/70 border border-gray-200/50'
                 } backdrop-blur-sm shadow-xl hover:shadow-2xl group`}
               >
-                <div className={`p-4 rounded-xl bg-gradient-to-r ${concept.gradient} text-white mb-6 w-fit`}>
+                <div className={`p-3 md:p-4 rounded-xl bg-gradient-to-r ${concept.gradient} text-white mb-4 md:mb-6 w-fit`}>
                   {concept.icon}
                 </div>
                 
-                <h3 className={`text-2xl font-bold mb-2 ${
+                <h3 className={`text-xl md:text-2xl font-bold mb-2 ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                   {concept.title}
                 </h3>
                 
-                <h4 className={`text-lg font-medium mb-4 ${
+                <h4 className={`text-base md:text-lg font-medium mb-3 md:mb-4 ${
                   isDarkMode ? 'text-purple-400' : 'text-purple-600'
                 }`}>
                   {concept.subtitle}
                 </h4>
                 
-                <p className={`leading-relaxed ${
+                <p className={`text-sm md:text-base leading-relaxed ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-600'
                 }`}>
                   {concept.content}
@@ -964,22 +994,22 @@ const LandingContent: React.FC<{
         </div>
       </section>
 
-      {/* MANIFESTO SECTIONS */}
-      <section className="relative z-10 py-20 px-6">
+      {/* MANIFESTO SECTIONS - Mobile optimized */}
+      <section className="relative z-10 py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
-          <div className={`relative overflow-hidden rounded-3xl p-12 ${
+          <div className={`relative overflow-hidden rounded-2xl md:rounded-3xl p-6 md:p-12 ${
             isDarkMode 
               ? 'bg-gray-800/50 border border-gray-700/50' 
               : 'bg-white/50 border border-gray-200/50'
           } backdrop-blur-sm shadow-2xl`}>
             
             {/* Indicateurs */}
-            <div className="flex justify-center gap-2 mb-8">
+            <div className="flex justify-center gap-2 mb-6 md:mb-8">
               {manifestSections.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentSection(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
                     index === currentSection
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 scale-110'
                       : isDarkMode
@@ -991,7 +1021,7 @@ const LandingContent: React.FC<{
             </div>
 
             {/* Contenu animé */}
-            <div className="text-center min-h-[300px] flex flex-col justify-center">
+            <div className="text-center min-h-[250px] md:min-h-[300px] flex flex-col justify-center">
               {manifestSections.map((section, index) => (
                 <div
                   key={index}
@@ -1001,23 +1031,23 @@ const LandingContent: React.FC<{
                       : 'opacity-0 transform translate-y-8 absolute inset-0 pointer-events-none'
                   }`}
                 >
-                  <div className={`p-4 rounded-xl bg-gradient-to-r ${section.gradient} text-white mb-6 w-fit mx-auto`}>
+                  <div className={`p-3 md:p-4 rounded-xl bg-gradient-to-r ${section.gradient} text-white mb-4 md:mb-6 w-fit mx-auto`}>
                     {section.icon}
                   </div>
                   
-                  <h3 className={`text-3xl md:text-4xl font-bold mb-4 ${
+                  <h3 className={`text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 ${
                     isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
                     {section.title}
                   </h3>
                   
-                  <h4 className={`text-xl font-medium mb-6 ${
+                  <h4 className={`text-lg md:text-xl font-medium mb-4 md:mb-6 ${
                     isDarkMode ? 'text-purple-400' : 'text-purple-600'
                   }`}>
                     {section.subtitle}
                   </h4>
                   
-                  <p className={`text-lg leading-relaxed ${
+                  <p className={`text-base md:text-lg leading-relaxed ${
                     isDarkMode ? 'text-gray-300' : 'text-gray-600'
                   }`}>
                     {section.content}
@@ -1029,56 +1059,51 @@ const LandingContent: React.FC<{
         </div>
       </section>
 
-      {/* ÉTAPES SECTION */}
-      <section className="relative z-10 py-20 px-6">
+      {/* ÉTAPES SECTION - Mobile grid */}
+      <section className="relative z-10 py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className={`text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Comment ça marche ?
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto ${
+            <p className={`text-base md:text-xl max-w-3xl mx-auto ${
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
               Quatre étapes simples pour découvrir qui tu es vraiment et rencontrer ton match authentique.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
             {steps.map((step, index) => (
               <div key={index} className="text-center group">
                 
-                {/* Numéro et connexion */}
-                <div className="flex items-center justify-center mb-6">
-                  <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-gradient-to-r ${step.gradient} shadow-xl group-hover:scale-110 transition-transform duration-300`}>
+                {/* Numéro */}
+                <div className="flex items-center justify-center mb-4 md:mb-6">
+                  <div className={`relative z-10 w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-bold text-lg md:text-xl bg-gradient-to-r ${step.gradient} shadow-xl group-hover:scale-110 transition-transform duration-300`}>
                     {index + 1}
                   </div>
-                  
-                  {/* Ligne de connexion */}
-                  {index < steps.length - 1 && (
-                    <div className="hidden lg:block absolute left-1/2 transform translate-x-8 w-32 h-0.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30"></div>
-                  )}
                 </div>
 
-                <div className={`p-6 rounded-2xl transition-all duration-500 group-hover:scale-105 ${
+                <div className={`p-4 md:p-6 rounded-xl md:rounded-2xl transition-all duration-500 group-hover:scale-105 ${
                   isDarkMode 
                     ? 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700/50' 
                     : 'bg-white/50 hover:bg-white/70 border border-gray-200/50'
                 } backdrop-blur-sm shadow-xl hover:shadow-2xl`}>
                   
-                  <div className={`p-3 rounded-xl bg-gradient-to-r ${step.gradient} text-white mb-4 w-fit mx-auto`}>
+                  <div className={`p-2 md:p-3 rounded-xl bg-gradient-to-r ${step.gradient} text-white mb-3 md:mb-4 w-fit mx-auto`}>
                     {step.icon}
                   </div>
                   
-                  <h3 className={`text-xl font-bold mb-3 ${
+                  <h3 className={`text-base md:text-xl font-bold mb-2 md:mb-3 ${
                     isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
                     {step.title}
                   </h3>
                   
-                  <p className={`text-sm leading-relaxed ${
+                  <p className={`text-xs md:text-sm leading-relaxed ${
                     isDarkMode ? 'text-gray-300' : 'text-gray-600'
                   }`}>
                     {step.description}
@@ -1089,17 +1114,17 @@ const LandingContent: React.FC<{
           </div>
 
           {/* CTA Section */}
-          <div className="text-center mt-16">
+          <div className="text-center mt-12 md:mt-16 px-4 md:px-0">
             <button 
               onClick={handleLoginRedirect}
-              className="group px-12 py-4 rounded-xl font-semibold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center gap-3 mx-auto"
+              className="w-full md:w-auto group px-8 md:px-12 py-3 md:py-4 rounded-xl font-semibold text-lg md:text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center justify-center gap-3"
             >
-              <Play className="w-6 h-6" />
+              <Play className="w-5 h-5 md:w-6 md:h-6" />
               Commencer mon voyage
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             
-            <p className={`mt-4 text-sm ${
+            <p className={`mt-3 md:mt-4 text-xs md:text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>
               Inscription gratuite • Aucune carte bancaire requise
@@ -1108,12 +1133,12 @@ const LandingContent: React.FC<{
         </div>
       </section>
 
-      {/* TÉMOIGNAGES SECTION */}
-      <section className="relative z-10 py-20 px-6">
+      {/* TÉMOIGNAGES SECTION - Mobile optimized */}
+      <section className="relative z-10 py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className={`text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Ils ont trouvé leur<br />
@@ -1123,21 +1148,21 @@ const LandingContent: React.FC<{
             </h2>
           </div>
 
-          <div className={`relative overflow-hidden rounded-3xl p-12 ${
+          <div className={`relative overflow-hidden rounded-2xl md:rounded-3xl p-6 md:p-12 ${
             isDarkMode 
               ? 'bg-gray-800/50 border border-gray-700/50' 
               : 'bg-white/50 border border-gray-200/50'
           } backdrop-blur-sm shadow-2xl`}>
             
             {/* Citation */}
-            <div className="text-center mb-8">
-              <Quote className={`w-12 h-12 mx-auto mb-6 ${
+            <div className="text-center mb-6 md:mb-8">
+              <Quote className={`w-8 h-8 md:w-12 md:h-12 mx-auto mb-4 md:mb-6 ${
                 isDarkMode ? 'text-purple-400' : 'text-purple-600'
               }`} />
             </div>
 
             {/* Contenu témoignage animé */}
-            <div className="text-center min-h-[200px] flex flex-col justify-center relative">
+            <div className="text-center min-h-[180px] md:min-h-[200px] flex flex-col justify-center relative">
               {testimonials.map((testimonial, index) => (
                 <div
                   key={index}
@@ -1147,16 +1172,16 @@ const LandingContent: React.FC<{
                       : 'opacity-0 transform translate-y-8 absolute inset-0 pointer-events-none'
                   }`}
                 >
-                  <blockquote className={`text-xl md:text-2xl leading-relaxed mb-8 italic ${
+                  <blockquote className={`text-base md:text-xl lg:text-2xl leading-relaxed mb-6 md:mb-8 italic ${
                     isDarkMode ? 'text-gray-200' : 'text-gray-700'
                   }`}>
                     "{testimonial.text}"
                   </blockquote>
                   
-                  <div className="flex items-center justify-center gap-4">
-                    <div className="text-4xl">{testimonial.avatar}</div>
+                  <div className="flex items-center justify-center gap-3 md:gap-4">
+                    <div className="text-2xl md:text-4xl">{testimonial.avatar}</div>
                     <div className="text-left">
-                      <cite className={`font-semibold not-italic ${
+                      <cite className={`text-sm md:text-base font-semibold not-italic ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}>
                         {testimonial.author}
@@ -1168,12 +1193,12 @@ const LandingContent: React.FC<{
             </div>
 
             {/* Indicateurs témoignages */}
-            <div className="flex justify-center gap-2 mt-8">
+            <div className="flex justify-center gap-2 mt-6 md:mt-8">
               {testimonials.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentTestimonial(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
                     index === currentTestimonial
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 scale-110'
                       : isDarkMode
@@ -1187,17 +1212,17 @@ const LandingContent: React.FC<{
         </div>
       </section>
 
-      {/* CTA FINAL */}
-      <section className="relative z-10 py-20 px-6">
+      {/* CTA FINAL - Mobile optimized */}
+      <section className="relative z-10 py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-4xl mx-auto text-center">
           
-          <div className={`p-12 rounded-3xl ${
+          <div className={`p-6 md:p-12 rounded-2xl md:rounded-3xl ${
             isDarkMode 
               ? 'bg-gradient-to-br from-purple-900/50 to-pink-900/50 border border-purple-500/20' 
               : 'bg-gradient-to-br from-purple-100/80 to-pink-100/80 border border-purple-200/50'
           } backdrop-blur-sm shadow-2xl`}>
             
-            <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${
+            <h2 className={`text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               Prêt à découvrir<br />
@@ -1206,35 +1231,35 @@ const LandingContent: React.FC<{
               </span>
             </h2>
             
-            <p className={`text-xl mb-10 max-w-2xl mx-auto leading-relaxed ${
+            <p className={`text-base md:text-xl mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed ${
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
               Rejoins des milliers de personnes qui ont choisi l'authenticité plutôt que la superficialité.
               Ton miroir intérieur t'attend.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div className="flex flex-col gap-4 md:gap-6 justify-center items-center">
               <button 
                 onClick={handleLoginRedirect}
-                className="group px-12 py-5 rounded-xl font-bold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center gap-3"
+                className="w-full md:w-auto group px-8 md:px-12 py-4 md:py-5 rounded-xl font-bold text-lg md:text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center justify-center gap-3"
               >
-                <Sparkles className="w-7 h-7" />
+                <Sparkles className="w-6 h-6 md:w-7 md:h-7" />
                 Commencer maintenant
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-8 mt-8 text-sm opacity-75">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
+            <div className="grid grid-cols-3 gap-4 md:gap-8 mt-6 md:mt-8 text-xs md:text-sm opacity-75">
+              <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2">
+                <Shield className="w-3 h-3 md:w-4 md:h-4" />
                 <span>100% sécurisé</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4" />
+              <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2">
+                <Zap className="w-3 h-3 md:w-4 md:h-4" />
                 <span>Inscription rapide</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4" />
+              <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2">
+                <Star className="w-3 h-3 md:w-4 md:h-4" />
                 <span>Gratuit</span>
               </div>
             </div>
