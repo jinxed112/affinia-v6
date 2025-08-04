@@ -377,19 +377,16 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       const expectedHash = validationMatch[1];
       console.log('🔍 DEBUG Expected hash:', expectedHash);
       
-      // 🆕 CALCULER LE MD5 SANS LA LIGNE DE VALIDATION
-      // L'IA calcule probablement le hash AVANT d'ajouter la ligne de validation
-      const textWithoutValidation = cleanText.replace(/🔐.*aff[_\\]*[a-f0-9]{8,32}[_\\]*[a-z0-9]+.*$/im, '').trim();
-      console.log('🔍 DEBUG Text without validation (length):', textWithoutValidation.length);
-      console.log('🔍 DEBUG Text without validation (end):', textWithoutValidation.slice(-100));
+  // 🆕 VALIDATION ULTRA-SIMPLIFIÉE (PLUS DE SESSIONID NON PLUS)
+  const validateProfileIntegrity = (profileText: string): boolean => {
+    try {
+      const cleanText = profileText.trim();
       
-      const actualHash = calculateMD5(textWithoutValidation);
-      console.log('🔍 DEBUG Calculated hash (without validation):', actualHash);
-      
-      if (expectedHash.toLowerCase() !== actualHash.toLowerCase()) {
+      // Vérifications de base
+      if (cleanText.length < 800) {
         setProfileValidation({
           isValid: false,
-          message: '❌ Contenu modifié détecté ! Tu dois copier la réponse exacte sans modifications.'
+          message: '❌ Le profil est trop court. Copie bien toute la réponse de l\'IA.'
         });
         return false;
       }
@@ -397,6 +394,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       // Vérifier que les sections essentielles sont présentes
       const hasAnalysis = /PARTIE\s*1|ANALYSE\s+PERSONNELLE/i.test(cleanText);
       const hasJson = /```\s*json|"reliability_score"|"strength_signals"/i.test(cleanText);
+      const hasValidationCode = /🔐.*aff_/i.test(cleanText);
       
       if (!hasAnalysis) {
         setProfileValidation({
@@ -414,12 +412,29 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
         return false;
       }
 
-      // ✅ Hash valide - Contenu intègre
+      if (!hasValidationCode) {
+        setProfileValidation({
+          isValid: false,
+          message: '❌ Code de validation manquant. Assure-toi de copier toute la réponse.'
+        });
+        return false;
+      }
+
+      // ✅ Structure complète !
       setProfileValidation({
         isValid: true,
-        message: `✅ Profil authentique ! Aucune modification détectée. Tu peux le sauvegarder.`
+        message: `✅ Profil complet ! Structure validée (${cleanText.length} caractères). Tu peux le sauvegarder.`
       });
       return true;
+      
+    } catch (error) {
+      setProfileValidation({
+        isValid: false,
+        message: '❌ Erreur lors de la vérification. Réessaye.'
+      });
+      return false;
+    }
+  };
       
     } catch (error) {
       setProfileValidation({
