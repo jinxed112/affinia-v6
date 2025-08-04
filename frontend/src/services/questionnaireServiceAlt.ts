@@ -56,7 +56,8 @@ export const questionnaireServiceAlt = {
   // 🆕 NOUVELLE MÉTHODE POUR STEP3FINALIZATION
   async saveProfile(
     responseId: string,
-    generatedProfile: string
+    generatedProfile: string,
+    userId?: string
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     console.log('📍 saveProfile appelé avec responseId:', responseId)
     
@@ -97,9 +98,14 @@ export const questionnaireServiceAlt = {
         console.log('Le profil sera sauvegardé sans extraction JSON')
       }
 
+      // Construire l'URL avec ou sans userId
+      const url = userId 
+        ? `${SUPABASE_URL}/rest/v1/questionnaire_responses?id=eq.${responseId}&user_id=eq.${userId}`
+        : `${SUPABASE_URL}/rest/v1/questionnaire_responses?id=eq.${responseId}`
+      
       // Mise à jour via API Supabase
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/questionnaire_responses?id=eq.${responseId}`,
+        url,
         {
           method: 'PATCH',
           headers: {
@@ -111,7 +117,7 @@ export const questionnaireServiceAlt = {
           body: JSON.stringify({
             generated_profile: generatedProfile.trim(),
             profile_json: profileJson,
-            analysis_timestamp: new Date().toISOString()
+            profile_updated_at: new Date().toISOString()
           })
         }
       )
