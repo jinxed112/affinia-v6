@@ -53,6 +53,96 @@ export const questionnaireServiceAlt = {
     }
   },
 
+  // 🆕 NOUVELLE MÉTHODE POUR STEP3FINALIZATION
+  async saveProfile(
+    responseId: string,
+    generatedProfile: string
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    console.log('📍 saveProfile appelé avec responseId:', responseId)
+    
+    try {
+      // Validation basique
+      if (!generatedProfile.trim() || generatedProfile.trim().length < 10) {
+        return { success: false, error: 'Profil invalide ou trop court' }
+      }
+
+      const token = getAuthToken()
+      if (!token) {
+        return { success: false, error: 'Session expirée, reconnectez-vous' }
+      }
+
+      // Parser le JSON de manière robuste (réutilisation de la logique existante)
+      let profileJson = null
+      try {
+        const jsonMatch = generatedProfile.match(/```json\s*([\s\S]*?)\s*```/i)
+        
+        if (jsonMatch && jsonMatch[1]) {
+          console.log('🔍 JSON trouvé, tentative de parsing...')
+          let cleanJson = jsonMatch[1].trim()
+          
+          // CORRECTION : Réparer le bug "unconscious_patterns"
+          cleanJson = cleanJson.replace(
+            /"unconscious_patterns"\s*:\s*\{([^}]+)\}/g,
+            (match, content) => {
+              const items = content.match(/"[^"]+"/g) || []
+              return `"unconscious_patterns": [${items.join(', ')}]`
+            }
+          )
+          
+          profileJson = JSON.parse(cleanJson)
+          console.log('✅ JSON parsé avec succès')
+        }
+      } catch (e) {
+        console.log('⚠️ Erreur parsing JSON:', e.message)
+        console.log('Le profil sera sauvegardé sans extraction JSON')
+      }
+
+      // Mise à jour via API Supabase
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/questionnaire_responses?id=eq.${responseId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${token}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            generated_profile: generatedProfile.trim(),
+            profile_json: profileJson,
+            analysis_timestamp: new Date().toISOString()
+          })
+        }
+      )
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        console.error('❌ Erreur sauvegarde profil:', data)
+        return { 
+          success: false, 
+          error: data.message || 'Erreur lors de la sauvegarde' 
+        }
+      }
+      
+      console.log('✅ Profil sauvegardé avec succès:', {
+        id: data[0]?.id,
+        has_json: !!profileJson,
+        profile_length: generatedProfile.length
+      })
+      
+      return { success: true, data: data[0] }
+      
+    } catch (error) {
+      console.error('💥 Exception saveProfile:', error)
+      return { 
+        success: false, 
+        error: 'Erreur réseau ou serveur' 
+      }
+    }
+  },
+
   async getLatestResponse(userId: string) {
     try {
       const token = getAuthToken()
