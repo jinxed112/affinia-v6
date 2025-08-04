@@ -165,43 +165,61 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
     }
   }
 
+  // 🆕 FONCTION HANDLEFINALIZE CORRIGÉE
   const handleFinalize = async () => {
     setIsGenerating(true)
 
     try {
       const completeAnswers = { ...answers, ...localData }
       
-      console.log('🔄 Synchronisation via hook')
+      console.log('🔄 Début génération:', { userId: user?.id, answers: completeAnswers })
+      
+      // Synchronisation via hook
       const syncResult = await syncToProfile(completeAnswers)
       
       if (syncResult.success && syncResult.syncedFields.length > 0) {
         console.log(`✅ Synchronisation réussie: ${syncResult.syncedFields.join(', ')}`)
       }
       
+      // Génération du prompt
       const result = await generatePromptViaAPI(completeAnswers)
       
       if (result) {
+        console.log('✅ Prompt généré:', { sessionId: result.sessionId })
         setGeneratedPrompt(result.prompt)
         setSessionId(result.sessionId)
         
+        // 🆕 SAUVEGARDE ROBUSTE - Toujours sauvegarder les réponses
         if (user?.id) {
           try {
+            console.log('💾 Sauvegarde des réponses...')
+            
             const saveResult = await questionnaireService.saveResponses(
               user.id,
               completeAnswers
             )
+            
+            console.log('📝 Résultat sauvegarde réponses:', saveResult)
+            
             if (saveResult.data?.id) {
               setCurrentResponseId(saveResult.data.id)
+              console.log('✅ Response ID défini:', saveResult.data.id)
+            } else if (saveResult.error) {
+              console.error('❌ Erreur sauvegarde réponses:', saveResult.error)
+              // Continuer quand même pour permettre la génération
             }
           } catch (error) {
-            console.error('Erreur sauvegarde:', error)
+            console.error('❌ Exception sauvegarde réponses:', error)
+            // Continuer quand même
           }
         }
       } else {
+        console.error('❌ Échec génération prompt')
         alert('Erreur API. Vérifiez que le backend est démarré.')
       }
     } catch (error) {
       console.error('❌ Erreur génération:', error)
+      alert(`Erreur lors de la génération: ${error.message}`)
     } finally {
       setIsGenerating(false)
     }
@@ -225,8 +243,16 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
     await verifyProfileViaAPI(generatedProfile, sessionId)
   }
 
+  // 🆕 FONCTION HANDLESAVEPROFILE CORRIGÉE AVEC DEBUG
   const handleSaveProfile = async () => {
-    if (!generatedProfile.trim() || !user?.id || !currentResponseId) return
+    if (!generatedProfile.trim() || !user?.id || !currentResponseId) {
+      console.error('❌ Données manquantes:', {
+        hasProfile: !!generatedProfile.trim(),
+        hasUserId: !!user?.id,
+        hasResponseId: !!currentResponseId
+      });
+      return;
+    }
     
     if (!profileValidation?.isValid) {
       await handleVerifyProfile()
@@ -236,25 +262,41 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
     setIsSavingProfile(true)
     
     try {
+      console.log('🔄 Sauvegarde du profil:', {
+        responseId: currentResponseId,
+        userId: user.id,
+        profileLength: generatedProfile.length
+      });
+
       const result = await questionnaireService.updateGeneratedProfile(
         currentResponseId,
         user.id,
         generatedProfile
       )
       
+      console.log('📝 Résultat sauvegarde:', result);
+      
       if (result.error) {
+        console.error('❌ Erreur service:', result.error);
         setProfileValidation({
           isValid: false,
-          message: '❌ Erreur sauvegarde.'
+          message: `❌ Erreur: ${result.error.message || 'Sauvegarde échouée'}`
         })
       } else {
+        console.log('✅ Profil sauvegardé avec succès');
         setShowSaveSuccess(true)
         setTimeout(() => setShowSaveSuccess(false), 3000)
+        
+        // 🆕 REDIRECT vers le miroir après sauvegarde réussie
+        setTimeout(() => {
+          navigate('/miroir')
+        }, 1500)
       }
     } catch (error) {
+      console.error('❌ Exception sauvegarde:', error);
       setProfileValidation({
         isValid: false,
-        message: '❌ Erreur sauvegarde.'
+        message: `❌ Exception: ${error.message || 'Erreur technique'}`
       })
     } finally {
       setIsSavingProfile(false)
@@ -415,7 +457,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
             <div className="flex items-center justify-center gap-2 text-green-400">
               <Sparkles className="w-5 h-5" />
               <span className="text-sm font-medium">
-                ✨ Profil sauvegardé ! Tu peux découvrir ton miroir
+                ✨ Profil sauvegardé ! Redirection vers votre miroir...
               </span>
             </div>
           </BaseComponents.Card>
