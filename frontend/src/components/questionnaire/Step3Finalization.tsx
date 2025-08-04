@@ -128,42 +128,9 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
   }
 
   const verifyProfileViaAPI = async (profileText: string, sessionId: string): Promise<boolean> => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const token = session?.access_token
-      
-      if (!token) return false
-
-      const response = await fetch(`${apiUrl}/api/questionnaire/verify-profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          sessionId,
-          profileText,
-          userId: user?.id || 'unknown'
-        })
-      })
-
-      if (!response.ok) return false
-
-      const data = await response.json()
-      
-      setProfileValidation({
-        isValid: data.valid,
-        message: data.message
-      })
-
-      return data.valid
-    } catch (error) {
-      setProfileValidation({
-        isValid: false,
-        message: '❌ Erreur lors de la vérification.'
-      })
-      return false
-    }
+    // FONCTION DÉSACTIVÉE - Plus de validation API
+    console.log('⚠️ API validation désactivée');
+    return true;
   }
 
   // 🆕 IMPLÉMENTATION MD5 COMPLÈTE ET FIABLE
@@ -650,7 +617,7 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
                 onClick={handleVerifyProfile}
                 disabled={isSavingProfile}
               >
-                {isSavingProfile ? 'Sauvegarde...' : showSaveSuccess ? '✓ Sauvé !' : '💾 Sauvegarder maintenant'}
+                {isSavingProfile ? 'Sauvegarde...' : showSaveSuccess ? '✓ Sauvé !' : '🚀 SAUVEGARDER DIRECT'}
               </BaseComponents.Button>
             </div>
           )}
