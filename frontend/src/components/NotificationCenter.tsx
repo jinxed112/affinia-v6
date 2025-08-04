@@ -317,9 +317,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
         )}
       </button>
 
-      {/* Panneau notifications - RESPONSIVE */}
+      {/* Panneau notifications - MOBILE FIXED */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-[90vw] max-w-[340px] sm:w-80 md:w-96 max-h-[70vh] sm:max-h-[500px] overflow-hidden z-50">
+        <div className="fixed sm:absolute top-16 sm:top-full right-2 sm:right-0 mt-2 w-[calc(100vw-16px)] max-w-[320px] sm:w-80 md:w-96 max-h-[70vh] sm:max-h-[500px] overflow-hidden z-50">
           <div className={`rounded-xl border-2 shadow-2xl backdrop-blur-xl ${
             isDarkMode
               ? 'bg-gray-900/95 border-gray-700/50 shadow-black/50'
