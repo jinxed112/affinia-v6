@@ -377,9 +377,14 @@ const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => 
       const expectedHash = validationMatch[1];
       console.log('🔍 DEBUG Expected hash:', expectedHash);
       
-      // Calculer le hash du contenu reçu (synchrone maintenant)
-      const actualHash = calculateMD5(cleanText);
-      console.log('🔍 DEBUG Calculated hash:', actualHash);
+      // 🆕 CALCULER LE MD5 SANS LA LIGNE DE VALIDATION
+      // L'IA calcule probablement le hash AVANT d'ajouter la ligne de validation
+      const textWithoutValidation = cleanText.replace(/🔐.*aff[_\\]*[a-f0-9]{8,32}[_\\]*[a-z0-9]+.*$/im, '').trim();
+      console.log('🔍 DEBUG Text without validation (length):', textWithoutValidation.length);
+      console.log('🔍 DEBUG Text without validation (end):', textWithoutValidation.slice(-100));
+      
+      const actualHash = calculateMD5(textWithoutValidation);
+      console.log('🔍 DEBUG Calculated hash (without validation):', actualHash);
       
       if (expectedHash.toLowerCase() !== actualHash.toLowerCase()) {
         setProfileValidation({
