@@ -426,14 +426,16 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
           </h2>
           
           {questionnaire?.profile_json && hasCompletedQuestionnaire ? (
-            <div className="flex justify-center">
-              <div className="w-48">
-                <AffiniaCard 
-                  photos={photos}
-                  profile={profile}
-                  questionnaire={questionnaire}
-                  className="mobile-card"
-                />
+            <div className="flex justify-center items-center w-full">
+              <div className="w-48 mx-auto">
+                <div className="flex justify-center">
+                  <AffiniaCard 
+                    photos={photos}
+                    profile={profile}
+                    questionnaire={questionnaire}
+                    className="mobile-card"
+                  />
+                </div>
               </div>
             </div>
           ) : (
