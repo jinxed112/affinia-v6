@@ -3,6 +3,10 @@
 // =============================================
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useDesignSystem } from '../styles/designSystem';
+import { BaseComponents } from '../ui/BaseComponents';
 import { 
   Search, Filter, MapPin, Heart, Lock, Unlock, Users, 
   Loader, RefreshCw, AlertCircle, Eye, Calendar, Sparkles,
@@ -54,54 +58,13 @@ interface DiscoveryFilters {
   offset: number;
 }
 
-// Composants simulés
-const BaseComponents = {
-  MysticalBackground: ({ isDarkMode, intensity }) => (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 opacity-50" />
-  )
-};
-
-const AffiniaCard = ({ photos, profile, questionnaire, className = "" }) => (
-  <div className={`bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-4 text-white ${className}`}>
-    <div className="aspect-[4/5] bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl mb-3 overflow-hidden">
-      {photos && photos[0] ? (
-        <img 
-          src={photos[0].photo_url} 
-          alt={profile.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <Camera className="w-12 h-12 text-white/50" />
-        </div>
-      )}
-    </div>
-    <h3 className="font-bold text-lg">{profile.name}</h3>
-    <p className="text-sm text-white/80 truncate">{profile.bio}</p>
-    <div className="flex items-center gap-2 mt-2">
-      <Star className="w-4 h-4" />
-      <span className="text-sm">{questionnaire?.profile_json?.authenticity_score || 7}/10</span>
-    </div>
-  </div>
-);
-
-// Hooks simulés
-const useDesignSystem = (isDarkMode: boolean) => ({
-  getTextClasses: (variant: string) => {
-    const classes = {
-      primary: isDarkMode ? 'text-white' : 'text-gray-900',
-      secondary: isDarkMode ? 'text-gray-300' : 'text-gray-600',
-      muted: isDarkMode ? 'text-gray-400' : 'text-gray-500'
-    };
-    return classes[variant] || classes.primary;
-  },
-  getBgClasses: (variant: string) => isDarkMode ? 'bg-slate-950' : 'bg-white'
-});
+// Composant AffiniaCard réel (assumé être importé)
+import { AffiniaCard } from '../profile/AffiniaCard';
 
 export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
-  // Simulation des hooks
-  const navigate = (path: string) => console.log(`Navigation vers: ${path}`);
-  const user = { id: 'user123', name: 'Test User' };
+  // Hooks réels
+  const navigate = useNavigate();
+  const { user, getToken } = useAuth();
   const designSystem = useDesignSystem(isDarkMode);
 
   // États principaux
@@ -149,53 +112,40 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
         ? { ...filters, offset: profiles.length }
         : { ...filters, offset: 0 };
 
-      // Simulation de données pour la démo
-      const mockProfiles: DiscoveryProfile[] = Array.from({ length: 20 }, (_, i) => ({
-        id: `user_${i + 1}`,
-        name: ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry'][i % 8],
-        age: 22 + (i % 15),
-        gender: ['female', 'male', 'other'][i % 3] as any,
-        city: ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice'][i % 5],
-        bio: `Passionné${i % 2 === 0 ? 'e' : ''} de découvertes et d'authenticité. J'aime les rencontres sincères et les conversations profondes.`,
-        distance_km: 5 + (i % 45),
-        avatar_url: null,
-        photos: [
-          {
-            id: `photo_${i}_1`,
-            photo_url: `https://picsum.photos/300/400?random=${i}`,
-            is_main: true,
-            photo_order: 0
-          }
-        ],
-        mirror_visibility: i % 3 === 0 ? 'public' : 'on_request',
-        interaction_status: {
-          can_request_mirror: i % 4 !== 0,
-          mirror_request_status: i % 5 === 0 ? 'pending' : i % 7 === 0 ? 'accepted' : 'none'
-        },
-        questionnaire_snippet: {
-          authenticity_score: 6 + (i % 4),
-          attachment_style: ['secure', 'anxious', 'avoidant'][i % 3] as any,
-          strength_signals: [
-            'Communication claire',
-            'Empathie naturelle',
-            'Créativité'
-          ]
-        },
-        created_at: new Date().toISOString(),
-        last_active: new Date().toISOString()
-      }));
-
-      if (loadMore) {
-        setProfiles(prev => [...prev, ...mockProfiles]);
-      } else {
-        setProfiles(mockProfiles);
+      // Appel API réel vers le service discovery
+      const token = await getToken();
+      if (!token) {
+        navigate('/login');
+        return;
       }
 
-      setHasMore(mockProfiles.length === 20);
+      const response = await fetch('/api/discovery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(currentFilters)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const fetchedProfiles = data.profiles || [];
+
+      if (loadMore) {
+        setProfiles(prev => [...prev, ...fetchedProfiles]);
+      } else {
+        setProfiles(fetchedProfiles);
+      }
+
+      setHasMore(fetchedProfiles.length === currentFilters.limit);
 
     } catch (err) {
       console.error('❌ Erreur chargement profils:', err);
-      setError('Erreur lors du chargement');
+      setError('Erreur lors du chargement des profils');
     } finally {
       setLoading(false);
     }
@@ -224,11 +174,32 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
     try {
       setRequestingMirror(profileId);
       
-      // Simulation de la requête
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = await getToken();
+      if (!token) {
+        navigate('/login');
+        return;
+      }
       
+      // Appel API réel pour demander l'accès au miroir
+      const response = await fetch('/api/discovery/mirror-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          target_user_id: profileId,
+          message: 'Bonjour, j\'aimerais découvrir votre profil miroir !'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la demande');
+      }
+
       showActionMessage('success', 'Demande envoyée avec succès !');
       
+      // Mettre à jour l'état local
       setProfiles(prev => 
         prev.map(p => 
           p.id === profileId 
@@ -245,6 +216,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
       );
 
     } catch (err) {
+      console.error('Erreur demande miroir:', err);
       showActionMessage('error', 'Erreur lors de la demande');
     } finally {
       setRequestingMirror(null);
@@ -252,7 +224,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
   };
 
   const handleViewMirror = (profileId: string) => {
-    console.log(`Navigation vers /miroir/${profileId}`);
+    navigate(`/miroir/${profileId}`);
   };
 
   const showActionMessage = (type: 'success' | 'error', text: string) => {
@@ -302,10 +274,13 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
   };
 
   if (!user) {
-    console.log('Navigation vers /login');
+    navigate('/login');
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <p className="text-white">Veuillez vous connecter</p>
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+          <p className="text-white">Redirection vers la connexion...</p>
+        </div>
       </div>
     );
   }
@@ -509,6 +484,31 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
               <Loader className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
               <p className={`${designSystem.getTextClasses('secondary')}`}>
                 Chargement des profils...
+              </p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-4" />
+              <p className="text-red-400 mb-4">{error}</p>
+              <button
+                onClick={() => loadProfiles()}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        ) : profiles.length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Users className="w-8 h-8 text-gray-400 mx-auto mb-4" />
+              <p className={`${designSystem.getTextClasses('secondary')} mb-2`}>
+                Aucun profil trouvé
+              </p>
+              <p className={`text-sm ${designSystem.getTextClasses('muted')}`}>
+                Essayez d'ajuster vos filtres
               </p>
             </div>
           </div>
