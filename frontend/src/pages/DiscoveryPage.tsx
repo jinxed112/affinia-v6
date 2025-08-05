@@ -3,106 +3,31 @@
 // =============================================
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { discoveryService } from '../services/discoveryService';
+import { useDesignSystem, UnifiedAnimations } from '../styles/designSystem';
+import { BaseComponents } from '../components/ui/BaseComponents';
+import { AffiniaCard } from '../components/profile/AffiniaCard';
 import { 
   Search, Filter, MapPin, Heart, Lock, Unlock, Users, 
   Loader, RefreshCw, AlertCircle, Eye, Calendar, Sparkles,
   MessageCircle, Star, X, ChevronLeft, ChevronRight, RotateCcw,
   Zap, Brain, Target, Info, Camera, Globe, Clock
 } from 'lucide-react';
+import type { 
+  DiscoveryProfile, 
+  DiscoveryFilters, 
+  MirrorRequestResponse 
+} from '../../../shared/types/discovery';
 
 interface DiscoveryPageProps {
   isDarkMode: boolean;
 }
 
-// Types
-interface DiscoveryProfile {
-  id: string;
-  name: string;
-  age: number;
-  gender: 'male' | 'female' | 'other';
-  city: string;
-  bio: string;
-  distance_km: number;
-  avatar_url: string | null;
-  photos: Array<{
-    id: string;
-    photo_url: string;
-    is_main: boolean;
-    photo_order: number;
-  }>;
-  mirror_visibility: 'public' | 'on_request';
-  interaction_status: {
-    can_request_mirror: boolean;
-    mirror_request_status: 'none' | 'pending' | 'accepted' | 'rejected';
-  };
-  questionnaire_snippet: {
-    authenticity_score: number;
-    attachment_style: 'secure' | 'anxious' | 'avoidant';
-    strength_signals: string[];
-  };
-  created_at: string;
-  last_active: string;
-}
-
-interface DiscoveryFilters {
-  gender: 'all' | 'male' | 'female' | 'other';
-  min_age: number;
-  max_age: number;
-  max_distance_km: number;
-  sort_by: 'distance' | 'age' | 'newest' | 'random';
-  limit: number;
-  offset: number;
-}
-
-// Composants temporaires pour le build
-const BaseComponents = {
-  MysticalBackground: ({ isDarkMode, intensity }) => (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 opacity-50" />
-  )
-};
-
-const AffiniaCard = ({ photos, profile, questionnaire, className = "" }) => (
-  <div className={`bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-4 text-white ${className}`}>
-    <div className="aspect-[4/5] bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl mb-3 overflow-hidden">
-      {photos && photos[0] ? (
-        <img 
-          src={photos[0].photo_url} 
-          alt={profile.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <Camera className="w-12 h-12 text-white/50" />
-        </div>
-      )}
-    </div>
-    <h3 className="font-bold text-lg">{profile.name}</h3>
-    <p className="text-sm text-white/80 truncate">{profile.bio}</p>
-    <div className="flex items-center gap-2 mt-2">
-      <Star className="w-4 h-4" />
-      <span className="text-sm">{questionnaire?.profile_json?.authenticity_score || 7}/10</span>
-    </div>
-  </div>
-);
-
-// Hook temporaire
-const useDesignSystem = (isDarkMode: boolean) => ({
-  getTextClasses: (variant: string) => {
-    const classes = {
-      primary: isDarkMode ? 'text-white' : 'text-gray-900',
-      secondary: isDarkMode ? 'text-gray-300' : 'text-gray-600',
-      muted: isDarkMode ? 'text-gray-400' : 'text-gray-500'
-    };
-    return classes[variant] || classes.primary;
-  },
-  getBgClasses: (variant: string) => isDarkMode ? 'bg-slate-950' : 'bg-white'
-});
-
 export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
-  // Hooks temporaires pour le build
-  const navigate = (path: string) => console.log(`Navigation vers: ${path}`);
-  const user = { id: 'user123', name: 'Test User' };
-  const getToken = () => Promise.resolve('fake-token');
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const designSystem = useDesignSystem(isDarkMode);
 
   // États principaux
@@ -130,6 +55,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
 
   // États des interactions
   const [requestingMirror, setRequestingMirror] = useState<string | null>(null);
+  const [requestingChat, setRequestingChat] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Charger les profils
@@ -150,40 +76,19 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
         ? { ...filters, offset: profiles.length }
         : { ...filters, offset: 0 };
 
-      // Appel API réel vers le service discovery
-      const token = await getToken();
-      if (!token) {
-        setError('Session expirée');
-        return;
-      }
-
-      const response = await fetch('/api/discovery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(currentFilters)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const fetchedProfiles = data.profiles || [];
+      const response = await discoveryService.getDiscoveryProfiles(currentFilters);
 
       if (loadMore) {
-        setProfiles(prev => [...prev, ...fetchedProfiles]);
+        setProfiles(prev => [...prev, ...response.profiles]);
       } else {
-        setProfiles(fetchedProfiles);
+        setProfiles(response.profiles);
       }
 
-      setHasMore(fetchedProfiles.length === currentFilters.limit);
+      setHasMore(response.has_more);
 
     } catch (err) {
       console.error('❌ Erreur chargement profils:', err);
-      setError('Erreur lors du chargement des profils');
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -193,77 +98,106 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
   const handleCardClick = (profile: DiscoveryProfile) => {
     if (selectedProfile?.id === profile.id && showFullscreen) {
       // Deuxième clic : flip la carte
-      setIsFlipped(!isFlipped);
+      setIsFlipped(prev => !prev);
+      console.log('🔄 Flip carte:', !isFlipped);
     } else {
       // Premier clic : ouvrir en fullscreen
       setSelectedProfile(profile);
       setShowFullscreen(true);
       setIsFlipped(false);
+      console.log('📱 Ouverture fullscreen:', profile.name);
     }
   };
 
   const handleCloseFullscreen = () => {
+    console.log('❌ Fermeture fullscreen');
     setShowFullscreen(false);
     setSelectedProfile(null);
     setIsFlipped(false);
+  };
+
+  const handleFlipCard = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFlipped(prev => {
+      console.log('🔄 Flip manuel:', !prev);
+      return !prev;
+    });
   };
 
   const handleMirrorRequest = async (profileId: string) => {
     try {
       setRequestingMirror(profileId);
       
-      const token = await getToken();
-      if (!token) {
-        showActionMessage('error', 'Session expirée');
-        return;
-      }
+      const response = await discoveryService.requestMirrorAccess(profileId);
       
-      // Appel API réel pour demander l'accès au miroir
-      const response = await fetch('/api/discovery/mirror-request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          target_user_id: profileId,
-          message: 'Bonjour, j\'aimerais découvrir votre profil miroir !'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la demande');
-      }
-
-      showActionMessage('success', 'Demande envoyée avec succès !');
-      
-      // Mettre à jour l'état local
-      setProfiles(prev => 
-        prev.map(p => 
-          p.id === profileId 
-            ? { 
-                ...p, 
-                interaction_status: {
-                  ...p.interaction_status,
-                  mirror_request_status: 'pending',
-                  can_request_mirror: false
+      if (response.success) {
+        showActionMessage('success', 'Demande envoyée avec succès !');
+        
+        setProfiles(prev => 
+          prev.map(p => 
+            p.id === profileId 
+              ? { 
+                  ...p, 
+                  interaction_status: {
+                    ...p.interaction_status,
+                    mirror_request_status: 'pending',
+                    can_request_mirror: false
+                  }
                 }
-              }
-            : p
-        )
-      );
+              : p
+          )
+        );
+      } else {
+        showActionMessage('error', response.message || 'Erreur lors de la demande');
+      }
 
     } catch (err) {
-      console.error('Erreur demande miroir:', err);
+      console.error('❌ Erreur demande miroir:', err);
       showActionMessage('error', 'Erreur lors de la demande');
     } finally {
       setRequestingMirror(null);
     }
   };
 
+  const handleChatRequest = async (profileId: string) => {
+    try {
+      setRequestingChat(profileId);
+      
+      // Appel API pour demander le chat
+      const response = await discoveryService.requestChatAccess(profileId);
+      
+      if (response.success) {
+        showActionMessage('success', 'Demande de chat envoyée ! 💬');
+        
+        // Mettre à jour le profil pour refléter la demande
+        setProfiles(prev => 
+          prev.map(p => 
+            p.id === profileId 
+              ? { 
+                  ...p, 
+                  interaction_status: {
+                    ...p.interaction_status,
+                    chat_request_status: 'pending',
+                    can_request_chat: false
+                  }
+                }
+              : p
+          )
+        );
+      } else {
+        showActionMessage('error', response.message || 'Erreur lors de la demande');
+      }
+
+    } catch (err) {
+      console.error('❌ Erreur demande chat:', err);
+      showActionMessage('error', 'Impossible d\'envoyer la demande');
+    } finally {
+      setRequestingChat(null);
+    }
+  };
+
   const handleViewMirror = (profileId: string) => {
-    console.log(`Navigation vers /miroir/${profileId}`);
-    // navigate(`/miroir/${profileId}`); // À activer quand les routes existent
+    navigate(`/miroir/${profileId}`);
   };
 
   const showActionMessage = (type: 'success' | 'error', text: string) => {
@@ -302,65 +236,93 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
       }
     };
 
-    const photosData = profile.photos.map((photo, index) => ({
+    const photosData = profile.photos?.map((photo, index) => ({
       id: photo.id || `photo_${index}`,
       photo_url: photo.photo_url || photo.url,
       is_main: photo.is_main || index === 0,
       photo_order: photo.photo_order || index
-    }));
+    })) || [];
 
     return { profileData, questionnaireData, photosData };
   };
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-4" />
-          <p className="text-white">Session expirée - Veuillez vous reconnecter</p>
-        </div>
-      </div>
-    );
+    navigate('/login');
+    return null;
   }
 
   return (
     <div className={`min-h-screen ${designSystem.getBgClasses('primary')}`}>
-      {/* CSS Mobile-First */}
+      {/* CSS Mobile-First CORRIGÉ */}
       <style jsx>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+          box-sizing: border-box;
+        }
         
         .mini-card {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
           font-family: 'Inter', system-ui, sans-serif;
+          position: relative;
+          width: 100%;
+          height: 200px;
+          overflow: hidden;
+          border-radius: 1rem;
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(79, 70, 229, 0.1));
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .mini-card:active {
           transform: scale(0.95);
         }
         
-        .mini-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        @media (hover: hover) {
+          .mini-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+          }
         }
         
         .fullscreen-modal {
           position: fixed;
           inset: 0;
           z-index: 9999;
-          background: rgba(0, 0, 0, 0.9);
+          background: rgba(0, 0, 0, 0.95);
           backdrop-filter: blur(20px);
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 1rem;
+          animation: modalOpen 0.3s ease-out;
+        }
+        
+        @keyframes modalOpen {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
         
         .card-container {
           position: relative;
-          width: 280px;
-          height: 400px;
+          width: 100%;
+          max-width: 320px;
+          height: 480px;
           perspective: 1000px;
+        }
+        
+        @media (max-width: 768px) {
+          .card-container {
+            width: 90vw;
+            max-width: 300px;
+            height: 450px;
+          }
         }
         
         .card-inner {
@@ -386,27 +348,29 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
         
         .card-back {
           transform: rotateY(180deg);
-          background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(79, 70, 229, 0.1));
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(79, 70, 229, 0.95));
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           padding: 1.5rem;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
+          color: white;
         }
         
         .stats-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 0.5rem;
+          gap: 0.75rem;
           margin: 1rem 0;
         }
         
         .stat-item {
           text-align: center;
-          padding: 0.5rem;
-          border-radius: 0.5rem;
-          background: rgba(255, 255, 255, 0.05);
+          padding: 0.75rem;
+          border-radius: 0.75rem;
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
         }
         
         .filters-slider {
@@ -414,42 +378,96 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
           bottom: 0;
           left: 0;
           right: 0;
-          background: rgba(15, 23, 42, 0.95);
+          background: rgba(15, 23, 42, 0.98);
           backdrop-filter: blur(20px);
           border-top: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 1rem;
+          padding: 1.5rem;
           transform: translateY(100%);
           transition: transform 0.3s ease;
           z-index: 1000;
+          max-height: 50vh;
+          overflow-y: auto;
         }
         
         .filters-slider.open {
           transform: translateY(0);
         }
         
-        .scroll-container {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-        
-        .scroll-container::-webkit-scrollbar {
-          display: none;
-        }
-        
         .pulse-border {
-          border: 2px solid rgba(147, 51, 234, 0.6);
+          border: 2px solid rgba(34, 197, 94, 0.6);
           animation: pulse-glow 2s infinite;
         }
         
         @keyframes pulse-glow {
           0%, 100% { 
-            border-color: rgba(147, 51, 234, 0.6);
-            box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+            border-color: rgba(34, 197, 94, 0.6);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
           }
           50% { 
-            border-color: rgba(236, 72, 153, 0.8);
-            box-shadow: 0 0 30px rgba(236, 72, 153, 0.4);
+            border-color: rgba(34, 197, 94, 0.8);
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
           }
+        }
+        
+        .close-button {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          width: 3rem;
+          height: 3rem;
+          background: rgba(0, 0, 0, 0.7);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(10px);
+          z-index: 10;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .close-button:hover {
+          background: rgba(0, 0, 0, 0.8);
+          transform: scale(1.1);
+        }
+        
+        .mini-card-content {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .mini-card-image {
+          flex: 1;
+          background-size: cover;
+          background-position: center;
+          background-color: rgba(147, 51, 234, 0.3);
+        }
+        
+        .mini-card-info {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+          padding: 1rem 0.75rem 0.75rem;
+          color: white;
+        }
+        
+        .status-badge {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.5rem;
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 5;
         }
       `}</style>
 
@@ -488,25 +506,25 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
 
       {/* Stats rapides */}
       <div className="px-4 py-4">
-        <div className="flex gap-3 overflow-x-auto scroll-container">
-          <div className="flex-shrink-0 px-4 py-2 rounded-full bg-blue-500/20 border border-blue-500/30">
+        <div className="flex gap-3 overflow-x-auto">
+          <div className="flex-shrink-0 px-3 py-2 rounded-full bg-blue-500/20 border border-blue-500/30">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-400" />
               <span className="text-sm font-medium text-blue-300">{profiles.length} profils</span>
             </div>
           </div>
-          <div className="flex-shrink-0 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30">
+          <div className="flex-shrink-0 px-3 py-2 rounded-full bg-green-500/20 border border-green-500/30">
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-green-400" />
-              <span className="text-sm font-medium text-green-300">
+              <span className="text-sm font-medium text-green-300 whitespace-nowrap">
                 {profiles.filter(p => p.mirror_visibility === 'public').length} publics
               </span>
             </div>
           </div>
-          <div className="flex-shrink-0 px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/30">
+          <div className="flex-shrink-0 px-3 py-2 rounded-full bg-purple-500/20 border border-purple-500/30">
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-300">
+              <span className="text-sm font-medium text-purple-300 whitespace-nowrap">
                 {profiles.filter(p => p.mirror_visibility === 'on_request').length} privés
               </span>
             </div>
@@ -529,80 +547,79 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-4" />
-              <p className="text-red-400 mb-4">{error}</p>
+              <p className={`${designSystem.getTextClasses('secondary')}`}>
+                {error}
+              </p>
               <button
                 onClick={() => loadProfiles()}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors"
+                className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg"
               >
                 Réessayer
               </button>
             </div>
           </div>
-        ) : profiles.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Users className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-              <p className={`${designSystem.getTextClasses('secondary')} mb-2`}>
-                Aucun profil trouvé
-              </p>
-              <p className={`text-sm ${designSystem.getTextClasses('muted')}`}>
-                Essayez d'ajuster vos filtres
-              </p>
-            </div>
-          </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {profiles.map((profile) => {
                 const { profileData, questionnaireData, photosData } = transformProfileForCard(profile);
+                const mainPhoto = photosData.find(p => p.is_main) || photosData[0];
                 
                 return (
                   <div
                     key={profile.id}
-                    className={`mini-card relative ${
+                    className={`mini-card ${
                       profile.mirror_visibility === 'public' ? 'pulse-border' : ''
                     }`}
                     onClick={() => handleCardClick(profile)}
                   >
                     {/* Badge de statut */}
-                    <div className="absolute top-2 right-2 z-10">
+                    <div className="status-badge">
                       {profile.mirror_visibility === 'public' ? (
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                        <div className="w-full h-full bg-green-500 rounded-full flex items-center justify-center">
                           <Unlock className="w-3 h-3 text-white" />
                         </div>
                       ) : profile.interaction_status?.mirror_request_status === 'pending' ? (
-                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                        <div className="w-full h-full bg-yellow-500 rounded-full flex items-center justify-center">
                           <Clock className="w-3 h-3 text-white" />
                         </div>
                       ) : profile.interaction_status?.mirror_request_status === 'accepted' ? (
-                        <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                        <div className="w-full h-full bg-purple-500 rounded-full flex items-center justify-center">
                           <Sparkles className="w-3 h-3 text-white" />
                         </div>
                       ) : (
-                        <div className="w-6 h-6 bg-slate-500 rounded-full flex items-center justify-center">
+                        <div className="w-full h-full bg-slate-500 rounded-full flex items-center justify-center">
                           <Lock className="w-3 h-3 text-white" />
                         </div>
                       )}
                     </div>
 
-                    {/* Mini carte */}
-                    <div className="w-full h-48 rounded-xl overflow-hidden">
-                      <AffiniaCard
-                        photos={photosData}
-                        profile={profileData}
-                        questionnaire={questionnaireData}
-                        className="transform scale-75 origin-top-left w-[133.33%] h-[133.33%]"
-                      />
-                    </div>
+                    {/* Contenu de la mini carte */}
+                    <div className="mini-card-content">
+                      <div 
+                        className="mini-card-image"
+                        style={{
+                          backgroundImage: mainPhoto?.photo_url 
+                            ? `url(${mainPhoto.photo_url})` 
+                            : 'linear-gradient(135deg, rgba(147, 51, 234, 0.5), rgba(79, 70, 229, 0.5))'
+                        }}
+                      >
+                        {!mainPhoto?.photo_url && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Camera className="w-8 h-8 text-white/50" />
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Info rapide */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                      <h3 className="text-white font-bold text-sm truncate">
-                        {profile.name}, {profile.age}
-                      </h3>
-                      <p className="text-white/80 text-xs truncate">
-                        📍 {profile.city} • {profile.distance_km}km
-                      </p>
+                      {/* Info overlay */}
+                      <div className="mini-card-info">
+                        <h3 className="font-bold text-sm truncate">
+                          {profile.name}, {profile.age}
+                        </h3>
+                        <p className="text-xs text-white/80 truncate">
+                          📍 {profile.city} • {profile.distance_km}km
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -637,21 +654,21 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
 
       {/* Modal Fullscreen */}
       {showFullscreen && selectedProfile && (
-        <div className="fullscreen-modal">
+        <div className="fullscreen-modal" onClick={handleCloseFullscreen}>
           {/* Bouton fermer */}
           <button
             onClick={handleCloseFullscreen}
-            className="absolute top-6 right-6 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm z-10"
+            className="close-button"
           >
             <X className="w-6 h-6 text-white" />
           </button>
 
           {/* Container de la carte */}
-          <div className="card-container">
+          <div className="card-container" onClick={(e) => e.stopPropagation()}>
             <div className={`card-inner ${isFlipped ? 'flipped' : ''}`}>
               
               {/* Face avant - Carte Affinia */}
-              <div className="card-face">
+              <div className="card-face" onClick={() => handleCardClick(selectedProfile)}>
                 {(() => {
                   const { profileData, questionnaireData, photosData } = transformProfileForCard(selectedProfile);
                   return (
@@ -671,21 +688,21 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
                   <h2 className="text-2xl font-bold text-white mb-2">
                     {selectedProfile.name}, {selectedProfile.age}
                   </h2>
-                  <p className="text-purple-300 mb-4 flex items-center gap-2">
+                  <p className="text-purple-200 mb-4 flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
                     {selectedProfile.city} • {selectedProfile.distance_km}km
                   </p>
                   
                   <div className="stats-grid">
                     <div className="stat-item">
-                      <Brain className="w-5 h-5 text-purple-400 mx-auto mb-1" />
+                      <Brain className="w-5 h-5 text-purple-300 mx-auto mb-1" />
                       <p className="text-xs text-white/80">Authenticité</p>
                       <p className="font-bold text-white">
                         {selectedProfile.questionnaire_snippet?.authenticity_score || 7}/10
                       </p>
                     </div>
                     <div className="stat-item">
-                      <Heart className="w-5 h-5 text-pink-400 mx-auto mb-1" />
+                      <Heart className="w-5 h-5 text-pink-300 mx-auto mb-1" />
                       <p className="text-xs text-white/80">Attachment</p>
                       <p className="font-bold text-white text-xs">
                         {selectedProfile.questionnaire_snippet?.attachment_style || 'Secure'}
@@ -696,7 +713,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
                   {selectedProfile.bio && (
                     <div className="mt-4">
                       <h4 className="text-sm font-semibold text-white/90 mb-2">À propos</h4>
-                      <p className="text-sm text-white/70 leading-relaxed">
+                      <p className="text-sm text-white/80 leading-relaxed">
                         {selectedProfile.bio}
                       </p>
                     </div>
@@ -743,16 +760,52 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setIsFlipped(!isFlipped)}
+                      onClick={handleFlipCard}
                       className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors flex items-center justify-center gap-2"
                     >
                       <RotateCcw className="w-4 h-4" />
                       Retourner
                     </button>
-                    <button className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors flex items-center justify-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      Chat
-                    </button>
+                    
+                    {/* Bouton Chat avec états */}
+                    {selectedProfile.interaction_status?.chat_request_status === 'accepted' ? (
+                      <button 
+                        onClick={() => console.log('Ouvrir chat avec', selectedProfile.id)}
+                        className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Chat
+                      </button>
+                    ) : selectedProfile.interaction_status?.chat_request_status === 'pending' ? (
+                      <button 
+                        disabled
+                        className="flex-1 py-2 bg-yellow-600/50 rounded-lg text-white text-sm flex items-center justify-center gap-2"
+                      >
+                        <Clock className="w-4 h-4" />
+                        En attente
+                      </button>
+                    ) : selectedProfile.interaction_status?.chat_request_status === 'rejected' ? (
+                      <button 
+                        disabled
+                        className="flex-1 py-2 bg-red-600/50 rounded-lg text-white text-sm flex items-center justify-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Refusé
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleChatRequest(selectedProfile.id)}
+                        disabled={requestingChat === selectedProfile.id}
+                        className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg text-white text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        {requestingChat === selectedProfile.id ? (
+                          <Loader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <MessageCircle className="w-4 h-4" />
+                        )}
+                        Demander
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -762,7 +815,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
           {/* Instructions */}
           <div className="absolute bottom-6 left-6 right-6 text-center">
             <p className="text-white/60 text-sm">
-              {isFlipped ? 'Tap "Retourner" pour voir la carte' : 'Tap la carte pour voir les infos'}
+              {isFlipped ? 'Tap "Retourner" pour voir la carte' : 'Tap la carte pour la retourner'}
             </p>
           </div>
         </div>
@@ -774,38 +827,80 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({ isDarkMode }) => {
           <h3 className="text-lg font-bold text-white">Filtres</h3>
           <button
             onClick={() => setShowFilters(false)}
-            className="p-2 rounded-full bg-white/10"
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           >
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-white/80 mb-2">Genre</label>
-            <select
-              value={filters.gender || 'all'}
-              onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as any }))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-            >
-              <option value="all">Tous</option>
-              <option value="male">Hommes</option>
-              <option value="female">Femmes</option>
-              <option value="other">Autres</option>
-            </select>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/80 mb-2">Genre</label>
+              <select
+                value={filters.gender || 'all'}
+                onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value as any }))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+              >
+                <option value="all">Tous</option>
+                <option value="male">Hommes</option>
+                <option value="female">Femmes</option>
+                <option value="other">Autres</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm text-white/80 mb-2">Tri</label>
+              <select
+                value={filters.sort_by || 'distance'}
+                onChange={(e) => setFilters(prev => ({ ...prev, sort_by: e.target.value as any }))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+              >
+                <option value="distance">Distance</option>
+                <option value="age">Âge</option>
+                <option value="newest">Plus récents</option>
+                <option value="random">Aléatoire</option>
+              </select>
+            </div>
           </div>
           
           <div>
-            <label className="block text-sm text-white/80 mb-2">Distance (km)</label>
+            <label className="block text-sm text-white/80 mb-2">
+              Distance max: {filters.max_distance_km || 50} km
+            </label>
             <input
               type="range"
               min="1"
               max="100"
               value={filters.max_distance_km || 50}
               onChange={(e) => setFilters(prev => ({ ...prev, max_distance_km: parseInt(e.target.value) }))}
-              className="w-full"
+              className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
             />
-            <span className="text-xs text-white/60">{filters.max_distance_km || 50} km</span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/80 mb-2">Âge min</label>
+              <input
+                type="number"
+                min="18"
+                max="99"
+                value={filters.min_age || 18}
+                onChange={(e) => setFilters(prev => ({ ...prev, min_age: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-white/80 mb-2">Âge max</label>
+              <input
+                type="number"
+                min="18"
+                max="99"
+                value={filters.max_age || 99}
+                onChange={(e) => setFilters(prev => ({ ...prev, max_age: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+              />
+            </div>
           </div>
         </div>
       </div>
