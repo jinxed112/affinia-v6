@@ -7,7 +7,7 @@ import {
   Search, Filter, MapPin, Heart, Lock, Unlock, Users, 
   Loader, RefreshCw, AlertCircle, Eye, Calendar, Sparkles,
   MessageCircle, Star, X, ChevronLeft, ChevronRight, RotateCcw,
-  Zap, Brain, Target, Info, Camera, Globe
+  Zap, Brain, Target, Info, Camera, Globe, Clock
 } from 'lucide-react';
 
 interface DiscoveryPageProps {
