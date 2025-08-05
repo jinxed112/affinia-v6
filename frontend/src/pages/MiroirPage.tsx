@@ -332,4 +332,4 @@ Dans tes relations, tu cherches quelqu'un qui comprend ta complexité sans te de
   );
 };
 
-export default MiroirPage;
+export { MiroirPage };
