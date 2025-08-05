@@ -1,4 +1,4 @@
-// App.tsx - Fix NotificationProvider Safari mobile
+// App.tsx - Fix NotificationProvider Safari mobile + Chat Integration
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -16,6 +16,10 @@ import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
 import QuestionnairePage from './pages/QuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from "./pages"
+
+// ✨ CHAT - Imports des composants
+import { ChatTest } from './components/chat/ChatTest'
+import { ChatPage } from './components/chat/ChatPage'
 
 // Détection Safari mobile
 const isSafariMobile = (() => {
@@ -224,6 +228,30 @@ function AppContent() {
               <OnboardingGuard isDarkMode={isDarkMode}>
                 <ArenaPage isDarkMode={isDarkMode} />
               </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          {/* ✨ CHAT - Routes principales */}
+          <Route path="/chat" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <ChatPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/chat/:conversationId" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <ChatPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          {/* ✨ CHAT - Route de test (pour debug) */}
+          <Route path="/chat-test" element={
+            <PrivateRoute>
+              <ChatTest isDarkMode={isDarkMode} />
             </PrivateRoute>
           } />
 

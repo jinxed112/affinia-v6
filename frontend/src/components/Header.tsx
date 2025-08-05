@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { NotificationCenter } from './NotificationCenter'
-import { Heart, User, LogOut, Menu, X, Home, Sparkles, Shield, Sun, Moon, ChevronDown, BookOpen } from 'lucide-react'
+import { Heart, User, LogOut, Menu, X, Home, Sparkles, Sun, Moon, ChevronDown, BookOpen, MessageCircle } from 'lucide-react'
 import { Button } from './ui/Button'
+import { useChat } from '../hooks/useChat'
 
 interface HeaderProps {
   isDarkMode: boolean
@@ -17,6 +18,9 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+
+  // Hook pour les stats du chat
+  const { chatStats } = useChat()
 
   // Gérer l'effet au scroll
   useEffect(() => {
@@ -50,11 +54,18 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
     return null
   }
 
+  // Navigation items avec icônes seulement
   const navItems = [
-    { path: '/', label: 'Accueil', icon: Home },
-    { path: '/decouverte', label: 'Découverte', icon: Sparkles },
-    { path: '/matches', label: 'Matchs', icon: Heart },
-    { path: '/miroir', label: 'Mon Miroir', icon: BookOpen },
+    { path: '/', icon: Home, label: 'Accueil' },
+    { path: '/decouverte', icon: Sparkles, label: 'Découverte' },
+    { path: '/matches', icon: Heart, label: 'Matchs' },
+    { 
+      path: '/chat', 
+      icon: MessageCircle,
+      label: 'Messages',
+      badge: chatStats.total_unread_conversations > 0 ? chatStats.total_unread_conversations : undefined
+    },
+    { path: '/miroir', icon: BookOpen, label: 'Mon Miroir' },
   ]
 
   return (
@@ -78,7 +89,8 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
       <div className={`relative z-10 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-4'}`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            {/* Logo avec animation */}
+            
+            {/* Logo compact */}
             <div 
               className="flex items-center gap-3 cursor-pointer group"
               onClick={() => navigate('/')}
@@ -98,21 +110,23 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                 ${isScrolled ? 'scale-90' : ''} shadow-lg`}>V6</span>
             </div>
 
-            {/* Navigation Desktop avec indicateur actif */}
+            {/* Navigation Desktop - Icônes seulement */}
             <nav className="hidden md:flex items-center">
-              <div className={`flex items-center rounded-full p-1 shadow-lg ${
+              <div className={`flex items-center gap-1 rounded-full p-1 shadow-lg ${
                 isDarkMode ? 'bg-gray-800/90 border border-gray-700/50' : 'bg-white/90 border border-gray-200/50'
               }`}>
                 {navItems.map((item) => {
                   const Icon = item.icon
-                  const isActive = location.pathname === item.path
+                  const isActive = location.pathname === item.path || 
+                    (item.path === '/chat' && location.pathname.startsWith('/chat'))
                   
                   return (
                     <button
                       key={item.path}
                       onClick={() => navigate(item.path)}
+                      title={item.label} // Tooltip au hover
                       className={`
-                        relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300
+                        relative p-3 rounded-full transition-all duration-300 group
                         ${isActive 
                           ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30' 
                           : isDarkMode
@@ -121,10 +135,17 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                         }
                       `}
                     >
-                      <Icon className={`transition-all duration-300 ${isScrolled ? 'w-4 h-4' : 'w-4 h-4'}`} />
-                      <span className={`font-medium transition-all duration-300 ${isScrolled ? 'text-sm' : 'text-sm'}`}>
-                        {item.label}
-                      </span>
+                      <div className="relative">
+                        <Icon className={`transition-all duration-300 ${isScrolled ? 'w-5 h-5' : 'w-5 h-5'}`} />
+                        {/* Badge pour messages non lus */}
+                        {item.badge && (
+                          <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
+                            {item.badge > 99 ? '99+' : item.badge}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Effet de glow au hover */}
                       {isActive && (
                         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-20 blur-xl"></div>
                       )}
@@ -134,69 +155,42 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
               </div>
             </nav>
 
-            {/* User Menu Desktop */}
-            <div className="hidden md:flex items-center gap-3">
+            {/* User Menu Desktop - Simplifié */}
+            <div className="hidden md:flex items-center gap-2">
               {/* Notifications */}
               <NotificationCenter isDarkMode={isDarkMode} />
 
-              {/* Theme Toggle avec animation */}
+              {/* Theme Toggle */}
               <button
                 onClick={onThemeToggle}
-                className={`relative p-2 rounded-lg transition-all duration-300 overflow-hidden group shadow-lg ${
+                className={`p-2 rounded-lg transition-all duration-300 group shadow-lg ${
                   isDarkMode
                     ? 'bg-gray-800/90 hover:bg-gray-700 border border-gray-700/50'
                     : 'bg-white/90 hover:bg-gray-50 border border-gray-200/50'
                 }`}
                 title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-400 opacity-0 
-                  group-hover:opacity-20 transition-opacity duration-300"></div>
-                <div className="relative">
-                  {isDarkMode ? (
-                    <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-180" />
-                  ) : (
-                    <Moon className="w-5 h-5 text-gray-700 transition-transform duration-300 group-hover:-rotate-12" />
-                  )}
-                </div>
+                {isDarkMode ? (
+                  <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-180" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-700 transition-transform duration-300 group-hover:-rotate-12" />
+                )}
               </button>
 
-              {/* Stats compacts */}
-              <div className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all duration-300 shadow-lg ${
-                isDarkMode ? 'bg-gray-800/90 border border-gray-700/50' : 'bg-white/90 border border-gray-200/50'
-              } ${isScrolled ? 'scale-95' : ''}`}>
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-yellow-500" />
-                  <span className={`font-bold ${
-                    isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
-                  } ${isScrolled ? 'text-sm' : 'text-sm'}`}>{profile?.credits || 100}</span>
-                </div>
-                <div className={`w-px h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-                <div className="flex items-center gap-1">
-                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Niv</span>
-                  <span className={`font-bold ${
-                    isDarkMode ? 'text-purple-400' : 'text-purple-600'
-                  } ${isScrolled ? 'text-sm' : 'text-sm'}`}>{profile?.level || 1}</span>
-                </div>
-              </div>
-
-              {/* Profile Dropdown amélioré */}
+              {/* Profile Dropdown compact */}
               <div className="relative">
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className={`flex items-center gap-2 p-1.5 rounded-full transition-all duration-300 group shadow-lg
+                  className={`flex items-center gap-2 p-1 rounded-full transition-all duration-300 group shadow-lg
                     ${isDarkMode 
                       ? 'hover:bg-gray-800/80 border border-gray-700/50' 
                       : 'hover:bg-gray-100/80 border border-gray-200/50'
                     } ${isScrolled ? 'scale-95' : ''}`}
                 >
-                  <span className={`text-sm font-medium hidden lg:block ${
-                    isDarkMode ? 'text-gray-200' : 'text-gray-800'
-                  }`}>{profile?.name || user?.email?.split('@')[0]}</span>
-                  
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full 
                       blur-sm opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-                    <div className="relative w-9 h-9 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
+                    <div className="relative w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
                       <div className={`w-full h-full rounded-full ${
                         isDarkMode ? 'bg-gray-900' : 'bg-white'
                       } flex items-center justify-center overflow-hidden`}>
@@ -216,8 +210,8 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                   } ${isProfileOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown Menu avec animations */}
-                <div className={`absolute right-0 mt-2 w-56 transition-all duration-300 transform origin-top-right
+                {/* Dropdown Menu */}
+                <div className={`absolute right-0 mt-2 w-48 transition-all duration-300 transform origin-top-right
                   ${isProfileOpen 
                     ? 'opacity-100 scale-100 translate-y-0' 
                     : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
@@ -227,36 +221,15 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                       ? 'bg-gray-800/95 border-gray-700' 
                       : 'bg-white/95 border-gray-200'
                   } backdrop-blur-xl border rounded-xl shadow-xl overflow-hidden`}>
-                    {/* User info section */}
+                    
+                    {/* User info */}
                     <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Connecté en tant que</p>
                       <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {profile?.name || user?.email?.split('@')[0]}
+                      </p>
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                         {user?.email}
                       </p>
-                    </div>
-                    
-                    {/* Stats dans le dropdown */}
-                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>XP</p>
-                          <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {profile?.xp || 0}
-                          </p>
-                        </div>
-                        <div>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Crédits</p>
-                          <p className={`text-sm font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                            {profile?.credits || 100}
-                          </p>
-                        </div>
-                        <div>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Niveau</p>
-                          <p className={`text-sm font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-                            {profile?.level || 1}
-                          </p>
-                        </div>
-                      </div>
                     </div>
                     
                     {/* Menu items */}
@@ -310,6 +283,23 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
 
             {/* Mobile Menu Button */}
             <div className="flex items-center gap-2 md:hidden">
+              {/* Messages badge mobile */}
+              {chatStats.total_unread_conversations > 0 && (
+                <button
+                  onClick={() => navigate('/chat')}
+                  className={`relative p-2 rounded-lg transition-all duration-200 shadow-lg ${
+                    isDarkMode
+                      ? 'bg-gray-800/90 hover:bg-gray-700 text-blue-400 border border-gray-700/50'
+                      : 'bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200/50'
+                  }`}
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {chatStats.total_unread_conversations > 99 ? '99+' : chatStats.total_unread_conversations}
+                  </div>
+                </button>
+              )}
+
               {/* Notifications Mobile */}
               <NotificationCenter isDarkMode={isDarkMode} />
 
@@ -340,7 +330,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
         </div>
       </div>
 
-      {/* Mobile Menu avec animation */}
+      {/* Mobile Menu avec navigation complète */}
       <div className={`md:hidden transition-all duration-500 transform ${
         mobileMenuOpen 
           ? 'max-h-screen opacity-100' 
@@ -352,10 +342,12 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
             : 'bg-white/98 border-t border-gray-200'
         } backdrop-blur-xl shadow-xl`}>
           <div className="px-4 py-4 space-y-2 max-w-6xl mx-auto">
-            {/* Navigation Mobile */}
+            
+            {/* Navigation Mobile avec labels */}
             {navItems.map((item, index) => {
               const Icon = item.icon
-              const isActive = location.pathname === item.path
+              const isActive = location.pathname === item.path || 
+                (item.path === '/chat' && location.pathname.startsWith('/chat'))
               
               return (
                 <button
@@ -366,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                   }}
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300
-                    transform hover:scale-[1.02]
+                    transform hover:scale-[1.02] relative
                     ${isActive 
                       ? isDarkMode
                         ? 'bg-purple-600/20 text-white border border-purple-500/30'
@@ -382,120 +374,49 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                     transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-20px)'
                   }}
                 >
-                  <Icon className="w-5 h-5" />
+                  <div className="relative">
+                    <Icon className="w-5 h-5" />
+                    {item.badge && (
+                      <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </div>
+                    )}
+                  </div>
                   <span className="font-medium">{item.label}</span>
                 </button>
               )
             })}
 
-            {/* User Info Mobile */}
-            <div className={`border-t pt-4 mt-4 ${
+            {/* User actions mobile */}
+            <div className={`border-t pt-4 mt-4 space-y-2 ${
               isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
-                    <div className={`w-full h-full rounded-full ${
-                      isDarkMode ? 'bg-gray-900' : 'bg-white'
-                    } flex items-center justify-center overflow-hidden`}>
-                      {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className={`w-5 h-5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} />
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <p className={`text-sm font-medium ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>{profile?.name || 'Dresseur'}</p>
-                    <p className={`text-xs ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>{user?.email}</p>
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={() => {
+                  navigate('/profil')
+                  setMobileMenuOpen(false)
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
+                  isDarkMode
+                    ? 'text-gray-300 hover:text-white hover:bg-gray-800/80'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
+                }`}
+              >
+                <User className="w-4 h-4" />
+                Mon Profil
+              </button>
 
-              {/* Stats Mobile */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className={`rounded-lg p-2 text-center ${
-                  isDarkMode ? 'bg-gray-800/80' : 'bg-gray-100/80'
-                }`}>
-                  <p className={`text-xs ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>XP</p>
-                  <p className={`text-sm font-bold ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{profile?.xp || 0}</p>
-                </div>
-                <div className={`rounded-lg p-2 text-center ${
-                  isDarkMode ? 'bg-gray-800/80' : 'bg-gray-100/80'
-                }`}>
-                  <p className={`text-xs ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Crédits</p>
-                  <p className={`text-sm font-bold ${
-                    isDarkMode ? 'text-yellow-400' : 'text-yellow-600'
-                  }`}>{profile?.credits || 100}</p>
-                </div>
-                <div className={`rounded-lg p-2 text-center ${
-                  isDarkMode ? 'bg-gray-800/80' : 'bg-gray-100/80'
-                }`}>
-                  <p className={`text-xs ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Niveau</p>
-                  <p className={`text-sm font-bold ${
-                    isDarkMode ? 'text-purple-400' : 'text-purple-600'
-                  }`}>{profile?.level || 1}</p>
-                </div>
-              </div>
-
-              {/* Actions Mobile */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    navigate('/profil')
-                    setMobileMenuOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
-                    isDarkMode
-                      ? 'text-gray-300 hover:text-white hover:bg-gray-800/80'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  Mon Profil
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate('/demandes-miroir')
-                    setMobileMenuOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
-                    isDarkMode
-                      ? 'text-gray-300 hover:text-white hover:bg-gray-800/80'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4" />
-                  Demandes de Miroir
-                </button>
-
-                <button
-                  onClick={handleSignOut}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
-                    isDarkMode
-                      ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                      : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                  }`}
-                >
-                  <LogOut className="w-4 h-4" />
-                  Déconnexion
-                </button>
-              </div>
+              <button
+                onClick={handleSignOut}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
+                  isDarkMode
+                    ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                }`}
+              >
+                <LogOut className="w-4 h-4" />
+                Déconnexion
+              </button>
             </div>
           </div>
         </div>

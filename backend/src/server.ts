@@ -1,23 +1,28 @@
-// backend/src/server.ts
+// backend/src/server.ts - VERSION COMPLÈTE AVEC CHAT
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { createServer } from 'http'; // ← NOUVEAU pour WebSocket
 
 // Import des routes qui existent
 import { questionnaireRoutes } from './modules/questionnaire/questionnaire.routes';
 import { profileRoutes } from './modules/profile/profile.routes';
 
-// ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery
+// ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery + Chat
 import { gamificationRoutes } from './modules/gamification/gamification.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
-import discoveryRoutes from './modules/discovery/discovery.routes'; // ← AJOUT
+import discoveryRoutes from './modules/discovery/discovery.routes';
+import chatRoutes from './modules/chat/chat.routes'; // ← NOUVEAU
 
 // Configuration
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Créer le serveur HTTP pour WebSocket (préparé pour plus tard)
+const server = createServer(app); // ← NOUVEAU
 
 // 🛡️ Middlewares de sécurité
 app.use(helmet({
@@ -64,10 +69,10 @@ app.get('/health', (req, res) => {
 // 🔐 Routes publiques
 app.get('/api/status', (req, res) => {
   res.json({
-    message: '🚀 Affinia Backend V6 - API opérationnelle avec Discovery',
+    message: '🚀 Affinia Backend V6 - API opérationnelle avec Discovery + Chat',
     version: '1.0.0',
     documentation: '/api/docs',
-    features: ['Questionnaire', 'Profiles', 'Gamification', 'Admin Panel', 'Discovery']
+    features: ['Questionnaire', 'Profiles', 'Gamification', 'Admin Panel', 'Discovery', 'Real-time Chat']
   });
 });
 
@@ -75,15 +80,16 @@ app.get('/api/status', (req, res) => {
 app.use('/api/questionnaire', questionnaireRoutes);
 app.use('/api/profiles', profileRoutes);
 
-// ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery
+// ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery + Chat
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/discovery', discoveryRoutes); // ← AJOUT
+app.use('/api/discovery', discoveryRoutes);
+app.use('/api/chat', chatRoutes); // ← NOUVEAU
 
 // 📋 Documentation basique
 app.get('/api/docs', (req, res) => {
   res.json({
-    title: 'Affinia Backend API V6 - Discovery Edition',
+    title: 'Affinia Backend API V6 - Discovery + Chat Edition',
     version: '1.0.0',
     endpoints: {
       questionnaire: {
@@ -107,6 +113,19 @@ app.get('/api/docs', (req, res) => {
         'PUT /api/discovery/mirror-request/:id': 'Répondre demande miroir',
         'GET /api/discovery/mirror-requests/received': 'Demandes reçues',
         'GET /api/discovery/mirror-requests/sent': 'Demandes envoyées'
+      },
+      chat: {
+        'GET /api/chat/conversations': 'Mes conversations',
+        'POST /api/chat/conversations': 'Créer une conversation',
+        'GET /api/chat/conversations/:id': 'Détails conversation',
+        'GET /api/chat/conversations/:id/messages': 'Messages d\'une conversation',
+        'POST /api/chat/conversations/:id/messages': 'Envoyer un message',
+        'PUT /api/chat/messages/:id': 'Modifier un message',
+        'DELETE /api/chat/messages/:id': 'Supprimer un message',
+        'POST /api/chat/messages/:id/react': 'Réagir à un message',
+        'POST /api/chat/conversations/:id/read': 'Marquer comme lu',
+        'GET /api/chat/conversations/:id/unread-count': 'Compter non lus',
+        'GET /api/chat/stats': 'Statistiques chat globales'
       },
       gamification: {
         'GET /api/gamification/quests': 'Mes quêtes',
@@ -154,9 +173,9 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
 });
 
 // 🚀 Démarrage du serveur
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log('🔥 ==========================================');
-  console.log('🚀 AFFINIA BACKEND V6 - DISCOVERY EDITION');
+  console.log('🚀 AFFINIA BACKEND V6 - DISCOVERY + CHAT EDITION');
   console.log('🔥 ==========================================');
   console.log(`📡 Serveur: http://localhost:${PORT}`);
   console.log(`🔍 Health: http://localhost:${PORT}/health`);
@@ -164,6 +183,7 @@ app.listen(PORT, () => {
   console.log(`🎯 API Questionnaire: http://localhost:${PORT}/api/questionnaire`);
   console.log(`👤 API Profiles: http://localhost:${PORT}/api/profiles`);
   console.log(`🔍 API Discovery: http://localhost:${PORT}/api/discovery`);
+  console.log(`💬 API Chat: http://localhost:${PORT}/api/chat`);
   console.log(`🎮 API Gamification: http://localhost:${PORT}/api/gamification`);
   console.log(`🛡️ API Admin: http://localhost:${PORT}/api/admin`);
   console.log('🔥 ==========================================');
@@ -176,6 +196,7 @@ app.listen(PORT, () => {
   console.log('  🛡️ Panel admin pour gestion quêtes');
   console.log('  🔔 Notifications gamification');
   console.log('  🔍 Découverte et miroir privé');
+  console.log('  💬 Chat temps réel avec API REST');
   console.log('🔥 ==========================================');
 });
 
