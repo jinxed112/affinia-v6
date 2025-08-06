@@ -1,9 +1,8 @@
-// ProfilePage.tsx - Version finale avec synchronisation automatique
+// ProfilePage.tsx - Version corrigée sans useQuestionnaire
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../hooks/useProfile';
-import { useQuestionnaire } from '../hooks/useQuestionnaire';
 import { AffiniaCard } from '../components/profile/AffiniaCard';
 import { PhotoManager } from '../components/profile/PhotoManager';
 import { BioEditor } from '../components/profile/BioEditor';
@@ -28,28 +27,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile, questionnaire, loading, error, refreshProfile } = useProfile();
-  
-  // 🆕 Hook de questionnaire avec synchronisation
-  const { 
-    checkSyncRecommendation, 
-    autoSyncIfRecommended,
-    lastSyncResult,
-    isSyncing,
-    getSyncStats,
-    hasCompleted,
-    canAccessMatching,
-    resetSyncState
-  } = useQuestionnaire();
 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
   const [photos, setPhotos] = useState<ProfilePhoto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
-  
-  // 🆕 États pour les recommandations de sync
-  const [syncRecommendation, setSyncRecommendation] = useState<any>(null);
-  const [showSyncNotification, setShowSyncNotification] = useState(false);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   
   // État local pour le nom (input contrôlé)
   const [userName, setUserName] = useState('');
@@ -77,78 +59,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
     { value: 'non-binaire', label: 'Non-binaire' },
     { value: 'autre', label: 'Autre' },
   ];
-
-  // 🆕 VÉRIFICATION AUTOMATIQUE DE SYNC AU CHARGEMENT
-  useEffect(() => {
-    const checkAutoSync = async () => {
-      if (profile && questionnaire && checkSyncRecommendation && autoSyncEnabled) {
-        try {
-          console.log('🔄 Vérification automatique de synchronisation...');
-          const recommendation = await checkSyncRecommendation(profile, questionnaire);
-          
-          if (recommendation.shouldSync) {
-            console.log('🔄 Synchronisation automatique recommandée:', recommendation.reasons);
-            setSyncRecommendation(recommendation);
-            setShowSyncNotification(true);
-            
-            // Afficher une notification informative
-            showSaveMessage('info', `Synchronisation disponible: ${recommendation.reasons.join(', ')}`);
-            
-            // 🚀 OPTION: Auto-sync automatique (décommente si souhaité)
-            // setTimeout(async () => {
-            //   await autoSyncIfRecommended(profile, questionnaire);
-            // }, 2000);
-          } else {
-            console.log('✅ Profil déjà synchronisé');
-            setShowSyncNotification(false);
-          }
-        } catch (error) {
-          console.error('❌ Erreur lors de la vérification de sync:', error);
-        }
-      }
-    };
-
-    // Délai pour laisser le temps aux données de se charger
-    const timeoutId = setTimeout(checkAutoSync, 1500);
-    return () => clearTimeout(timeoutId);
-  }, [profile, questionnaire, checkSyncRecommendation, autoSyncEnabled]);
-
-  // 🆕 WATCHER POUR LES CHANGEMENTS DE SYNC RESULT
-  useEffect(() => {
-    if (lastSyncResult) {
-      console.log('📊 Résultat de synchronisation reçu:', lastSyncResult);
-      
-      if (lastSyncResult.success) {
-        const syncedFieldsText = lastSyncResult.syncedFields?.length > 0 
-          ? lastSyncResult.syncedFields.join(', ') 
-          : 'données mises à jour';
-        
-        showSaveMessage('success', `Profil synchronisé: ${syncedFieldsText}`);
-        setShowSyncNotification(false);
-        
-        // Rafraîchir le profil pour voir les changements
-        setTimeout(() => {
-          refreshProfile();
-        }, 1000);
-      } else {
-        showSaveMessage('error', `Erreur lors de la synchronisation: ${lastSyncResult.error || 'Erreur inconnue'}`);
-      }
-    }
-  }, [lastSyncResult, refreshProfile]);
-
-  // 🆕 FONCTION POUR DÉCLENCHER UNE SYNC MANUELLE
-  const handleManualSync = async () => {
-    if (profile && questionnaire && autoSyncIfRecommended) {
-      try {
-        console.log('🔄 Déclenchement sync manuelle...');
-        showSaveMessage('info', 'Synchronisation en cours...');
-        await autoSyncIfRecommended(profile, questionnaire);
-      } catch (error) {
-        console.error('❌ Erreur sync manuelle:', error);
-        showSaveMessage('error', 'Erreur lors de la synchronisation manuelle');
-      }
-    }
-  };
 
   // 🆕 FONCTIONS UTILITAIRES AVEC FALLBACK QUESTIONNAIRE
   const getUserName = () => {
@@ -193,16 +103,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
     return null;
   };
 
-  // 🔍 DEBUG - Logs du profil et sync
-  useEffect(() => {
-    console.log('🔍 DEBUG Profile & Sync:', {
-      profile: { name: profile?.name, gender: profile?.gender, city: profile?.city },
-      questionnaire: { hasAnswers: !!questionnaire?.answers },
-      syncState: getSyncStats ? getSyncStats() : null,
-      recommendation: syncRecommendation
-    });
-  }, [profile, questionnaire, getSyncStats, syncRecommendation]);
-
   // 🆕 INITIALISATION DU NOM AVEC FALLBACK
   useEffect(() => {
     const nameValue = getUserName();
@@ -221,9 +121,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
     }
   }, [profile?.gender, questionnaire?.answers, genderChanged]);
 
-  // Vérifier si le questionnaire est complété
+  // Vérifier si le questionnaire est complété (version simplifiée)
   const hasCompletedQuestionnaire = () => {
-    return hasCompleted ? hasCompleted : questionnaire?.profile_json != null;
+    return questionnaire?.profile_json != null;
   };
 
   // Charger les photos de l'utilisateur
@@ -267,19 +167,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       
       // Rafraîchir le profil pour voir les changements
       await refreshProfile();
-      
-      // 🆕 Vérifier si une nouvelle sync est recommandée après la sauvegarde
-      if (checkSyncRecommendation && questionnaire) {
-        setTimeout(async () => {
-          const newRecommendation = await checkSyncRecommendation(result, questionnaire);
-          if (newRecommendation.shouldSync) {
-            setSyncRecommendation(newRecommendation);
-            setShowSyncNotification(true);
-          } else {
-            setShowSyncNotification(false);
-          }
-        }, 1000);
-      }
       
       showSaveMessage('success', 'Profil mis à jour avec succès !');
       
@@ -412,7 +299,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
   // Calculer la complétude du profil avec fallback
   const completeness = ProfileExtendedService.calculateProfileCompleteness(profile, questionnaire, photos);
 
-  // 🆕 SECTIONS DE COMPLÉTUDE AVEC SYNC STATUS
+  // SECTIONS DE COMPLÉTUDE (simplifiées sans sync)
   const completenessItems = [
     { 
       label: 'Nom', 
@@ -421,8 +308,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: getUserName() || 'Manquant',
       ref: personalInfoRef,
       action: () => scrollToSection(personalInfoRef),
-      source: profile?.name ? 'profil' : questionnaire?.answers?.firstName ? 'questionnaire' : 'Google',
-      needsSync: !profile?.name && !!questionnaire?.answers?.firstName
+      source: profile?.name ? 'profil' : questionnaire?.answers?.firstName ? 'questionnaire' : 'Google'
     },
     { 
       label: 'Genre', 
@@ -434,8 +320,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       })(),
       ref: personalInfoRef,
       action: () => scrollToSection(personalInfoRef),
-      source: profile?.gender ? 'profil' : questionnaire?.answers?.gender ? 'questionnaire' : null,
-      needsSync: !profile?.gender && !!questionnaire?.answers?.gender
+      source: profile?.gender ? 'profil' : questionnaire?.answers?.gender ? 'questionnaire' : null
     },
     { 
       label: 'Bio', 
@@ -444,8 +329,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: profile?.bio ? 'Complétée' : 'Manquante',
       ref: bioRef,
       action: () => scrollToSection(bioRef),
-      source: 'profil',
-      needsSync: false
+      source: 'profil'
     },
     { 
       label: 'Ville', 
@@ -454,8 +338,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: profile?.city || 'Manquante',
       ref: locationRef,
       action: () => scrollToSection(locationRef),
-      source: 'profil',
-      needsSync: false
+      source: 'profil'
     },
     { 
       label: 'Photos', 
@@ -464,8 +347,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: `${photos.length}/6`,
       ref: photosRef,
       action: () => scrollToSection(photosRef),
-      source: 'profil',
-      needsSync: false
+      source: 'profil'
     },
     { 
       label: 'Questionnaire', 
@@ -474,8 +356,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: questionnaire ? 'Complété' : 'À faire',
       ref: questionnaireRef,
       action: () => questionnaire ? scrollToSection(questionnaireRef) : navigate('/questionnaire'),
-      source: 'questionnaire',
-      needsSync: false
+      source: 'questionnaire'
     },
     { 
       label: 'Âge', 
@@ -484,26 +365,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       value: getUserAge() ? `${getUserAge()} ans` : 'Manquant',
       ref: questionnaireRef,
       action: () => getUserAge() ? scrollToSection(questionnaireRef) : navigate('/questionnaire'),
-      source: profile?.birth_date ? 'profil' : questionnaire?.answers?.age ? 'questionnaire' : null,
-      needsSync: !profile?.birth_date && !!questionnaire?.answers?.age
+      source: profile?.birth_date ? 'profil' : questionnaire?.answers?.age ? 'questionnaire' : null
     },
   ];
-
-  // Calculer le nombre d'éléments nécessitant une sync
-  const itemsNeedingSync = completenessItems.filter(item => item.needsSync).length;
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}>
       {/* Styles CSS unifiés */}
       <style>{`
         ${UnifiedAnimations}
-        .sync-pulse {
-          animation: sync-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes sync-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
       `}</style>
 
       {/* Background mystique unifié */}
@@ -512,69 +382,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
       <div className="pt-20 pb-20 px-4 relative z-10 min-h-screen overflow-hidden">
         <div className="max-w-7xl mx-auto h-full">
           
-          {/* 🆕 NOTIFICATION DE SYNC INTELLIGENTE */}
-          {showSyncNotification && syncRecommendation && (
-            <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
-              <BaseComponents.Card isDarkMode={isDarkMode} variant="highlighted" className="p-4 border-yellow-500/30 bg-yellow-500/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-yellow-500 animate-pulse" />
-                    <RefreshCw className="w-4 h-4 text-yellow-500 sync-pulse" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-yellow-600 mb-1 flex items-center gap-2">
-                      Synchronisation disponible
-                      <BaseComponents.Badge variant="warning" isDarkMode={isDarkMode} className="text-xs">
-                        {syncRecommendation.reasons.length} élément{syncRecommendation.reasons.length > 1 ? 's' : ''}
-                      </BaseComponents.Badge>
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {syncRecommendation.reasons.join(', ')}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Ces données peuvent être automatiquement copiées depuis votre questionnaire
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <BaseComponents.Button
-                      variant="secondary"
-                      size="small"
-                      onClick={() => setShowSyncNotification(false)}
-                    >
-                      Ignorer
-                    </BaseComponents.Button>
-                    <BaseComponents.Button
-                      variant="primary"
-                      size="small"
-                      onClick={handleManualSync}
-                      disabled={isSyncing}
-                      className="min-w-[120px]"
-                    >
-                      {isSyncing ? (
-                        <>
-                          <Loader className="w-4 h-4 animate-spin mr-2" />
-                          RefreshCw...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4 mr-2" />
-                          Synchroniser
-                        </>
-                      )}
-                    </BaseComponents.Button>
-                  </div>
-                </div>
-              </BaseComponents.Card>
-            </div>
-          )}
-          
           {/* Layout principal */}
           <div className="flex flex-col xl:flex-row gap-8">
             
             {/* Colonne gauche - Toutes les sections */}
             <div className="xl:flex-1 xl:max-w-4xl space-y-8">
               
-              {/* Indicateur de progression avec sync status */}
+              {/* Indicateur de progression */}
               <BaseComponents.Card 
                 isDarkMode={isDarkMode} 
                 variant="highlighted" 
@@ -585,16 +399,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                     <h3 className={`text-xl font-bold flex items-center gap-3 ${designSystem.getTextClasses('primary')}`}>
                       <TrendingUp className="w-6 h-6 text-purple-400 animate-pulse" />
                       Progression du profil
-                      {itemsNeedingSync > 0 && (
-                        <BaseComponents.Badge variant="warning" isDarkMode={isDarkMode}>
-                          <RefreshCw className="w-3 h-3 mr-1 sync-pulse" />
-                          {itemsNeedingSync} à synchroniser
-                        </BaseComponents.Badge>
-                      )}
                     </h3>
                     <p className={`text-sm ${designSystem.getTextClasses('muted')}`}>
                       Cliquez sur une section pour la compléter
-                      {itemsNeedingSync > 0 && ' • Des données peuvent être synchronisées automatiquement'}
                     </p>
                   </div>
                   <div className="text-right">
@@ -613,32 +420,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                         style={{ width: `${completeness.percentage}%` }}
                       ></div>
                     </div>
-                    {/* Bouton de sync global */}
-                    {itemsNeedingSync > 0 && (
-                      <BaseComponents.Button
-                        variant="primary"
-                        size="small"
-                        onClick={handleManualSync}
-                        disabled={isSyncing}
-                        className="mt-2 w-full"
-                      >
-                        {isSyncing ? (
-                          <>
-                            <Loader className="w-3 h-3 animate-spin mr-1" />
-                            RefreshCw...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="w-3 h-3 mr-1" />
-                            Synchroniser tout
-                          </>
-                        )}
-                      </BaseComponents.Button>
-                    )}
                   </div>
                 </div>
 
-                {/* Grille des critères avec indicateurs de sync */}
+                {/* Grille des critères */}
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {completenessItems.map((item, index) => (
                     <BaseComponents.Card
@@ -648,38 +433,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                       className={`p-4 card-hover cursor-pointer transform transition-all duration-200 hover:scale-105 ${
                         item.completed 
                           ? 'border-green-500/30 bg-green-500/5' 
-                          : item.needsSync
-                            ? 'border-yellow-500/30 bg-yellow-500/5 animate-pulse'
-                            : 'border-red-500/30 bg-red-500/5'
+                          : 'border-red-500/30 bg-red-500/5'
                       }`}
                       onClick={item.action}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center relative ${
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                           item.completed 
                             ? 'bg-green-500/20 text-green-400' 
-                            : item.needsSync
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-red-500/20 text-red-400'
+                            : 'bg-red-500/20 text-red-400'
                         }`}>
                           <item.icon className="w-4 h-4" />
-                          {item.needsSync && (
-                            <RefreshCw className="w-2 h-2 absolute -top-1 -right-1 text-yellow-400 sync-pulse" />
-                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${designSystem.getTextClasses('primary')} flex items-center gap-1`}>
+                          <p className={`text-sm font-medium ${designSystem.getTextClasses('primary')}`}>
                             {item.label}
-                            {item.needsSync && (
-                              <Zap className="w-3 h-3 text-yellow-400" />
-                            )}
                           </p>
                           <p className={`text-xs truncate ${
                             item.completed 
                               ? 'text-green-400' 
-                              : item.needsSync
-                                ? 'text-yellow-400'
-                                : 'text-red-400'
+                              : 'text-red-400'
                           }`}>
                             {item.value}
                           </p>
@@ -687,22 +460,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                             <p className={`text-xs ${designSystem.getTextClasses('muted')} flex items-center gap-1`}>
                               <Info className="w-2 h-2" />
                               {item.source}
-                              {item.needsSync && ' • sync disponible'}
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                            item.completed 
-                              ? 'bg-green-500' 
-                              : item.needsSync
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
+                            item.completed ? 'bg-green-500' : 'bg-red-500'
                           }`}>
                             {item.completed ? (
                               <CheckCircle className="w-3 h-3 text-white" />
-                            ) : item.needsSync ? (
-                              <Zap className="w-3 h-3 text-white" />
                             ) : (
                               <AlertCircle className="w-3 h-3 text-white" />
                             )}
@@ -714,35 +480,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                   ))}
                 </div>
               </BaseComponents.Card>
-              
-              {/* 🆕 STATS DE SYNC */}
-              {getSyncStats && lastSyncResult && (
-                <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-4">
-                  <div className="flex items-center gap-3">
-                    <RefreshCw className={`w-5 h-5 ${lastSyncResult.success ? 'text-green-400' : 'text-red-400'}`} />
-                    <div>
-                      <p className={`text-sm font-medium ${designSystem.getTextClasses('primary')}`}>
-                        Dernière synchronisation
-                      </p>
-                      <p className={`text-xs ${designSystem.getTextClasses('muted')}`}>
-                        {lastSyncResult.success ? '✅ Réussie' : '⚠️ Échec'}
-                        {lastSyncResult.syncedFields && lastSyncResult.syncedFields.length > 0 && (
-                          ` • ${lastSyncResult.syncedFields.join(', ')}`
-                        )}
-                        {lastSyncResult.error && ` • ${lastSyncResult.error}`}
-                      </p>
-                    </div>
-                    <BaseComponents.Button
-                      variant="secondary"
-                      size="small"
-                      onClick={() => resetSyncState && resetSyncState()}
-                      className="ml-auto"
-                    >
-                      Effacer
-                    </BaseComponents.Button>
-                  </div>
-                </BaseComponents.Card>
-              )}
 
               {/* Section Informations personnelles */}
               <BaseComponents.Card 
@@ -770,42 +507,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isDarkMode }) => {
                     </BaseComponents.Badge>
                   )}
                 </div>
-
-                {/* Notification fallback questionnaire */}
-                {(questionnaire?.answers?.firstName && !profile?.name) || (questionnaire?.answers?.gender && !profile?.gender) ? (
-                  <div className="mb-6">
-                    <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-4 border-blue-500/20">
-                      <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${designSystem.getTextClasses('primary')} mb-1`}>
-                            Données disponibles depuis votre questionnaire
-                          </p>
-                          <p className={`text-xs ${designSystem.getTextClasses('muted')} mb-2`}>
-                            {questionnaire?.answers?.firstName && !profile?.name && 'Nom, '}
-                            {questionnaire?.answers?.gender && !profile?.gender && 'Genre, '}
-                            disponibles pour synchronisation automatique.
-                          </p>
-                        </div>
-                        <BaseComponents.Button
-                          variant="primary"
-                          size="small"
-                          onClick={handleManualSync}
-                          disabled={isSyncing}
-                        >
-                          {isSyncing ? (
-                            <Loader className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Zap className="w-4 h-4 mr-1" />
-                              Synchroniser
-                            </>
-                          )}
-                        </BaseComponents.Button>
-                      </div>
-                    </BaseComponents.Card>
-                  </div>
-                ) : null}
 
                 <div className="space-y-6">
                   {/* Nom */}
