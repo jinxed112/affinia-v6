@@ -1,27 +1,25 @@
-// src/modules/questionnaire/questionnaire.service.ts
+// backend/src/modules/questionnaire/questionnaire.service.ts
 import { supabaseAdmin } from '../../config/database';
 import { ProfileJson } from './chatgpt-parser.service';
 import { generateAffiniaPromptV8Secure } from '../../../../shared/prompts/affinia-prompt';
 
+// ✅ INTERFACE CORRIGÉE - Match Frontend Store
 export interface QuestionnaireAnswers {
   // Step 0 - Identité
   firstName: string;
   age: number;
-  location: string;
-  
+  gender: 'homme' | 'femme' | 'non-binaire' | 'autre';
+  orientation: 'hétéro' | 'homo' | 'bi' | 'autre';
+
   // Step 1 - Psychologie
-  energy: 'introverted' | 'extroverted' | 'ambivert';
-  communication: 'words' | 'actions' | 'touch' | 'time' | 'gifts';
-  conflict: 'discuss' | 'space' | 'humor' | 'mediator';
-  values: string[];
-  
-  // Step 2 - Préférences & Lifestyle
-  interests: string[];
-  dealBreakers: string[];
-  lifestyle: 'spontaneous' | 'planned' | 'balanced';
-  relationshipGoal: 'casual' | 'serious' | 'friendship' | 'open';
-  
-  // Step 3 - Optionnel
+  energySource: 'solo_time' | 'social_energy' | 'balanced_mix';
+  communicationStyle: 'direct_honest' | 'diplomatic_careful' | 'emotional_expressive' | 'reserved_thoughtful';
+
+  // Step 2 - En amour  
+  lovePriority: 'emotional_connection' | 'mutual_respect' | 'shared_growth' | 'fun_complicity';
+  conflictApproach: 'address_immediately' | 'cool_down_first' | 'avoid_when_possible' | 'seek_compromise';
+
+  // Step 3 - Expression libre (optionnel)
   relationship_learning?: string;
   ideal_partner?: string;
   free_expression?: string;
@@ -39,33 +37,27 @@ export interface QuestionnaireResponse {
   created_at: string;
 }
 
-// Interface pour la génération de prompt
-interface PromptQuestionnaireAnswers {
-  firstName: string;
-  age: number;
-  gender: string;
-  orientation: string;
-  energySource: string;
-  communicationStyle: string;
-  lovePriority: string;
-  conflictApproach: string;
-  relationship_learning?: string;
-  ideal_partner?: string;
-  free_expression?: string;
-}
-
 class QuestionnaireService {
   /**
-   * Génère un prompt sécurisé
+   * 🎯 Génère un prompt sécurisé (CORRIGÉ)
    */
   async generatePrompt(
-    answers: any,
+    answers: QuestionnaireAnswers, // ✅ Interface corrigée
     messageCount: number = 0,
     conversationDuration: number = 0
   ): Promise<{ prompt: string; sessionId: string }> {
     try {
-      console.log('📊 Données reçues:', answers);
+      console.log('📊 Génération prompt - Données reçues:', {
+        firstName: answers.firstName,
+        age: answers.age,
+        gender: answers.gender,
+        energySource: answers.energySource,
+        communicationStyle: answers.communicationStyle,
+        lovePriority: answers.lovePriority,
+        conflictApproach: answers.conflictApproach
+      });
       
+      // ✅ Appel fonction génération avec interface corrigée
       const result = generateAffiniaPromptV8Secure(
         answers,
         messageCount,
@@ -76,19 +68,22 @@ class QuestionnaireService {
       
       return result;
     } catch (error) {
-      console.error('Erreur génération prompt:', error);
-      throw new Error('Failed to generate prompt');
+      console.error('❌ Erreur génération prompt:', error);
+      throw new Error('Failed to generate prompt: ' + error.message);
     }
   }
 
   /**
-   * Sauvegarde les réponses du questionnaire
+   * Soumet un nouveau questionnaire complet
    */
-  async saveResponses(
+  async submitQuestionnaire(
     userId: string,
-    answers: QuestionnaireAnswers
-  ): Promise<{ success: boolean; data?: QuestionnaireResponse; error?: string }> {
+    answers: QuestionnaireAnswers,
+    generatedPrompt: string
+  ): Promise<QuestionnaireResponse> {
     try {
+      console.log('📝 Soumission questionnaire pour userId:', userId);
+      
       // Ajouter des XP pour la complétion
       await this.addXpForCompletion(userId);
 
@@ -97,6 +92,7 @@ class QuestionnaireService {
         .insert({
           user_id: userId,
           answers,
+          generated_prompt: generatedPrompt,
           prompt_version: 'V8',
           completed_at: new Date().toISOString()
         })
@@ -104,55 +100,15 @@ class QuestionnaireService {
         .single();
 
       if (error) {
-        console.error('Erreur sauvegarde réponses:', error);
-        return { success: false, error: error.message };
+        console.error('❌ Erreur insertion questionnaire:', error);
+        throw error;
       }
 
-      return { success: true, data };
+      console.log('✅ Questionnaire sauvegardé:', data.id);
+      return data;
     } catch (error) {
-      console.error('Exception sauvegarde réponses:', error);
-      return { success: false, error: 'Erreur interne' };
-    }
-  }
-
-  /**
-   * Sauvegarde le profil généré par l'IA
-   */
-  async saveProfile(
-    responseId: string,
-    generatedProfile: string
-  ): Promise<{ success: boolean; data?: QuestionnaireResponse; error?: string }> {
-    try {
-      // Validation basique
-      if (!generatedProfile.trim() || generatedProfile.trim().length < 10) {
-        return { success: false, error: 'Profil invalide ou trop court' };
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from('questionnaire_responses')
-        .update({
-          generated_profile: generatedProfile.trim(),
-          analysis_timestamp: new Date().toISOString()
-        })
-        .eq('id', responseId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Erreur sauvegarde profil:', error);
-        return { success: false, error: error.message };
-      }
-
-      // Ajouter des XP bonus pour avoir complété le profil IA
-      const response = await this.getResponse(responseId);
-      if (response) {
-        await this.addXpForAIProfile(response.user_id);
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Exception sauvegarde profil:', error);
-      return { success: false, error: 'Erreur interne' };
+      console.error('❌ Submit questionnaire error:', error);
+      throw error;
     }
   }
 
@@ -165,6 +121,8 @@ class QuestionnaireService {
     profileJson: ProfileJson
   ): Promise<QuestionnaireResponse> {
     try {
+      console.log('🤖 Mise à jour profil IA pour response:', responseId);
+
       const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .update({
@@ -176,17 +134,20 @@ class QuestionnaireService {
         .select()
         .single();
 
-      if (error) throw error;
-
-      // Ajouter des XP bonus pour avoir complété le profil IA
-      const response = await this.getResponse(responseId);
-      if (response) {
-        await this.addXpForAIProfile(response.user_id);
+      if (error) {
+        console.error('❌ Erreur mise à jour profil IA:', error);
+        throw error;
       }
 
+      // Ajouter des XP bonus pour avoir complété le profil IA
+      if (data.user_id) {
+        await this.addXpForAIProfile(data.user_id);
+      }
+
+      console.log('✅ Profil IA mis à jour avec succès');
       return data;
     } catch (error) {
-      console.error('Update with AI profile error:', error);
+      console.error('❌ Update with AI profile error:', error);
       throw error;
     }
   }
@@ -254,39 +215,6 @@ class QuestionnaireService {
   }
 
   /**
-   * Soumet un nouveau questionnaire complet
-   */
-  async submitQuestionnaire(
-    userId: string,
-    answers: QuestionnaireAnswers,
-    generatedPrompt: string
-  ): Promise<QuestionnaireResponse> {
-    try {
-      // Ajouter des XP pour la complétion
-      await this.addXpForCompletion(userId);
-
-      const { data, error } = await supabaseAdmin
-        .from('questionnaire_responses')
-        .insert({
-          user_id: userId,
-          answers,
-          generated_prompt: generatedPrompt,
-          prompt_version: 'V8',
-          completed_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error) {
-      console.error('Submit questionnaire error:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Vérifie si l'utilisateur peut soumettre un nouveau questionnaire
    */
   async canSubmitNewQuestionnaire(userId: string): Promise<boolean> {
@@ -327,49 +255,71 @@ class QuestionnaireService {
   }
 
   /**
-   * Ajoute de l'XP pour la complétion du questionnaire
+   * 💎 Ajoute de l'XP pour la complétion du questionnaire
    */
   private async addXpForCompletion(userId: string): Promise<void> {
     try {
       const XP_REWARD = 50;
 
-      const { error } = await supabaseAdmin
+      console.log(`🎯 Attribution ${XP_REWARD} XP pour complétion questionnaire - User: ${userId}`);
+
+      // Essayer d'abord la fonction RPC si elle existe
+      const { error: rpcError } = await supabaseAdmin
         .rpc('add_user_xp', {
           user_id: userId,
           xp_amount: XP_REWARD
         });
 
-      if (error) {
-        // Si la fonction RPC n'existe pas, faire une update simple
-        await supabaseAdmin
+      if (rpcError) {
+        console.log('🔄 RPC add_user_xp non disponible, utilisation UPDATE direct');
+        
+        // Fallback : Update direct
+        const { error: updateError } = await supabaseAdmin
           .from('profiles')
           .update({ 
             xp: supabaseAdmin.raw(`xp + ${XP_REWARD}`),
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
+
+        if (updateError) {
+          console.error('❌ Erreur attribution XP:', updateError);
+        } else {
+          console.log('✅ XP attribués avec succès');
+        }
+      } else {
+        console.log('✅ XP attribués via RPC avec succès');
       }
     } catch (error) {
-      console.error('Add XP error:', error);
+      console.error('❌ Exception attribution XP:', error);
+      // Ne pas faire échouer la fonction principale pour une erreur XP
     }
   }
 
   /**
-   * Ajoute de l'XP bonus pour le profil IA
+   * 💎 Ajoute de l'XP bonus pour le profil IA
    */
   private async addXpForAIProfile(userId: string): Promise<void> {
     try {
       const XP_BONUS = 100;
 
-      await supabaseAdmin
+      console.log(`🤖 Attribution ${XP_BONUS} XP bonus profil IA - User: ${userId}`);
+
+      const { error } = await supabaseAdmin
         .from('profiles')
         .update({ 
           xp: supabaseAdmin.raw(`xp + ${XP_BONUS}`),
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
+
+      if (error) {
+        console.error('❌ Erreur attribution XP bonus:', error);
+      } else {
+        console.log('✅ XP bonus attribués avec succès');
+      }
     } catch (error) {
-      console.error('Add XP bonus error:', error);
+      console.error('❌ Exception attribution XP bonus:', error);
     }
   }
 }
