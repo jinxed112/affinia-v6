@@ -1,5 +1,7 @@
 // src/services/profileService.ts
 
+import { supabase } from '../lib/supabase'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export interface Profile {
@@ -76,43 +78,87 @@ export interface QuestionnaireResponse {
 }
 
 class ProfileService {
-  private async getAuthHeaders(): Promise<Record<string, string>> {
-    // ✅ RÉCUPÉRER LE TOKEN DEPUIS LE LOCALSTORAGE DIRECTEMENT
-    console.log('🔑 profileService: Récupération du token...');
+  
+  /**
+   * 🚨 NOUVEAU - Gestion automatique des tokens expirés
+   */
+  private async handleExpiredToken(): Promise<never> {
+    console.log('🔄 Token expiré détecté, nettoyage session...')
     
-    // Clé de stockage Supabase (même que dans supabase.ts)
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qbcbeitvmtqwoifbkghy.supabase.co';
-    const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+    // Nettoyer localStorage
+    localStorage.clear()
     
-    const authData = localStorage.getItem(storageKey);
+    // Déconnexion Supabase
+    await supabase.auth.signOut()
     
-    if (!authData) {
-      throw new Error('No authentication token found in localStorage');
-    }
+    // Redirection vers login
+    window.location.href = '/login'
     
-    let parsedAuth;
-    try {
-      parsedAuth = JSON.parse(authData);
-    } catch {
-      throw new Error('Invalid auth data in localStorage');
-    }
-    
-    const accessToken = parsedAuth?.access_token;
-    
-    if (!accessToken) {
-      throw new Error('No access token in auth data');
-    }
-
-    console.log('✅ profileService: Token récupéré depuis localStorage');
-
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    };
+    // Jeter une erreur pour arrêter l'exécution
+    throw new Error('Session expired - redirecting to login')
   }
 
   /**
-   * Récupère mon profil complet - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Récupération token avec gestion d'expiration
+   */
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    try {
+      console.log('🔑 profileService: Récupération du token...');
+      
+      // ✅ MÉTHODE PLUS ROBUSTE - Utiliser Supabase directement
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Erreur récupération session Supabase:', error)
+        await this.handleExpiredToken()
+      }
+      
+      if (!session) {
+        console.log('❌ Aucune session active')
+        await this.handleExpiredToken()
+      }
+      
+      const accessToken = session!.access_token
+      
+      if (!accessToken) {
+        console.log('❌ Aucun access token dans la session')
+        await this.handleExpiredToken()
+      }
+
+      console.log('✅ profileService: Token récupéré depuis Supabase');
+
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      };
+      
+    } catch (error) {
+      console.error('💥 Erreur dans getAuthHeaders:', error)
+      await this.handleExpiredToken()
+    }
+  }
+
+  /**
+   * 🔧 AMÉLIORÉ - Gestion universelle des erreurs API
+   */
+  private async handleApiResponse(response: Response): Promise<Response> {
+    // Gestion spécifique 401 - Token expiré/invalide
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('🚨 Erreur 401 détectée:', errorData)
+      
+      // Vérifier si c'est vraiment un problème de token
+      if (errorData.error?.includes('Invalid') || errorData.error?.includes('expired')) {
+        console.log('🔄 Token invalide confirmé, déconnexion automatique')
+        await this.handleExpiredToken()
+      }
+    }
+    
+    return response
+  }
+
+  /**
+   * 🔧 AMÉLIORÉ - Récupère mon profil avec gestion d'erreur robuste
    */
   async getMyProfile(): Promise<Profile> {
     try {
@@ -130,6 +176,9 @@ class ProfileService {
         url: response.url 
       });
 
+      // ✅ NOUVEAU - Gérer les erreurs d'auth avant tout
+      await this.handleApiResponse(response)
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ profileService: Erreur backend profil:', { 
@@ -144,12 +193,18 @@ class ProfileService {
       return data;
     } catch (error) {
       console.error('💥 profileService: Erreur dans getMyProfile:', error);
+      
+      // Ne pas re-throw si c'est une redirection de token expiré
+      if (error.message === 'Session expired - redirecting to login') {
+        return Promise.reject(error) // Permettre la gestion par le composant
+      }
+      
       throw error;
     }
   }
 
   /**
-   * Met à jour mon profil - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Met à jour mon profil avec gestion d'erreur
    */
   async updateMyProfile(updates: Partial<Profile>): Promise<Profile> {
     try {
@@ -162,6 +217,9 @@ class ProfileService {
         headers,
         body: JSON.stringify(updates)
       });
+
+      // ✅ NOUVEAU - Gérer les erreurs d'auth
+      await this.handleApiResponse(response)
 
       if (!response.ok) {
         throw new Error(`Failed to update profile: ${response.statusText}`);
@@ -177,7 +235,7 @@ class ProfileService {
   }
 
   /**
-   * Récupère ma dernière réponse questionnaire - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Récupère ma dernière réponse questionnaire avec gestion d'erreur
    */
   async getLatestQuestionnaire(): Promise<QuestionnaireResponse | null> {
     try {
@@ -188,6 +246,9 @@ class ProfileService {
       const response = await fetch(`${API_BASE_URL}/api/questionnaire/latest`, {
         headers
       });
+
+      // ✅ NOUVEAU - Gérer les erreurs d'auth avant les autres
+      await this.handleApiResponse(response)
 
       if (response.status === 404) {
         console.log('ℹ️ profileService: Aucun questionnaire trouvé');
@@ -203,12 +264,18 @@ class ProfileService {
       return data;
     } catch (error) {
       console.error('💥 profileService: Erreur dans getLatestQuestionnaire:', error);
+      
+      // Ne pas re-throw si c'est une redirection de token expiré
+      if (error.message === 'Session expired - redirecting to login') {
+        return Promise.reject(error)
+      }
+      
       throw error;
     }
   }
 
   /**
-   * Récupère toutes mes réponses questionnaire - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Récupère toutes mes réponses questionnaire avec gestion d'erreur
    */
   async getAllMyQuestionnaires(): Promise<QuestionnaireResponse[]> {
     try {
@@ -217,6 +284,8 @@ class ProfileService {
       const response = await fetch(`${API_BASE_URL}/api/questionnaire/my-responses`, {
         headers
       });
+
+      await this.handleApiResponse(response)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch questionnaires: ${response.statusText}`);
@@ -230,7 +299,7 @@ class ProfileService {
   }
 
   /**
-   * Récupère les données pour la carte Affinia d'un utilisateur - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Récupère les données pour la carte Affinia avec gestion d'erreur
    */
   async getAffiniaCardData(userId: string): Promise<{
     profile: Profile;
@@ -242,6 +311,8 @@ class ProfileService {
       const response = await fetch(`${API_BASE_URL}/api/profiles/${userId}/card`, {
         headers
       });
+
+      await this.handleApiResponse(response)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch card data: ${response.statusText}`);
@@ -255,7 +326,7 @@ class ProfileService {
   }
 
   /**
-   * Récupère les stats détaillées d'un profil - APPEL BACKEND
+   * 🔧 AMÉLIORÉ - Récupère les stats détaillées avec gestion d'erreur
    */
   async getProfileStats(userId: string): Promise<{
     xp: number;
@@ -272,6 +343,8 @@ class ProfileService {
       const response = await fetch(`${API_BASE_URL}/api/profiles/${userId}/stats`, {
         headers
       });
+
+      await this.handleApiResponse(response)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch stats: ${response.statusText}`);

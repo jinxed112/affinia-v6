@@ -13,6 +13,9 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string) => Promise<any>
   signOut: () => Promise<void>
+  // 🆕 NOUVEAU - Méthodes pour gérer les tokens expirés
+  clearExpiredSession: () => Promise<void>
+  refreshSession: () => Promise<boolean>
   isWebView: boolean
 }
 
@@ -64,60 +67,160 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isWebView] = useState(detectWebView())
 
+  /**
+   * 🆕 NOUVEAU - Nettoie une session expirée
+   */
+  const clearExpiredSession = async (): Promise<void> => {
+    try {
+      console.log('🧹 Nettoyage session expirée...')
+      
+      // Nettoyer l'état local
+      setUser(null)
+      setSession(null)
+      
+      // Nettoyer localStorage
+      localStorage.clear()
+      
+      // Déconnexion Supabase
+      await supabase.auth.signOut()
+      
+      console.log('✅ Session expirée nettoyée')
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du nettoyage session:', error)
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Tente de rafraîchir la session
+   */
+  const refreshSession = async (): Promise<boolean> => {
+    try {
+      console.log('🔄 Tentative de rafraîchissement session...')
+      
+      const { data: { session: newSession }, error } = await supabase.auth.refreshSession()
+      
+      if (error || !newSession) {
+        console.log('❌ Impossible de rafraîchir la session:', error?.message)
+        await clearExpiredSession()
+        return false
+      }
+      
+      console.log('✅ Session rafraîchie avec succès')
+      setSession(newSession)
+      setUser(newSession.user)
+      
+      return true
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du rafraîchissement:', error)
+      await clearExpiredSession()
+      return false
+    }
+  }
+
+  /**
+   * 🔧 AMÉLIORÉ - Gestion des changements d'auth state
+   */
+  const handleAuthStateChange = async (event: string, newSession: Session | null) => {
+    console.log('🔄 Auth state changed:', event)
+    console.log('👤 Nouvelle session:', newSession?.user?.email || 'null')
+    
+    if (event === 'SIGNED_OUT' || !newSession) {
+      console.log('👋 Utilisateur déconnecté')
+      setSession(null)
+      setUser(null)
+      setLoading(false)
+      return
+    }
+    
+    if (event === 'TOKEN_REFRESHED') {
+      console.log('🔄 Token rafraîchi automatiquement')
+      setSession(newSession)
+      setUser(newSession.user)
+      return
+    }
+    
+    if (event === 'SIGNED_IN' && newSession) {
+      // Vérifier si c'est un nouvel utilisateur
+      const isNewUser = new Date(newSession.user.created_at).getTime() === new Date(newSession.user.updated_at).getTime()
+      console.log('🆕 Nouvel utilisateur:', isNewUser)
+      
+      // Stocker des infos supplémentaires si nécessaire
+      if (isNewUser) {
+        localStorage.setItem('affinia_new_user', 'true')
+      }
+      
+      setSession(newSession)
+      setUser(newSession.user)
+    }
+    
+    setLoading(false)
+    console.log('🔓 setLoading(false) après auth state change')
+  }
+
+  /**
+   * 🔧 AMÉLIORÉ - Récupération de la session initiale avec gestion d'erreur
+   */
+  const getInitialSession = async () => {
+    try {
+      console.log('🔍 Récupération de la session...')
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Erreur lors de la récupération de session:', error)
+        
+        // Si erreur de token, tenter un refresh
+        if (error.message?.includes('refresh_token') || error.message?.includes('expired')) {
+          console.log('🔄 Token expiré, tentative de rafraîchissement...')
+          const refreshSuccess = await refreshSession()
+          
+          if (!refreshSuccess) {
+            console.log('❌ Rafraîchissement impossible, session cleared')
+            await clearExpiredSession()
+          }
+          
+          return
+        }
+        
+        throw error
+      }
+
+      if (currentSession) {
+        console.log('✅ Session trouvée:', currentSession.user.email)
+        
+        // Vérifier si la session est encore valide
+        const now = new Date().getTime()
+        const expiresAt = currentSession.expires_at ? currentSession.expires_at * 1000 : 0
+        
+        if (expiresAt > 0 && now >= expiresAt) {
+          console.log('⚠️ Session expirée, tentative de rafraîchissement...')
+          const refreshSuccess = await refreshSession()
+          
+          if (!refreshSuccess) {
+            return // refreshSession s'occupe du nettoyage
+          }
+        } else {
+          setSession(currentSession)
+          setUser(currentSession.user)
+        }
+      } else {
+        console.log('ℹ️ Aucune session active')
+      }
+    } catch (error) {
+      console.error('❌ Erreur dans getInitialSession:', error)
+      await clearExpiredSession()
+    } finally {
+      setLoading(false)
+      console.log('🔓 setLoading(false) dans finally')
+    }
+    console.log('✅ AuthContext: Initialisation terminée')
+  }
+
   useEffect(() => {
     console.log('🔍 AuthContext: Initialisation...')
     console.log('📱 WebView détecté:', isWebView)
     
-    // Fonction pour gérer les changements d'auth state
-    const handleAuthStateChange = (event: string, session: Session | null) => {
-      console.log('🔄 Auth state changed:', event)
-      console.log('👤 Nouvelle session:', session?.user?.email || 'null')
-      
-      if (event === 'SIGNED_IN' && session) {
-        // Vérifier si c'est un nouvel utilisateur
-        const isNewUser = new Date(session.user.created_at).getTime() === new Date(session.user.updated_at).getTime()
-        console.log('🆕 Nouvel utilisateur:', isNewUser)
-        
-        // Stocker des infos supplémentaires si nécessaire
-        if (isNewUser) {
-          localStorage.setItem('affinia_new_user', 'true')
-        }
-      }
-      
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-      
-      console.log('🔓 setLoading(false) après auth state change')
-    }
-
-    // Récupérer la session initiale
-    const getInitialSession = async () => {
-      try {
-        console.log('🔍 Récupération de la session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('❌ Erreur lors de la récupération de session:', error)
-          throw error
-        }
-
-        if (session) {
-          console.log('✅ Session trouvée:', session.user.email)
-          setSession(session)
-          setUser(session.user)
-        } else {
-          console.log('ℹ️ Aucune session active')
-        }
-      } catch (error) {
-        console.error('❌ Erreur dans getInitialSession:', error)
-      } finally {
-        setLoading(false)
-        console.log('🔓 setLoading(false) dans finally')
-      }
-      console.log('✅ AuthContext: Initialisation terminée')
-    }
-
     // Écouter les changements d'auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
 
@@ -131,7 +234,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [])
 
-  // Fonction Google existante (garde ton code)
+  // Fonction Google existante (gardée telle quelle)
   const signInWithGoogle = async (customRedirectTo?: string) => {
     try {
       console.log('🔄 Début signInWithGoogle')
@@ -226,7 +329,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  // NOUVELLE FONCTION: Support multi-provider
+  // FONCTION: Support multi-provider (gardée telle quelle)
   const signInWithProvider = async (provider: AuthProvider, customRedirectTo?: string) => {
     try {
       console.log(`🔄 Début signInWith${provider}`)
@@ -308,7 +411,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  // NOUVELLE FONCTION: Connexion email
+  // FONCTION: Connexion email (gardée telle quelle)
   const signInWithEmail = async (email: string, password: string) => {
     try {
       console.log('🔄 Début signInWithEmail:', email)
@@ -331,7 +434,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  // NOUVELLE FONCTION: Inscription email
+  // FONCTION: Inscription email (gardée telle quelle)
   const signUpWithEmail = async (email: string, password: string) => {
     try {
       console.log('🔄 Début signUpWithEmail:', email)
@@ -361,6 +464,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  /**
+   * 🔧 AMÉLIORÉ - Déconnexion avec nettoyage complet
+   */
   const signOut = async () => {
     try {
       console.log('🔄 Début signOut')
@@ -372,6 +478,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('❌ Erreur signOut:', error)
+        // Même en cas d'erreur, nettoyer l'état local
+        await clearExpiredSession()
         throw error
       }
 
@@ -398,10 +506,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session,
     loading,
     signInWithGoogle,
-    signInWithProvider, // NOUVEAU
-    signInWithEmail,    // NOUVEAU
-    signUpWithEmail,    // NOUVEAU
+    signInWithProvider,
+    signInWithEmail,
+    signUpWithEmail,
     signOut,
+    // 🆕 NOUVEAU - Méthodes pour gérer les sessions expirées
+    clearExpiredSession,
+    refreshSession,
     isWebView
   }
 
