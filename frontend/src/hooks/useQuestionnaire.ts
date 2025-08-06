@@ -1,7 +1,7 @@
 // src/hooks/useQuestionnaire.ts
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { questionnaireServiceAlt as questionnaireService } from '../services/questionnaireServiceAlt' // ✅ CORRECTION: utiliser questionnaireServiceAlt
+import { questionnaireService } from '../services/questionnaireService' // ✅ CORRECTION: utiliser questionnaireServiceAlt
 import { useQuestionnaireStore } from '../stores/questionnaireStore'
 import ProfileExtendedService from '../services/profileExtendedService'
 
