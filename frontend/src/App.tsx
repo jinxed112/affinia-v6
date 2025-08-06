@@ -13,7 +13,8 @@ import { ProfilePage } from './pages/ProfilePage'
 import { MiroirPage } from './pages/MiroirPage'
 import { DiscoveryPage } from './pages/DiscoveryPage'
 import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
-import QuestionnairePage from './pages/QuestionnairePage'
+// ✅ NOUVEAU: SimpleQuestionnairePage au lieu de QuestionnairePage
+import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from "./pages"
 
@@ -203,9 +204,10 @@ function AppContent() {
             </PrivateRoute>
           } />
 
+          {/* ✅ ROUTE CORRIGÉE: SimpleQuestionnairePage */}
           <Route path="/questionnaire" element={
             <PrivateRoute>
-              <QuestionnairePage isDarkMode={isDarkMode} />
+              <SimpleQuestionnairePage isDarkMode={isDarkMode} />
             </PrivateRoute>
           } />
 
