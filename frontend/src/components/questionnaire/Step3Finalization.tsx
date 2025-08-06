@@ -1,603 +1,338 @@
-// src/components/questionnaire/Step3Finalization.tsx
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useQuestionnaireStore } from '../../stores/questionnaireStore'
-import { useQuestionnaire } from '../../hooks/useQuestionnaire'
-import { useAuth } from '../../contexts/AuthContext'
-import { questionnaireServiceAlt as questionnaireService } from '../../services/questionnaireServiceAlt'
-import { useDesignSystem } from '../../styles/designSystem'
-import { BaseComponents } from '../ui/BaseComponents'
-import { Copy, ExternalLink, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
+// frontend/src/components/questionnaire/Step3Finalization.tsx
+import React, { useState, useEffect } from 'react';
+import { useQuestionnaireStore } from '../../stores/questionnaireStore';
+import { useAuthStore } from '../../stores/authStore';
+import { questionnaireService } from '../../services/questionnaireService';
 
 interface Step3FinalizationProps {
-  isDarkMode: boolean
+  onNext: () => void;
+  onPrevious: () => void;
 }
 
-const Step3Finalization: React.FC<Step3FinalizationProps> = ({ isDarkMode }) => {
-  const navigate = useNavigate()
-  const { user, session } = useAuth()
-  const { answers, setAnswer } = useQuestionnaireStore()
+export const Step3Finalization: React.FC<Step3FinalizationProps> = ({
+  onNext,
+  onPrevious
+}) => {
+  const { answers, setAnswer } = useQuestionnaireStore();
+  const { user } = useAuthStore();
   
-  const { 
-    syncToProfile, 
-    isSyncing, 
-    lastSyncResult,
-  } = useQuestionnaire()
-  
-  const designSystem = useDesignSystem(isDarkMode)
-  
-  const [mode, setMode] = useState<'skip' | 'free' | 'guided' | null>(null)
-  const [localData, setLocalData] = useState({
-    relationship_learning: answers.relationship_learning || '',
-    ideal_partner: answers.ideal_partner || '',
-    free_expression: answers.free_expression || ''
-  })
-  
-  const [generatedPrompt, setGeneratedPrompt] = useState('')
-  const [sessionId, setSessionId] = useState('')
-  const [generatedProfile, setGeneratedProfile] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [showCopySuccess, setShowCopySuccess] = useState(false)
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
-  const [currentResponseId, setCurrentResponseId] = useState<string | null>(null)
-  const [saveMessage, setSaveMessage] = useState('')
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [profileText, setProfileText] = useState('');
+  const [verificationResult, setVerificationResult] = useState<{valid: boolean; message: string} | null>(null);
 
-  // Auto-save des réponses optionnelles
-  useEffect(() => {
-    if (localData.relationship_learning) {
-      setAnswer('relationship_learning', localData.relationship_learning)
+  // État du flow
+  const [currentPhase, setCurrentPhase] = useState<'questions' | 'prompt' | 'ai' | 'verification' | 'complete'>('questions');
+
+  /**
+   * 🎯 Phase 1 : Génération du prompt sécurisé
+   */
+  const handleGeneratePrompt = async () => {
+    if (!user) {
+      setError('Utilisateur non connecté');
+      return;
     }
-  }, [localData.relationship_learning])
 
-  useEffect(() => {
-    if (localData.ideal_partner) {
-      setAnswer('ideal_partner', localData.ideal_partner)
-    }
-  }, [localData.ideal_partner])
-
-  useEffect(() => {
-    if (localData.free_expression) {
-      setAnswer('free_expression', localData.free_expression)
-    }
-  }, [localData.free_expression])
-
-  const guidedPrompts = [
-    {
-      field: 'relationship_learning',
-      question: "Quel est ton plus gros apprentissage amoureux ?",
-      placeholder: "Ce que l'amour t'a appris jusqu'ici...",
-      icon: '📖',
-    },
-    {
-      field: 'ideal_partner',
-      question: "Qu'est-ce que tu cherches vraiment ?",
-      placeholder: "Les qualités qui comptent pour toi...",
-      icon: '🎯',
-    },
-    {
-      field: 'free_expression',
-      question: "Un message pour ton futur match ?",
-      placeholder: "Ce que tu aimerais qu'on sache sur toi...",
-      icon: '💌',
-    }
-  ]
-
-  const generatePromptViaAPI = async (completeAnswers: any): Promise<{ prompt: string, sessionId: string } | null> => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const token = session?.access_token
-      
-      if (!token) {
-        console.error('❌ Pas de token d\'authentification')
-        return null
-      }
-
-      const response = await fetch(`${apiUrl}/api/questionnaire/generate-prompt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          answers: completeAnswers,
-          messageCount: 0,
-          conversationDuration: 0
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('❌ Erreur API génération prompt:', errorData)
-        return null
-      }
-
-      const data = await response.json()
-      return {
-        prompt: data.data.prompt,
-        sessionId: data.data.sessionId
-      }
-    } catch (error) {
-      console.error('❌ Erreur appel API génération:', error)
-      return null
-    }
-  }
-
-  const handleFinalize = async () => {
-    setIsGenerating(true)
+    setLoading(true);
+    setError(null);
 
     try {
-      const completeAnswers = { ...answers, ...localData }
-      
-      console.log('🔄 Début génération:', { userId: user?.id, answers: completeAnswers })
-      
-      // Synchronisation via hook
-      const syncResult = await syncToProfile(completeAnswers)
-      
-      if (syncResult.success && syncResult.syncedFields.length > 0) {
-        console.log(`✅ Synchronisation réussie: ${syncResult.syncedFields.join(', ')}`)
+      console.log('🚀 Génération prompt avec answers:', answers);
+
+      const result = await questionnaireService.generatePrompt(
+        answers,
+        0, // messageCount
+        0  // conversationDuration
+      );
+
+      if (!result.success || !result.data) {
+        setError(result.error || 'Erreur lors de la génération du prompt');
+        return;
       }
-      
-      // Génération du prompt
-      const result = await generatePromptViaAPI(completeAnswers)
-      
-      if (result) {
-        console.log('✅ Prompt généré:', { sessionId: result.sessionId })
-        setGeneratedPrompt(result.prompt)
-        setSessionId(result.sessionId)
-        
-        // Sauvegarde des réponses
-        if (user?.id) {
-          try {
-            console.log('💾 Sauvegarde des réponses...')
-            
-            const saveResult = await questionnaireService.saveResponses(
-              user.id,
-              completeAnswers
-            )
-            
-            console.log('📝 Résultat sauvegarde réponses:', saveResult)
-            
-            if (saveResult.data?.id) {
-              setCurrentResponseId(saveResult.data.id)
-              console.log('✅ Response ID défini:', saveResult.data.id)
-            } else if (saveResult.error) {
-              console.error('❌ Erreur sauvegarde réponses:', saveResult.error)
-            }
-          } catch (error) {
-            console.error('❌ Exception sauvegarde réponses:', error)
-          }
-        }
-      } else {
-        console.error('❌ Échec génération prompt')
-        alert('Erreur API. Vérifiez que le backend est démarré.')
-      }
+
+      setGeneratedPrompt(result.data.prompt);
+      setSessionId(result.data.sessionId);
+      setCurrentPhase('prompt');
+
+      console.log('✅ Prompt généré:', {
+        sessionId: result.data.sessionId,
+        promptLength: result.data.prompt.length
+      });
+
     } catch (error) {
-      console.error('❌ Erreur génération:', error)
-      alert(`Erreur lors de la génération: ${error.message}`)
+      console.error('💥 Erreur génération prompt:', error);
+      setError('Erreur de connexion au serveur');
     } finally {
-      setIsGenerating(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedPrompt)
-    setShowCopySuccess(true)
-    setTimeout(() => setShowCopySuccess(false), 3000)
-  }
+  /**
+   * 🔍 Phase 3 : Vérification du profil IA
+   */
+  const handleVerifyProfile = async () => {
+    if (!user || !sessionId || !profileText.trim()) {
+      setError('Données manquantes pour la vérification');
+      return;
+    }
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setGeneratedProfile(e.target.value)
-    setSaveMessage('')
-  }
+    setLoading(true);
+    setError(null);
 
+    try {
+      const result = await questionnaireService.verifyProfile(
+        sessionId,
+        profileText,
+        user.id
+      );
+
+      if (!result.success || !result.data) {
+        setError(result.error || 'Erreur lors de la vérification');
+        return;
+      }
+
+      setVerificationResult(result.data);
+      
+      if (result.data.valid) {
+        setCurrentPhase('complete');
+      }
+
+    } catch (error) {
+      console.error('💥 Erreur vérification:', error);
+      setError('Erreur de connexion au serveur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 💾 Phase finale : Sauvegarder le profil
+   */
   const handleSaveProfile = async () => {
-    if (!generatedProfile.trim()) {
-      setSaveMessage('❌ Veuillez coller la réponse de ChatGPT')
-      return
+    if (!profileText.trim()) {
+      setError('Veuillez coller la réponse de l\'IA');
+      return;
     }
 
-    if (generatedProfile.trim().length < 10) {
-      setSaveMessage('❌ La réponse semble trop courte')
-      return
-    }
-
-    setIsSavingProfile(true)
-    setSaveMessage('💾 Sauvegarde en cours...')
+    setLoading(true);
+    setError(null);
 
     try {
-      // Sauvegarde simple du profil
-      if (currentResponseId && user?.id) {
-        const saveResult = await questionnaireService.saveProfile(
-          currentResponseId,
-          generatedProfile.trim(),
-          user.id // ✅ Ajouter userId
-        )
+      // D'abord soumettre le questionnaire
+      const submitResult = await questionnaireService.submitQuestionnaire(
+        answers,
+        generatedPrompt || ''
+      );
 
-        if (saveResult.success) {
-          setSaveMessage('✅ Profil sauvegardé avec succès !')
-          setShowSaveSuccess(true)
-          
-          // Redirection vers le miroir après 2 secondes
-          setTimeout(() => {
-            navigate('/miroir')
-          }, 2000)
-        } else {
-          setSaveMessage('❌ Erreur lors de la sauvegarde')
-        }
-      } else {
-        setSaveMessage('❌ Session expirée, reconnectez-vous')
+      if (!submitResult.success || !submitResult.data) {
+        setError(submitResult.error || 'Erreur lors de la sauvegarde');
+        return;
       }
+
+      // Puis mettre à jour avec le profil IA
+      const updateResult = await questionnaireService.updateWithAIProfile(
+        submitResult.data.id,
+        profileText
+      );
+
+      if (!updateResult.success) {
+        setError(updateResult.error || 'Erreur lors de la mise à jour du profil');
+        return;
+      }
+
+      console.log('✅ Questionnaire complètement sauvegardé');
+      onNext(); // Passer à l'étape suivante
+
     } catch (error) {
-      console.error('❌ Erreur sauvegarde profil:', error)
-      setSaveMessage('❌ Erreur lors de la sauvegarde')
+      console.error('💥 Erreur sauvegarde:', error);
+      setError('Erreur de connexion au serveur');
     } finally {
-      setIsSavingProfile(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Page de résultat avec le prompt généré
-  if (generatedPrompt) {
-    return (
-      <div className="space-y-6">
-        {/* Header de succès */}
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce-gentle">🎉</div>
-          <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Ton Prompt Affinia est prêt !
-          </h3>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Suis ces étapes pour créer ton profil
-          </p>
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          ❌ {error}
         </div>
+      )}
 
-        {/* Notification de sync */}
-        {lastSyncResult && (
-          <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-3">
-            <div className="flex items-center gap-2">
-              {lastSyncResult.success ? (
-                <CheckCircle className="w-4 h-4 text-green-400" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-yellow-400" />
-              )}
-              <p className={`text-xs ${designSystem.getTextClasses('muted')}`}>
-                {lastSyncResult.success 
-                  ? `✅ Données synchronisées: ${lastSyncResult.syncedFields.join(', ')}`
-                  : '⚠️ Synchronisation partielle'
-                }
-              </p>
-            </div>
-          </BaseComponents.Card>
-        )}
+      {/* Phase 1 : Questions optionnelles */}
+      {currentPhase === 'questions' && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            🎯 Finalisation - Questions Optionnelles
+          </h2>
 
-        {/* Instructions compactes */}
-        <BaseComponents.Card isDarkMode={isDarkMode} variant="glass" className="p-4">
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">1</span>
-              <span>Copie ton prompt personnalisé</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">2</span>
-              <span>Ouvre ChatGPT ou Claude AI</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">3</span>
-              <span>Colle la réponse ici et sauvegarde</span>
-            </div>
-          </div>
-        </BaseComponents.Card>
-
-        {/* Actions rapides */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <BaseComponents.Button
-            variant="primary"
-            size="small"
-            onClick={copyToClipboard}
-            className="flex items-center justify-center gap-2"
-          >
-            <Copy className="w-4 h-4" />
-            {showCopySuccess ? '✓ Copié !' : 'Copier'}
-          </BaseComponents.Button>
-
-          <BaseComponents.Button
-            variant="secondary"
-            size="small"
-            onClick={() => window.open('https://chat.openai.com', '_blank')}
-            className="flex items-center justify-center gap-2"
-          >
-            <ExternalLink className="w-3 h-3" />
-            ChatGPT
-          </BaseComponents.Button>
-
-          <BaseComponents.Button
-            variant="ghost"
-            size="small"
-            onClick={() => window.open('https://claude.ai', '_blank')}
-            className="flex items-center justify-center gap-2"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Claude AI
-          </BaseComponents.Button>
-        </div>
-
-        {/* Zone pour coller le résultat */}
-        <div>
-          <label className={`block font-medium mb-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            📝 Colle ici le profil généré par l'IA :
-          </label>
-          <textarea
-            value={generatedProfile}
-            onChange={handleProfileChange}
-            placeholder="Colle ici la réponse complète de ChatGPT..."
-            rows={8}
-            className={`w-full px-3 py-2 rounded-lg backdrop-blur-sm border-2 transition-all duration-300 resize-none text-sm
-              focus:outline-none focus:ring-4 focus:ring-purple-500/20
-              ${isDarkMode 
-                ? 'bg-gray-800/50 text-white border-gray-600 placeholder-gray-400' 
-                : 'bg-white/80 text-gray-900 border-gray-300 placeholder-gray-500'
-              } focus:border-purple-500`}
-          />
-          
-          {/* Message de sauvegarde */}
-          {saveMessage && (
-            <div className={`mt-2 p-2 rounded-lg flex items-start gap-2 text-sm ${
-              saveMessage.includes('✅') 
-                ? 'bg-green-500/20 border border-green-500/50 text-green-400' 
-                : saveMessage.includes('❌')
-                ? 'bg-red-500/20 border border-red-500/50 text-red-400'
-                : 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
-            }`}>
-              <p>{saveMessage}</p>
-            </div>
-          )}
-          
-          {/* Bouton de sauvegarde */}
-          <div className="mt-3 flex items-center gap-3">
-            <BaseComponents.Button
-              variant="primary"
-              size="medium"
-              onClick={handleSaveProfile}
-              disabled={isSavingProfile || showSaveSuccess}
-              className="flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              {isSavingProfile 
-                ? 'Sauvegarde...' 
-                : showSaveSuccess 
-                ? '✓ Sauvé !' 
-                : 'Sauvegarder mon profil'
-              }
-            </BaseComponents.Button>
-          </div>
-        </div>
-
-        {/* Message final */}
-        {showSaveSuccess && (
-          <BaseComponents.Card isDarkMode={isDarkMode} variant="highlighted" className="p-4">
-            <div className="flex items-center justify-center gap-2 text-green-400">
-              <Sparkles className="w-5 h-5" />
-              <span className="text-sm font-medium">
-                ✨ Profil sauvegardé ! Redirection vers votre miroir...
-              </span>
-            </div>
-          </BaseComponents.Card>
-        )}
-      </div>
-    )
-  }
-
-  // Animation de génération
-  if (isGenerating) {
-    return (
-      <div className="text-center space-y-4">
-        <div className="text-4xl animate-spin">⚡</div>
-        <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Génération en cours...
-        </h3>
-        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          L'IA analyse tes réponses
-        </p>
-        
-        {isSyncing && (
-          <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                Synchronisation en cours...
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Page de choix du mode
-  if (!mode) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce-gentle">✨</div>
-          <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Dernière étape !
-          </h3>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Tu peux enrichir ton profil ou passer directement à la génération
-          </p>
-        </div>
-
-        {/* Options de finalisation */}
-        <div className="space-y-3">
-          <button
-            onClick={() => {
-              setMode('skip')
-              handleFinalize()
-            }}
-            className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left group transform hover:scale-105
-              ${designSystem.cardBackground} ${designSystem.border} hover:border-yellow-400`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl group-hover:animate-bounce-gentle">⚡</span>
-              <div>
-                <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Générer mon prompt !
-                </h4>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  J'ai déjà donné l'essentiel
-                </p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setMode('free')}
-            className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left group transform hover:scale-105
-              ${designSystem.cardBackground} ${designSystem.border} hover:border-purple-400`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl group-hover:animate-bounce-gentle">✍️</span>
-              <div>
-                <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Expression libre
-                </h4>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  J'ai des choses à ajouter
-                </p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setMode('guided')}
-            className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left group transform hover:scale-105
-              ${designSystem.cardBackground} ${designSystem.border} hover:border-pink-400`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl group-hover:animate-bounce-gentle">🎤</span>
-              <div>
-                <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Questions guidées
-                </h4>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Inspire-moi avec des questions
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Mode expression libre
-  if (mode === 'free') {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce-gentle">🦋</div>
-          <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Exprime-toi librement
-          </h3>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Raconte ce qui te tient à cœur...
-          </p>
-        </div>
-        
-        <textarea
-          value={localData.free_expression}
-          onChange={(e) => setLocalData({ ...localData, free_expression: e.target.value })}
-          placeholder="Raconte ce qui te tient à cœur... Tes apprentissages, ce que tu cherches, qui tu es vraiment..."
-          className={`w-full h-32 px-4 py-3 rounded-lg backdrop-blur-sm border-2 transition-all duration-300 resize-none
-            focus:outline-none focus:ring-4 focus:ring-purple-500/20
-            ${isDarkMode 
-              ? 'bg-gray-800/50 text-white border-gray-600 placeholder-gray-400' 
-              : 'bg-white/80 text-gray-900 border-gray-300 placeholder-gray-500'
-            } focus:border-purple-500`}
-        />
-
-        <div className="flex gap-3">
-          <BaseComponents.Button
-            variant="secondary"
-            size="medium"
-            onClick={() => setMode(null)}
-          >
-            ← Changer
-          </BaseComponents.Button>
-          <BaseComponents.Button
-            variant="primary"
-            size="medium"
-            onClick={handleFinalize}
-            disabled={isGenerating}
-            className="flex-1"
-          >
-            {isGenerating ? 'Génération...' : 'Valider & Générer ✨'}
-          </BaseComponents.Button>
-        </div>
-      </div>
-    )
-  }
-
-  // Mode guidé
-  if (mode === 'guided') {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce-gentle">💭</div>
-          <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Questions inspirantes
-          </h3>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Réponds à ce qui te parle
-          </p>
-        </div>
-        
-        <div className="space-y-4">
-          {guidedPrompts.map((prompt) => (
-            <div key={prompt.field}>
-              <label className={`flex items-center gap-2 font-medium mb-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                <span className="text-lg">{prompt.icon}</span>
-                {prompt.question}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Qu'avez-vous appris de vos relations passées ?
               </label>
               <textarea
-                value={localData[prompt.field as keyof typeof localData]}
-                onChange={(e) => setLocalData({ ...localData, [prompt.field]: e.target.value })}
-                placeholder={prompt.placeholder}
-                rows={2}
-                className={`w-full px-3 py-2 rounded-lg backdrop-blur-sm border-2 transition-all duration-300 resize-none text-sm
-                  focus:outline-none focus:ring-4 focus:ring-purple-500/20
-                  ${isDarkMode 
-                    ? 'bg-gray-800/50 text-white border-gray-600 placeholder-gray-400' 
-                    : 'bg-white/80 text-gray-900 border-gray-300 placeholder-gray-500'
-                  } focus:border-purple-500`}
+                value={answers.relationship_learning || ''}
+                onChange={(e) => setAnswer('relationship_learning', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Optionnel : partagez vos apprentissages..."
               />
             </div>
-          ))}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Décrivez votre partenaire idéal
+              </label>
+              <textarea
+                value={answers.ideal_partner || ''}
+                onChange={(e) => setAnswer('ideal_partner', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Optionnel : qualités recherchées..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expression libre
+              </label>
+              <textarea
+                value={answers.free_expression || ''}
+                onChange={(e) => setAnswer('free_expression', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                rows={4}
+                placeholder="Optionnel : tout ce que vous voulez ajouter..."
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-between">
+            <button
+              onClick={onPrevious}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              ← Précédent
+            </button>
+            <button
+              onClick={handleGeneratePrompt}
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? '🔄 Génération...' : '🎯 Générer mon prompt IA'}
+            </button>
+          </div>
         </div>
+      )}
 
-        <div className="flex gap-3">
-          <BaseComponents.Button
-            variant="secondary"
-            size="medium"
-            onClick={() => setMode(null)}
-          >
-            ← Changer
-          </BaseComponents.Button>
-          <BaseComponents.Button
-            variant="primary"
-            size="medium"
-            onClick={handleFinalize}
-            disabled={isGenerating}
-            className="flex-1"
-          >
-            {isGenerating ? 'Génération...' : 'Valider & Générer ✨'}
-          </BaseComponents.Button>
+      {/* Phase 2 : Affichage du prompt */}
+      {currentPhase === 'prompt' && generatedPrompt && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            📋 Votre Prompt Personnalisé
+          </h2>
+
+          <div className="bg-gray-50 border rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">Session ID: {sessionId}</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(generatedPrompt)}
+                className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+              >
+                📋 Copier
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap text-sm bg-white p-3 rounded border overflow-x-auto max-h-96">
+              {generatedPrompt}
+            </pre>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2">📝 Instructions :</h3>
+            <ol className="text-blue-700 space-y-1 text-sm">
+              <li>1. Copiez le prompt ci-dessus</li>
+              <li>2. Allez sur ChatGPT ou Claude AI</li>
+              <li>3. Collez le prompt et envoyez</li>
+              <li>4. Copiez TOUTE la réponse générée</li>
+              <li>5. Revenez ici et collez-la ci-dessous</li>
+            </ol>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Collez ici la réponse complète de l'IA :
+            </label>
+            <textarea
+              value={profileText}
+              onChange={(e) => setProfileText(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              rows={10}
+              placeholder="Collez ici la réponse complète de ChatGPT ou Claude..."
+            />
+          </div>
+
+          <div className="flex justify-between">
+            <button
+              onClick={() => setCurrentPhase('questions')}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              ← Retour
+            </button>
+            <button
+              onClick={handleVerifyProfile}
+              disabled={loading || !profileText.trim()}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {loading ? '🔄 Vérification...' : '🔍 Vérifier et Sauvegarder'}
+            </button>
+          </div>
         </div>
-      </div>
-    )
-  }
+      )}
 
-  return null
-}
+      {/* Phase 4 : Résultat de la vérification */}
+      {verificationResult && (
+        <div className={`border rounded-lg p-4 ${
+          verificationResult.valid 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
+            {verificationResult.message}
+          </p>
+          
+          {verificationResult.valid && (
+            <button
+              onClick={handleSaveProfile}
+              disabled={loading}
+              className="mt-3 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {loading ? '💾 Sauvegarde...' : '💾 Finaliser mon Profil'}
+            </button>
+          )}
+        </div>
+      )}
 
-export default Step3Finalization
+      {/* Phase 5 : Complet */}
+      {currentPhase === 'complete' && (
+        <div className="text-center space-y-6">
+          <div className="text-6xl">🎉</div>
+          <h2 className="text-3xl font-bold text-gray-800">
+            Félicitations !
+          </h2>
+          <p className="text-gray-600">
+            Votre profil psychologique a été généré avec succès.
+            Vous pouvez maintenant découvrir d'autres utilisateurs !
+          </p>
+          <button
+            onClick={onNext}
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+          >
+            🚀 Découvrir la Communauté
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
