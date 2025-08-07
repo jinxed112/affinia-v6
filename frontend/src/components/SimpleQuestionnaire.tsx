@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Brain, Copy, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 
 interface SimpleQuestionnaireProps {
@@ -21,6 +22,25 @@ interface FormData {
 }
 
 const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode }) => {
+  // 🔧 Fonction d'auth identique à profileService
+  const getAuthHeaders = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        throw new Error('Session invalide');
+      }
+      
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      };
+    } catch (error) {
+      console.error('Erreur getAuthHeaders:', error);
+      throw error;
+    }
+  };
+
   const { user } = useAuth();
   
   const [formData, setFormData] = useState<FormData>({
@@ -63,10 +83,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
 
       const response = await fetch(`${API_BASE}/generate-prompt`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.session?.access_token || ''}`
-        },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           answers: {
             firstName: formData.firstName,
@@ -120,10 +137,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
 
       const verifyResponse = await fetch(`${API_BASE}/verify-profile`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.session?.access_token || ''}`
-        },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           sessionId: sessionId,
           profileText: aiResponse.trim(),
@@ -139,10 +153,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
 
       const submitResponse = await fetch(`${API_BASE}/submit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.session?.access_token || ''}`
-        },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           answers: {
             firstName: formData.firstName, age: parseInt(formData.age),
@@ -162,10 +173,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
 
       const updateResponse = await fetch(`${API_BASE}/${submitData.responseId}/ai-profile`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.session?.access_token || ''}`
-        },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ chatGPTResponse: aiResponse })
       });
 
