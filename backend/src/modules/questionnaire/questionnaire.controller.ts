@@ -383,8 +383,6 @@ class QuestionnaireController {
     }
   }
 
-
-
   /**
    * Vérifie l'intégrité d'un profil IA avant sauvegarde
    */
@@ -416,14 +414,18 @@ class QuestionnaireController {
         return;
       }
 
-      // 2. Vérifier la présence du sessionId
-      if (!cleanText.includes(sessionId)) {
+      // 2. Vérification intelligente : est-ce un profil Affinia valide ?
+      const hasAffiniaMarkers = /PARTIE\s*1|ANALYSE\s+PERSONNELLE|DONNÉES\s+DE\s+MATCHING/i.test(cleanText);
+
+      if (!hasAffiniaMarkers) {
         res.json({
           valid: false,
-          message: '❌ Ce profil ne correspond pas à ta session. Génère un nouveau prompt.'
+          message: '❌ Ceci ne semble pas être un profil Affinia. Utilise le prompt généré.'
         });
         return;
       }
+
+      console.log('✅ Profil Affinia détecté, sessionId:', sessionId);
 
       // 3. Vérifier la présence des sections essentielles
       const hasAnalysis = /PARTIE\s*1|ANALYSE\s+PERSONNELLE|profil\s+miroir/i.test(cleanText);
