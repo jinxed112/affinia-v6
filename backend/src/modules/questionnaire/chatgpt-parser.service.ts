@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Schema de validation pour le profil JSON
 const ProfileJsonSchema = z.object({
   authenticity_score: z.number().min(0).max(100),
-  attachment_style: z.enum(['secure', 'anxious', 'avoidant', 'disorganized']),
+  attachment_style: z.string().optional(),
   strength_signals: z.array(z.string()).max(10),
   weakness_signals: z.array(z.string()).max(10),
   unconscious_patterns: z.array(z.string()).max(10),
