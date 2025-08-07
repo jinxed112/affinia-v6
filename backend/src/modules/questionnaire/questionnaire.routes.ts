@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { questionnaireController } from './questionnaire.controller';
-import { authMiddleware } from '../../middleware/auth'; // ← CHANGÉ: requireAuth → authMiddleware
+import { authMiddleware } from '../auth/auth.middleware'; // ← CHANGÉ: requireAuth → authMiddleware
 import { 
   validateQuestionnaireSubmission, 
   validateAIResponse,
