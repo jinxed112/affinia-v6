@@ -92,7 +92,7 @@ class QuestionnaireService {
         .insert({
           user_id: userId,
           answers,
-          generated_prompt: generatedPrompt,
+          
           prompt_version: 'V8',
           completed_at: new Date().toISOString()
         })
@@ -128,7 +128,7 @@ class QuestionnaireService {
         .update({
           generated_profile: generatedProfile,
           profile_json: profileJson,
-          analysis_timestamp: new Date().toISOString()
+          profile_updated_at: new Date().toISOString()
         })
         .eq('id', responseId)
         .select()
@@ -277,7 +277,7 @@ class QuestionnaireService {
         const { error: updateError } = await supabaseAdmin
           .from('profiles')
           .update({ 
-            xp: supabaseAdmin.raw(`xp + ${XP_REWARD}`),
+            
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
@@ -308,7 +308,7 @@ class QuestionnaireService {
       const { error } = await supabaseAdmin
         .from('profiles')
         .update({ 
-          xp: supabaseAdmin.raw(`xp + ${XP_BONUS}`),
+          
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
