@@ -228,7 +228,7 @@ class QuestionnaireService {
       const now = new Date();
       const hoursSinceLastSubmission = (now.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60);
 
-      return hoursSinceLastSubmission >= 24;
+      return true;
     } catch (error) {
       console.error('Check can submit error:', error);
       return false;
