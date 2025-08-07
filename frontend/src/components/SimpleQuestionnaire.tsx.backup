@@ -59,7 +59,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
     try {
       const API_BASE = process.env.NODE_ENV === 'development' 
         ? 'http://localhost:3001/api/questionnaire'
-        : 'https://affinia-v6-backend.onrender.com/api/questionnaire';
+        : '/api/questionnaire';
 
       const response = await fetch(`${API_BASE}/generate-prompt`, {
         method: 'POST',
@@ -116,7 +116,7 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
     try {
       const API_BASE = process.env.NODE_ENV === 'development' 
         ? 'http://localhost:3001/api/questionnaire'
-        : 'https://affinia-v6-backend.onrender.com/api/questionnaire';
+        : '/api/questionnaire';
 
       const verifyResponse = await fetch(`${API_BASE}/verify-profile`, {
         method: 'POST',
