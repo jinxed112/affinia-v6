@@ -1,4 +1,4 @@
-// backend/src/modules/questionnaire/questionnaire.service.ts
+// backend/src/modules/questionnaire/questionnaire.service.ts - VERSION SÉCURISÉE
 import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
 import { ProfileJson } from './chatgpt-parser.service';
 import { generateAffiniaPromptV8Secure } from '../../../../shared/prompts/affinia-prompt';
@@ -73,7 +73,7 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Soumet un nouveau questionnaire complet avec RLS
+   * ✅ SÉCURISÉ - Soumet un nouveau questionnaire avec validation token
    */
   async submitQuestionnaire(
     userId: string,
@@ -83,15 +83,24 @@ class QuestionnaireService {
   ): Promise<QuestionnaireResponse> {
     try {
       console.log('📝 Soumission questionnaire pour userId:', userId);
-      const userSupabase = createUserSupabase(userToken);
 
-      // Ajouter des XP pour la complétion (utilise supabaseAdmin car système)
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Token invalide ou UserID mismatch');
+      }
+
+      console.log('✅ Token validé pour soumission questionnaire:', user.email);
+
+      // Ajouter des XP pour la complétion (avant insertion pour éviter erreurs)
       await this.addXpForCompletion(userId);
 
-      const { data, error } = await userSupabase
+      // 🔒 SÉCURISÉ : Utiliser supabaseAdmin avec WHERE explicite après validation token
+      const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .insert({
-          user_id: userId,
+          user_id: userId, // ✅ Vérifié via token
           answers,
           prompt_version: 'V8',
           completed_at: new Date().toISOString()
@@ -113,7 +122,7 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Met à jour avec le profil IA et le JSON parsé avec RLS
+   * ✅ SÉCURISÉ - Met à jour avec le profil IA avec validation token
    */
   async updateWithAIProfile(
     responseId: string,
@@ -123,9 +132,29 @@ class QuestionnaireService {
   ): Promise<QuestionnaireResponse> {
     try {
       console.log('🤖 Mise à jour profil IA pour response:', responseId);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { data, error } = await userSupabase
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user) {
+        throw new Error('Token invalide');
+      }
+
+      // Vérifier que la réponse appartient à l'utilisateur
+      const { data: existingResponse, error: checkError } = await supabaseAdmin
+        .from('questionnaire_responses')
+        .select('user_id')
+        .eq('id', responseId)
+        .single();
+
+      if (checkError || !existingResponse || existingResponse.user_id !== user.id) {
+        throw new Error('Accès non autorisé à cette réponse');
+      }
+
+      console.log('✅ Token et ownership validés pour mise à jour IA');
+
+      // 🔒 SÉCURISÉ : Update avec WHERE sur responseId ET user_id
+      const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .update({
           generated_profile: generatedProfile,
@@ -133,6 +162,7 @@ class QuestionnaireService {
           profile_updated_at: new Date().toISOString()
         })
         .eq('id', responseId)
+        .eq('user_id', user.id) // ✅ Double sécurité
         .select()
         .single();
 
@@ -141,10 +171,8 @@ class QuestionnaireService {
         throw error;
       }
 
-      // Ajouter des XP bonus pour avoir complété le profil IA (utilise supabaseAdmin car système)
-      if (data.user_id) {
-        await this.addXpForAIProfile(data.user_id);
-      }
+      // Ajouter des XP bonus pour avoir complété le profil IA
+      await this.addXpForAIProfile(user.id);
 
       console.log('✅ Profil IA mis à jour avec succès');
       return data;
@@ -155,16 +183,22 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupère toutes les réponses d'un utilisateur avec RLS
+   * ✅ SÉCURISÉ - Récupère toutes les réponses d'un utilisateur avec validation token
    */
   async getUserResponses(userId: string, userToken: string): Promise<QuestionnaireResponse[]> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
       
-      const { data, error } = await userSupabase
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Token invalide ou UserID mismatch');
+      }
+
+      // 🔒 SÉCURISÉ : supabaseAdmin avec WHERE explicite après validation
+      const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId) // ✅ Vérifié via token
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -177,40 +211,61 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupère la dernière réponse avec RLS
+   * ✅ SÉCURISÉ - Récupère la dernière réponse avec validation token
    */
   async getLatestResponse(userId: string, userToken: string): Promise<QuestionnaireResponse | null> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
       
-      const { data, error } = await userSupabase
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token validation failed for getLatestResponse');
+        return null;
+      }
+
+      console.log('✅ Token validated for getLatestResponse:', user.email);
+
+      // 🔒 SÉCURISÉ : supabaseAdmin avec WHERE explicite après validation
+      const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId) // ✅ Vérifié via token
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle(); // ✅ maybeSingle() pour éviter erreur si pas de résultat
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('❌ Questionnaire query error:', error);
+        throw error;
+      }
 
-      return data;
+      console.log('✅ Latest questionnaire:', data ? 'Trouvé' : 'Aucun');
+      return data; // Retourne null si pas de questionnaire (normal)
+
     } catch (error) {
-      console.error('Get latest response error:', error);
+      console.error('💥 Get latest response error:', error);
       throw error;
     }
   }
 
   /**
-   * ✅ CORRIGÉ - Récupère une réponse spécifique avec RLS
+   * ✅ SÉCURISÉ - Récupère une réponse spécifique avec validation token
    */
   async getResponse(responseId: string, userToken: string): Promise<QuestionnaireResponse | null> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
       
-      const { data, error } = await userSupabase
+      if (tokenError || !user) {
+        throw new Error('Token invalide');
+      }
+
+      // 🔒 SÉCURISÉ : supabaseAdmin avec WHERE sur responseId ET user_id
+      const { data, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .select('*')
         .eq('id', responseId)
+        .eq('user_id', user.id) // ✅ Double sécurité
         .single();
 
       if (error) throw error;
@@ -223,7 +278,7 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Vérifie si l'utilisateur peut soumettre un nouveau questionnaire avec RLS
+   * ✅ SÉCURISÉ - Vérifie si l'utilisateur peut soumettre un nouveau questionnaire
    */
   async canSubmitNewQuestionnaire(userId: string, userToken: string): Promise<boolean> {
     try {
@@ -231,7 +286,7 @@ class QuestionnaireService {
 
       if (!latest) return true;
 
-      // Limiter à 1 questionnaire par 24h
+      // Limiter à 1 questionnaire par 24h (optionnel)
       const lastSubmission = new Date(latest.created_at);
       const now = new Date();
       const hoursSinceLastSubmission = (now.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60);
@@ -244,16 +299,22 @@ class QuestionnaireService {
   }
 
   /**
-   * ✅ CORRIGÉ - Vérifie si un utilisateur a complété le questionnaire avec RLS
+   * ✅ SÉCURISÉ - Vérifie si un utilisateur a complété le questionnaire
    */
   async hasCompletedQuestionnaire(userId: string, userToken: string): Promise<boolean> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // 🔒 VALIDATION TOKEN OBLIGATOIRE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
       
-      const { count, error } = await userSupabase
+      if (tokenError || !user || user.id !== userId) {
+        return false;
+      }
+
+      // 🔒 SÉCURISÉ : supabaseAdmin avec WHERE explicite après validation
+      const { count, error } = await supabaseAdmin
         .from('questionnaire_responses')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId); // ✅ Vérifié via token
 
       if (error) throw error;
 
@@ -265,7 +326,7 @@ class QuestionnaireService {
   }
 
   /**
-   * 💎 GARDE ADMIN - Ajoute de l'XP pour la complétion du questionnaire (système)
+   * 💎 CORRIGÉ - Ajoute de l'XP pour la complétion du questionnaire (système)
    */
   private async addXpForCompletion(userId: string): Promise<void> {
     try {
@@ -273,32 +334,33 @@ class QuestionnaireService {
 
       console.log(`🎯 Attribution ${XP_REWARD} XP pour complétion questionnaire - User: ${userId}`);
 
-      // Utiliser supabaseAdmin car c'est une opération système
-      const { error: rpcError } = await supabaseAdmin
-        .rpc('add_user_xp', {
-          user_id: userId,
-          xp_amount: XP_REWARD
-        });
+      // VERSION SIMPLE ET SÛRE : Récupérer XP actuel puis mettre à jour
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('xp')
+        .eq('id', userId)
+        .single();
 
-      if (rpcError) {
-        console.log('🔄 RPC add_user_xp non disponible, utilisation UPDATE direct');
+      if (!profile) {
+        console.error('❌ Profil non trouvé pour attribution XP');
+        return;
+      }
 
-        // Fallback : Update direct avec supabaseAdmin
-        const { error: updateError } = await supabaseAdmin
-          .from('profiles')
-          .update({
-            xp: supabaseAdmin.raw(`xp + ${XP_REWARD}`),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
+      const currentXp = profile.xp || 0;
+      const newXp = currentXp + XP_REWARD;
+      
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          xp: newXp,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
 
-        if (updateError) {
-          console.error('❌ Erreur attribution XP:', updateError);
-        } else {
-          console.log('✅ XP attribués avec succès');
-        }
+      if (error) {
+        console.error('❌ Erreur attribution XP:', error);
       } else {
-        console.log('✅ XP attribués via RPC avec succès');
+        console.log(`✅ XP attribués : ${currentXp} → ${newXp}`);
       }
     } catch (error) {
       console.error('❌ Exception attribution XP:', error);
@@ -307,7 +369,7 @@ class QuestionnaireService {
   }
 
   /**
-   * 💎 GARDE ADMIN - Ajoute de l'XP bonus pour le profil IA (système)
+   * 💎 CORRIGÉ - Ajoute de l'XP bonus pour le profil IA (système)
    */
   private async addXpForAIProfile(userId: string): Promise<void> {
     try {
@@ -315,11 +377,25 @@ class QuestionnaireService {
 
       console.log(`🤖 Attribution ${XP_BONUS} XP bonus profil IA - User: ${userId}`);
 
-      // Utiliser supabaseAdmin car c'est une opération système
+      // VERSION SIMPLE ET SÛRE : Récupérer XP actuel puis mettre à jour
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('xp')
+        .eq('id', userId)
+        .single();
+
+      if (!profile) {
+        console.error('❌ Profil non trouvé pour attribution XP bonus');
+        return;
+      }
+
+      const currentXp = profile.xp || 0;
+      const newXp = currentXp + XP_BONUS;
+      
       const { error } = await supabaseAdmin
         .from('profiles')
         .update({
-          xp: supabaseAdmin.raw(`xp + ${XP_BONUS}`),
+          xp: newXp,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
@@ -327,7 +403,7 @@ class QuestionnaireService {
       if (error) {
         console.error('❌ Erreur attribution XP bonus:', error);
       } else {
-        console.log('✅ XP bonus attribués avec succès');
+        console.log(`✅ XP bonus attribués : ${currentXp} → ${newXp}`);
       }
     } catch (error) {
       console.error('❌ Exception attribution XP bonus:', error);
