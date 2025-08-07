@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { questionnaireController } from './questionnaire.controller';
 import { authMiddleware } from '../auth/auth.middleware'; // ← CHANGÉ: requireAuth → authMiddleware
 import { 
-  validateQuestionnaireSubmission, 
+  validateGeneratePrompt, 
   validateAIResponse,
   validateQuestionnaireId,
   validateProfileVerification,
@@ -18,7 +18,7 @@ router.use(authMiddleware); // ← CHANGÉ: requireAuth → authMiddleware
 router.get('/my-responses', questionnaireController.getMyResponses);
 router.get('/latest', questionnaireController.getLatestResponse);
 router.get('/:responseId', validateQuestionnaireId, questionnaireController.getResponse);
-router.post('/submit', validateQuestionnaireSubmission, questionnaireController.submitQuestionnaire);
+router.post('/submit', validateGeneratePrompt, questionnaireController.submitQuestionnaire);
 router.post('/generate-prompt', validateGeneratePrompt, questionnaireController.generatePrompt);
 router.post('/parse-ai', validateAIResponse, questionnaireController.parseAIResponse);
 router.post('/verify-profile', validateProfileVerification, questionnaireController.verifyProfile);
