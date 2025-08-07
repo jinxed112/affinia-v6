@@ -1,3 +1,4 @@
+// backend/src/modules/questionnaire/questionnaire.controller.ts
 import { Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
 import { questionnaireService } from './questionnaire.service';
@@ -14,13 +15,13 @@ function cleanDuplicatedJsonFields(jsonString: string): string {
     return jsonString; // Si ça marche, pas besoin de nettoyer
   } catch (originalError) {
     console.log('🔧 JSON nécessite un nettoyage, erreur:', originalError.message);
-    
+
     let cleaned = jsonString.trim();
-    
+
     // 1. Isoler le premier objet JSON complet
     let braceCount = 0;
     let firstJsonEnd = -1;
-    
+
     for (let i = 0; i < cleaned.length; i++) {
       const char = cleaned[i];
       if (char === '{') braceCount++;
@@ -32,31 +33,31 @@ function cleanDuplicatedJsonFields(jsonString: string): string {
         }
       }
     }
-    
+
     if (firstJsonEnd > -1) {
       cleaned = cleaned.substring(0, firstJsonEnd + 1);
     }
-    
+
     // 2. Pattern spécifique ChatGPT : supprimer les champs après "mirroring_warning"
     const mirroringWarningMatch = cleaned.match(/"mirroring_warning":\s*"[^"]*"/);
     if (mirroringWarningMatch) {
       const mirroringEnd = mirroringWarningMatch.index + mirroringWarningMatch[0].length;
-      
+
       // Chercher la prochaine virgule puis les champs dupliqués
       const afterMirroring = cleaned.substring(mirroringEnd);
       const duplicateFieldsPattern = /,\s*"(intellectual_indicators|emotional_regulation_signs|social_behavior_patterns|motivational_clues|authenticity_markers)"/;
-      
+
       if (duplicateFieldsPattern.test(afterMirroring)) {
         // Tronquer juste après mirroring_warning et fermer l'objet proprement
         cleaned = cleaned.substring(0, mirroringEnd) + '\n}';
         console.log('✂️ Champs dupliqués supprimés après mirroring_warning');
       }
     }
-    
+
     // 3. Nettoyer les virgules en trop
     cleaned = cleaned.replace(/,(\s*})/g, '$1'); // Virgule avant }
     cleaned = cleaned.replace(/,(\s*])/g, '$1'); // Virgule avant ]
-    
+
     // 4. Vérifier que le JSON nettoyé est valide
     try {
       const parsed = JSON.parse(cleaned);
@@ -64,13 +65,13 @@ function cleanDuplicatedJsonFields(jsonString: string): string {
       return cleaned;
     } catch (cleanedError) {
       console.log('❌ JSON toujours invalide après nettoyage:', cleanedError.message);
-      
+
       // 5. Dernière tentative : supprimer tout ce qui est après trait_observations
       const traitObsMatch = cleaned.match(/"trait_observations":\s*{[^}]*}/);
       if (traitObsMatch) {
         const traitObsEnd = traitObsMatch.index + traitObsMatch[0].length;
         const beforeTraitObs = cleaned.substring(0, traitObsEnd);
-        
+
         // Ajouter les champs manquants minimaux et fermer
         const minimalEnd = `,
   "relationnal_risks": [],
@@ -78,7 +79,7 @@ function cleanDuplicatedJsonFields(jsonString: string): string {
   "mirroring_warning": "Données partiellement récupérées"
 }`;
         const fallbackJson = beforeTraitObs + minimalEnd;
-        
+
         try {
           JSON.parse(fallbackJson);
           console.log('🔄 JSON de secours créé');
@@ -100,12 +101,12 @@ function cleanDuplicatedJsonFields(jsonString: string): string {
             ideal_partner_traits: [],
             mirroring_warning: "JSON de sécurité"
           };
-          
+
           console.log('🆘 JSON d\'urgence utilisé');
           return JSON.stringify(emergency, null, 2);
         }
       }
-      
+
       return JSON.stringify({ error: "JSON parsing failed" }, null, 2);
     }
   }
@@ -155,12 +156,12 @@ class QuestionnaireController {
   }
 
   /**
-   * Récupère toutes les réponses de l'utilisateur
+   * ✅ CORRIGÉ - Récupère toutes les réponses de l'utilisateur
    */
   async getMyResponses(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const responses = await questionnaireService.getUserResponses(userId);
+      const responses = await questionnaireService.getUserResponses(userId, req.userToken!);
 
       res.json({
         total: responses.length,
@@ -173,12 +174,12 @@ class QuestionnaireController {
   }
 
   /**
-   * Récupère la dernière réponse
+   * ✅ CORRIGÉ - Récupère la dernière réponse
    */
   async getLatestResponse(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const response = await questionnaireService.getLatestResponse(userId);
+      const response = await questionnaireService.getLatestResponse(userId, req.userToken!);
 
       if (!response) {
         res.status(404).json({ error: 'No questionnaire response found' });
@@ -193,14 +194,14 @@ class QuestionnaireController {
   }
 
   /**
-   * Récupère une réponse spécifique
+   * ✅ CORRIGÉ - Récupère une réponse spécifique
    */
   async getResponse(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { responseId } = req.params;
       const userId = req.user!.id;
 
-      const response = await questionnaireService.getResponse(responseId);
+      const response = await questionnaireService.getResponse(responseId, req.userToken!);
 
       if (!response) {
         res.status(404).json({ error: 'Response not found' });
@@ -221,7 +222,7 @@ class QuestionnaireController {
   }
 
   /**
-   * Soumet un nouveau questionnaire
+   * ✅ CORRIGÉ - Soumet un nouveau questionnaire
    */
   async submitQuestionnaire(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -235,9 +236,9 @@ class QuestionnaireController {
       const { answers, generatedPrompt } = req.body;
 
       // Vérifier si l'utilisateur n'a pas déjà soumis récemment (anti-spam)
-      const canSubmit = await questionnaireService.canSubmitNewQuestionnaire(userId);
+      const canSubmit = await questionnaireService.canSubmitNewQuestionnaire(userId, req.userToken!);
       if (!canSubmit) {
-        res.status(429).json({ 
+        res.status(429).json({
           error: 'Please wait before submitting another questionnaire',
           retryAfter: '24 hours'
         });
@@ -247,7 +248,8 @@ class QuestionnaireController {
       const response = await questionnaireService.submitQuestionnaire(
         userId,
         answers,
-        generatedPrompt
+        generatedPrompt,
+        req.userToken!
       );
 
       res.status(201).json({
@@ -288,10 +290,10 @@ class QuestionnaireController {
       });
     } catch (error) {
       console.error('Parse AI response error:', error);
-      
+
       // Erreur détaillée pour aider l'utilisateur
       if (error instanceof Error) {
-        res.status(400).json({ 
+        res.status(400).json({
           error: 'Failed to parse AI response',
           details: error.message,
           hint: 'Make sure you copied the complete response including the JSON block'
@@ -303,7 +305,7 @@ class QuestionnaireController {
   }
 
   /**
-   * Met à jour une réponse avec le profil IA
+   * ✅ CORRIGÉ - Met à jour une réponse avec le profil IA
    */
   async updateWithAIProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -318,7 +320,7 @@ class QuestionnaireController {
       const { chatGPTResponse } = req.body;
 
       // Vérifier que la réponse appartient à l'utilisateur
-      const response = await questionnaireService.getResponse(responseId);
+      const response = await questionnaireService.getResponse(responseId, req.userToken!);
       if (!response || response.user_id !== userId) {
         res.status(403).json({ error: 'Access denied' });
         return;
@@ -326,7 +328,7 @@ class QuestionnaireController {
 
       // Vérifier qu'il n'y a pas déjà un profil IA
       if (response.profile_json) {
-        res.status(400).json({ 
+        res.status(400).json({
           error: 'AI profile already exists for this response',
           hint: 'Create a new questionnaire to generate a new profile'
         });
@@ -335,11 +337,12 @@ class QuestionnaireController {
 
       // Parser et sauvegarder
       const parsedData = chatGPTParser.parseResponse(chatGPTResponse);
-      
+
       const updated = await questionnaireService.updateWithAIProfile(
         responseId,
         parsedData.profileText,
-        parsedData.profileJson
+        parsedData.profileJson,
+        req.userToken!
       );
 
       res.json({
@@ -353,14 +356,14 @@ class QuestionnaireController {
   }
 
   /**
-   * Récupère uniquement le prompt généré
+   * ✅ CORRIGÉ - Récupère uniquement le prompt généré
    */
   async getGeneratedPrompt(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { responseId } = req.params;
       const userId = req.user!.id;
 
-      const response = await questionnaireService.getResponse(responseId);
+      const response = await questionnaireService.getResponse(responseId, req.userToken!);
 
       if (!response || response.user_id !== userId) {
         res.status(403).json({ error: 'Access denied' });
@@ -472,7 +475,7 @@ class QuestionnaireController {
         ];
 
         const missingFields = requiredFields.filter(field => !(field in jsonData));
-        
+
         if (missingFields.length > 0) {
           res.json({
             valid: false,
@@ -494,7 +497,7 @@ class QuestionnaireController {
       } catch (jsonError) {
         console.error('JSON parsing error:', jsonError);
         console.error('JSON content that failed:', jsonMatch[1].substring(0, 200) + '...');
-        
+
         res.json({
           valid: false,
           message: '❌ Le format JSON est invalide. Copie exactement la réponse de l\'IA.',
@@ -507,7 +510,7 @@ class QuestionnaireController {
 
     } catch (error) {
       console.error('Verify profile error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to verify profile',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });

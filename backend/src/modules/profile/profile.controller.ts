@@ -1,3 +1,4 @@
+// backend/src/modules/profile/profile.controller.ts
 import { Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
 import { profileService } from './profile.service';
@@ -5,12 +6,12 @@ import { validationResult } from 'express-validator';
 
 class ProfileController {
   /**
-   * Récupère le profil de l'utilisateur connecté
+   * ✅ CORRIGÉ - Récupère le profil de l'utilisateur connecté
    */
   async getMyProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const profile = await profileService.getProfile(userId);
+      const profile = await profileService.getProfile(userId, req.userToken!);
 
       if (!profile) {
         res.status(404).json({ error: 'Profile not found' });
@@ -25,7 +26,7 @@ class ProfileController {
   }
 
   /**
-   * Récupère un profil par ID
+   * ✅ CORRIGÉ - Récupère un profil par ID
    */
   async getProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -39,7 +40,7 @@ class ProfileController {
         return;
       }
 
-      const profile = await profileService.getProfile(userId);
+      const profile = await profileService.getProfile(userId, req.userToken!);
 
       if (!profile) {
         res.status(404).json({ error: 'Profile not found' });
@@ -47,8 +48,8 @@ class ProfileController {
       }
 
       // Filtrer les infos sensibles si ce n'est pas son propre profil
-      const publicProfile = requesterId === userId 
-        ? profile 
+      const publicProfile = requesterId === userId
+        ? profile
         : profileService.getPublicProfile(profile);
 
       res.json(publicProfile);
@@ -59,7 +60,7 @@ class ProfileController {
   }
 
   /**
-   * Met à jour le profil de l'utilisateur connecté
+   * ✅ CORRIGÉ - Met à jour le profil de l'utilisateur connecté
    */
   async updateMyProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -73,7 +74,7 @@ class ProfileController {
       const userId = req.user!.id;
       const updates = req.body;
 
-      const updatedProfile = await profileService.updateProfile(userId, updates);
+      const updatedProfile = await profileService.updateProfile(userId, updates, req.userToken!);
 
       res.json(updatedProfile);
     } catch (error) {
@@ -83,7 +84,7 @@ class ProfileController {
   }
 
   /**
-   * Récupère les données pour la carte Affinia
+   * ✅ CORRIGÉ - Récupère les données pour la carte Affinia
    */
   async getProfileCard(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -97,7 +98,7 @@ class ProfileController {
         return;
       }
 
-      const cardData = await profileService.getProfileCardData(userId);
+      const cardData = await profileService.getProfileCardData(userId, req.userToken!);
 
       if (!cardData) {
         res.status(404).json({ error: 'Profile card not found' });
@@ -112,7 +113,7 @@ class ProfileController {
   }
 
   /**
-   * Récupère les statistiques du profil
+   * ✅ CORRIGÉ - Récupère les statistiques du profil
    */
   async getProfileStats(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -125,7 +126,7 @@ class ProfileController {
         return;
       }
 
-      const stats = await profileService.getProfileStats(userId);
+      const stats = await profileService.getProfileStats(userId, req.userToken!);
 
       res.json(stats);
     } catch (error) {
@@ -135,21 +136,20 @@ class ProfileController {
   }
 
   /**
-   * Récupère toutes les données nécessaires pour le dashboard
-   * Endpoint optimisé qui évite les multiples requêtes depuis le frontend
+   * ✅ CORRIGÉ - Récupère toutes les données nécessaires pour le dashboard
    */
   async getDashboard(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      
+
       console.log(`[Dashboard] Récupération des données pour l'utilisateur: ${userId}`);
 
-      const dashboardData = await profileService.getDashboardData(userId);
+      const dashboardData = await profileService.getDashboardData(userId, req.userToken!);
 
       if (!dashboardData) {
-        res.status(404).json({ 
+        res.status(404).json({
           success: false,
-          error: 'Dashboard data not found' 
+          error: 'Dashboard data not found'
         });
         return;
       }
@@ -161,7 +161,7 @@ class ProfileController {
 
     } catch (error) {
       console.error('[Dashboard] Error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: 'Failed to get dashboard data',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -170,8 +170,7 @@ class ProfileController {
   }
 
   /**
-   * Version alternative qui permet de récupérer le dashboard d'un autre utilisateur
-   * (utile pour voir les cartes des autres)
+   * ✅ CORRIGÉ - Version alternative qui permet de récupérer le dashboard d'un autre utilisateur
    */
   async getUserDashboard(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -181,19 +180,19 @@ class ProfileController {
       // Vérifier les permissions
       const canView = await profileService.canViewProfile(requesterId, userId);
       if (!canView) {
-        res.status(403).json({ 
+        res.status(403).json({
           success: false,
-          error: 'Cannot view this user dashboard' 
+          error: 'Cannot view this user dashboard'
         });
         return;
       }
 
-      const dashboardData = await profileService.getDashboardData(userId);
+      const dashboardData = await profileService.getDashboardData(userId, req.userToken!);
 
       if (!dashboardData) {
-        res.status(404).json({ 
+        res.status(404).json({
           success: false,
-          error: 'User dashboard not found' 
+          error: 'User dashboard not found'
         });
         return;
       }
@@ -217,9 +216,9 @@ class ProfileController {
 
     } catch (error) {
       console.error('[UserDashboard] Error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: 'Failed to get user dashboard data' 
+        error: 'Failed to get user dashboard data'
       });
     }
   }
@@ -230,13 +229,13 @@ class ProfileController {
   async uploadAvatar(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      
+
       // TODO: Implémenter l'upload réel avec Supabase Storage
       // Pour l'instant, on simule
-      
-      res.json({ 
+
+      res.json({
         message: 'Avatar upload endpoint - to be implemented',
-        userId 
+        userId
       });
     } catch (error) {
       console.error('Upload avatar error:', error);

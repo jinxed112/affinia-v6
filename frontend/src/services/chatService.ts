@@ -1,546 +1,371 @@
-// =============================================
-// SERVICE FRONTEND - Chat Temps Réel
-// frontend/src/services/chatService.ts
-// =============================================
+import { authManager } from './authManager'
+import type { 
+  Conversation, 
+  Message, 
+  SendMessageParams, 
+  ChatStats,
+  CreateConversationParams,
+  UpdateMessageParams,
+  ReactToMessageParams
+} from '../../../shared/types/chat'
 
-import type {
-  Conversation,
-  Message,
-  SendMessageParams,
-  ChatStats
-} from '../../../shared/types/chat';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 class ChatService {
-
-  constructor() {
-    console.log('💬 ChatService: API_BASE_URL =', API_BASE_URL);
-  }
-
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    console.log('🔑 chatService: Récupération du token...');
+    const token = await authManager.getAccessToken()
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qbcbeitvmtqwoifbkghy.supabase.co';
-    const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
-
-    const authData = localStorage.getItem(storageKey);
-
-    if (!authData) {
-      console.error('❌ No auth data found');
-      throw new Error('No authentication token found');
+    if (!token) {
+      throw new Error('No access token available')
     }
-
-    let parsedAuth;
-    try {
-      parsedAuth = JSON.parse(authData);
-      console.log('✅ Auth data parsed successfully');
-    } catch {
-      console.error('❌ Invalid auth data');
-      throw new Error('Invalid auth data');
-    }
-
-    const accessToken = parsedAuth?.access_token;
-
-    if (!accessToken) {
-      console.error('❌ No access token in auth data');
-      throw new Error('No access token found');
-    }
-
-    console.log('✅ Access token found for chat service');
 
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    };
-  }
-
-  // ============ GESTION DES CONVERSATIONS ============
-
-  /**
-   * Récupérer les conversations de l'utilisateur
-   */
-  async getConversations(limit: number = 20, offset: number = 0): Promise<Conversation[]> {
-    try {
-      console.log('📝 chatService: Récupération conversations', { limit, offset });
-
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations?limit=${limit}&offset=${offset}`, {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversations: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch conversations');
-      }
-
-      console.log('✅ chatService: Conversations récupérées:', result.data.length);
-      return result.data;
-
-    } catch (error) {
-      console.error('❌ chatService: Erreur getConversations:', error);
-      throw error;
+      'Authorization': `Bearer ${token}`
     }
   }
 
-  /**
-   * Récupérer une conversation spécifique
-   */
+  private async handleResponse(response: Response): Promise<any> {
+    if (response.status === 401) {
+      await authManager.clearSession()
+      window.location.href = '/login'
+      throw new Error('Authentication required')
+    }
+
+    if (!response.ok) {
+      throw new Error(`Chat API Error: ${response.status}`)
+    }
+
+    const result = await response.json()
+    if (!result.success) {
+      throw new Error(result.error || 'Chat operation failed')
+    }
+
+    return result.data
+  }
+
+  // ============ MÉTHODES CONVERSATIONS ============
+
+  async getConversations(limit = 20, offset = 0): Promise<Conversation[]> {
+    try {
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations?limit=${limit}&offset=${offset}`, { headers })
+      return this.handleResponse(response)
+    } catch (error) {
+      console.error('❌ getConversations error:', error)
+      throw error
+    }
+  }
+
   async getConversation(conversationId: string): Promise<Conversation> {
     try {
-      console.log('👁️ chatService: Récupération conversation:', conversationId);
-
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}`, {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversation: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch conversation');
-      }
-
-      return result.data;
-
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}`, { headers })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur getConversation:', error);
-      throw error;
+      console.error('❌ getConversation error:', error)
+      throw error
     }
   }
 
-  /**
-   * Créer une nouvelle conversation
-   */
   async createConversation(participantId: string): Promise<Conversation> {
     try {
-      console.log('💬 chatService: Création conversation avec:', participantId);
-
-      const headers = await this.getAuthHeaders();
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          participant_id: participantId
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create conversation: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create conversation');
-      }
-
-      console.log('✅ chatService: Conversation créée:', result.data.id);
-      return result.data;
-
+        body: JSON.stringify({ participant_id: participantId })
+      })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur createConversation:', error);
-      throw error;
+      console.error('❌ createConversation error:', error)
+      throw error
     }
   }
 
-  // ============ GESTION DES MESSAGES ============
+  // ============ MÉTHODES MESSAGES ============
 
-  /**
-   * Récupérer les messages d'une conversation
-   */
-  async getMessages(conversationId: string, limit: number = 50, offset: number = 0): Promise<Message[]> {
+  async getMessages(conversationId: string, limit = 50, offset = 0): Promise<Message[]> {
     try {
-      console.log('📋 chatService: Récupération messages', { conversationId, limit, offset });
-
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`, {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch messages');
-      }
-
-      console.log('✅ chatService: Messages récupérés:', result.data.length);
-      return result.data;
-
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`, { headers })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur getMessages:', error);
-      throw error;
+      console.error('❌ getMessages error:', error)
+      throw error
     }
   }
 
-  /**
-   * Envoyer un message
-   */
   async sendMessage(conversationId: string, params: SendMessageParams): Promise<Message> {
     try {
-      console.log('📤 chatService: Envoi message', { conversationId, params });
-
-      const headers = await this.getAuthHeaders();
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers,
         body: JSON.stringify(params)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to send message: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send message');
-      }
-
-      console.log('✅ chatService: Message envoyé:', result.data.id);
-      return result.data;
-
+      })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur sendMessage:', error);
-      throw error;
+      console.error('❌ sendMessage error:', error)
+      throw error
     }
   }
 
-  /**
-   * Modifier un message
-   */
-  async updateMessage(messageId: string, content: string): Promise<Message> {
+  async updateMessage(messageId: string, params: UpdateMessageParams): Promise<Message> {
     try {
-      console.log('✏️ chatService: Modification message:', messageId);
-
-      const headers = await this.getAuthHeaders();
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/chat/messages/${messageId}`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ content })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update message: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update message');
-      }
-
-      return result.data;
-
+        body: JSON.stringify(params)
+      })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur updateMessage:', error);
-      throw error;
+      console.error('❌ updateMessage error:', error)
+      throw error
     }
   }
 
-  /**
-   * Supprimer un message
-   */
   async deleteMessage(messageId: string): Promise<boolean> {
     try {
-      console.log('🗑️ chatService: Suppression message:', messageId);
-
-      const headers = await this.getAuthHeaders();
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/chat/messages/${messageId}`, {
         method: 'DELETE',
         headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete message: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete message');
-      }
-
-      return true;
-
+      })
+      await this.handleResponse(response)
+      return true
     } catch (error) {
-      console.error('❌ chatService: Erreur deleteMessage:', error);
-      throw error;
+      console.error('❌ deleteMessage error:', error)
+      throw error
     }
   }
 
-  /**
-   * Réagir à un message
-   */
   async reactToMessage(messageId: string, emoji: string, action: 'add' | 'remove' = 'add'): Promise<Message> {
     try {
-      console.log('😊 chatService: Réaction message', { messageId, emoji, action });
-
-      const headers = await this.getAuthHeaders();
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/chat/messages/${messageId}/react`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ emoji, action })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to react to message: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to react to message');
-      }
-
-      return result.data;
-
+      })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur reactToMessage:', error);
-      throw error;
+      console.error('❌ reactToMessage error:', error)
+      throw error
     }
   }
 
-  // ============ GESTION DES LECTURES ============
+  // ============ MÉTHODES LECTURES ============
 
-  /**
-   * Marquer les messages comme lus
-   */
   async markAsRead(conversationId: string, lastMessageId: string): Promise<void> {
     try {
-      console.log('✅ chatService: Marquage lu', { conversationId, lastMessageId });
-
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
+      const headers = await this.getAuthHeaders()
+      await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ last_message_id: lastMessageId })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to mark as read: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to mark as read');
-      }
-
+      })
     } catch (error) {
-      console.error('❌ chatService: Erreur markAsRead:', error);
-      // Ne pas throw - ce n'est pas critique
+      console.error('❌ markAsRead error:', error)
+      // Ne pas faire planter l'app pour ça
     }
   }
 
-  /**
-   * Compter les messages non lus
-   */
   async getUnreadCount(conversationId: string): Promise<number> {
     try {
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/unread-count`, {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get unread count: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to get unread count');
-      }
-
-      return result.data.unread_count;
-
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/unread-count`, { headers })
+      const result = await this.handleResponse(response)
+      return result.unread_count || 0
     } catch (error) {
-      console.error('❌ chatService: Erreur getUnreadCount:', error);
-      return 0;
+      console.error('❌ getUnreadCount error:', error)
+      return 0
     }
   }
 
-  // ============ STATISTIQUES ============
+  // ============ MÉTHODES STATS ============
 
-  /**
-   * Récupérer les statistiques du chat
-   */
   async getChatStats(): Promise<ChatStats> {
     try {
-      const headers = await this.getAuthHeaders();
-
-      const response = await fetch(`${API_BASE_URL}/api/chat/stats`, {
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get chat stats: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to get chat stats');
-      }
-
-      return result.data;
-
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/chat/stats`, { headers })
+      return this.handleResponse(response)
     } catch (error) {
-      console.error('❌ chatService: Erreur getChatStats:', error);
-      return { total_unread_conversations: 0 };
+      console.error('❌ getChatStats error:', error)
+      throw error
     }
   }
 
-  // ============ UTILITAIRES ============
+  // ============ MÉTHODES UTILITAIRES ============
 
-  /**
-   * Formater le temps d'un message
-   */
-  formatMessageTime(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'À l\'instant';
-    if (diffMins < 60) return `${diffMins} min`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}j`;
-
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short'
-    });
-  }
-
-  /**
-   * Formater l'heure précise d'un message
-   */
-  formatMessageTimestamp(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const isYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString() === date.toDateString();
-
-    const timeStr = date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-
-    if (isToday) return timeStr;
-    if (isYesterday) return `Hier ${timeStr}`;
-
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  /**
-   * Vérifier si un message est expiré
-   */
   isMessageExpired(message: Message): boolean {
-    if (!message.expires_at) return false;
-    return new Date(message.expires_at) <= new Date();
+    if (!message.expires_at) return false
+    return new Date(message.expires_at) < new Date()
   }
 
-  /**
-   * Calculer le temps restant avant expiration
-   */
-  getExpirationTimeLeft(message: Message): string | null {
-    if (!message.expires_at) return null;
-
-    const expirationDate = new Date(message.expires_at);
-    const now = new Date();
-    const diffMs = expirationDate.getTime() - now.getTime();
-
-    if (diffMs <= 0) return 'Expiré';
-
-    const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-
-    if (diffHours > 0) return `${diffHours}h`;
-    if (diffMins > 0) return `${diffMins}min`;
-    return `${diffSecs}s`;
+  formatMessageTime(message: Message): string {
+    const date = new Date(message.created_at)
+    return date.toLocaleTimeString('fr-FR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
   }
 
-  /**
-   * Extraire les emojis des réactions
-   */
-  getMessageReactions(message: Message): Array<{ emoji: string; count: number; users: string[] }> {
-    if (!message.reactions) return [];
+  formatMessageDate(message: Message): string {
+    const date = new Date(message.created_at)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
 
-    return Object.entries(message.reactions).map(([emoji, users]) => ({
-      emoji,
-      count: users.length,
-      users
-    }));
-  }
-
-  /**
-   * Vérifier si l'utilisateur a réagi avec un emoji spécifique
-   */
-  hasUserReacted(message: Message, userId: string, emoji: string): boolean {
-    return message.reactions?.[emoji]?.includes(userId) || false;
-  }
-
-  /**
-   * Générer un aperçu du contenu d'un message
-   */
-  getMessagePreview(message: Message): string {
-    if (message.message_type === 'system') {
-      return message.content || 'Message système';
+    if (date.toDateString() === today.toDateString()) {
+      return 'Aujourd\'hui'
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Hier'
+    } else {
+      return date.toLocaleDateString('fr-FR', { 
+        day: 'numeric', 
+        month: 'short' 
+      })
     }
+  }
 
+  getLastMessagePreview(message: Message): string {
     if (message.message_type === 'image') {
-      return '📷 Image';
+      return '📷 Image'
+    } else if (message.message_type === 'voice') {
+      return '🎤 Message vocal'
+    } else if (message.message_type === 'system') {
+      return '⚙️ Message système'
+    } else {
+      return message.content || 'Message'
+    }
+  }
+
+  // ============ MÉTHODES DE VALIDATION ============
+
+  validateMessageContent(content: string): boolean {
+    return content.trim().length > 0 && content.length <= 4000
+  }
+
+  validateMediaFile(file: File): { valid: boolean; error?: string } {
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    
+    if (file.size > maxSize) {
+      return { valid: false, error: 'Le fichier est trop volumineux (max 10MB)' }
     }
 
-    if (message.message_type === 'voice') {
-      return '🎵 Message vocal';
+    if (!allowedTypes.includes(file.type)) {
+      return { valid: false, error: 'Type de fichier non supporté' }
     }
 
-    if (!message.content) {
-      return 'Message vide';
+    return { valid: true }
+  }
+
+  validateVoiceFile(file: File): { valid: boolean; error?: string } {
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg']
+    
+    if (file.size > maxSize) {
+      return { valid: false, error: 'Le fichier audio est trop volumineux (max 5MB)' }
     }
 
-    // Tronquer le contenu si trop long
-    const maxLength = 50;
-    if (message.content.length <= maxLength) {
-      return message.content;
+    if (!allowedTypes.includes(file.type)) {
+      return { valid: false, error: 'Type de fichier audio non supporté' }
     }
 
-    return message.content.substring(0, maxLength) + '...';
+    return { valid: true }
+  }
+
+  // ============ MÉTHODES DE FILTRAGE ============
+
+  filterActiveConversations(conversations: Conversation[]): Conversation[] {
+    return conversations.filter(conv => conv.status === 'active')
+  }
+
+  sortConversationsByLastMessage(conversations: Conversation[]): Conversation[] {
+    return [...conversations].sort((a, b) => {
+      const dateA = new Date(a.last_message_at || a.created_at).getTime()
+      const dateB = new Date(b.last_message_at || b.created_at).getTime()
+      return dateB - dateA
+    })
+  }
+
+  filterMessagesByType(messages: Message[], types: string[]): Message[] {
+    return messages.filter(message => types.includes(message.message_type))
+  }
+
+  filterNonExpiredMessages(messages: Message[]): Message[] {
+    return messages.filter(message => !this.isMessageExpired(message))
+  }
+
+  // ============ MÉTHODES DE RECHERCHE ============
+
+  searchMessages(messages: Message[], query: string): Message[] {
+    const searchTerm = query.toLowerCase().trim()
+    if (!searchTerm) return messages
+
+    return messages.filter(message => {
+      if (message.message_type !== 'text' || !message.content) return false
+      return message.content.toLowerCase().includes(searchTerm)
+    })
+  }
+
+  searchConversations(conversations: Conversation[], query: string): Conversation[] {
+    const searchTerm = query.toLowerCase().trim()
+    if (!searchTerm) return conversations
+
+    return conversations.filter(conversation => {
+      const participantName = conversation.other_participant?.name?.toLowerCase()
+      const lastMessageContent = conversation.last_message?.content?.toLowerCase()
+      
+      return (
+        participantName?.includes(searchTerm) ||
+        lastMessageContent?.includes(searchTerm)
+      )
+    })
+  }
+
+  // ============ MÉTHODES DE CACHE ============
+
+  private messageCache = new Map<string, Message[]>()
+  private conversationCache = new Map<string, Conversation>()
+
+  getCachedMessages(conversationId: string): Message[] | null {
+    return this.messageCache.get(conversationId) || null
+  }
+
+  setCachedMessages(conversationId: string, messages: Message[]): void {
+    this.messageCache.set(conversationId, messages)
+  }
+
+  clearMessageCache(conversationId?: string): void {
+    if (conversationId) {
+      this.messageCache.delete(conversationId)
+    } else {
+      this.messageCache.clear()
+    }
+  }
+
+  getCachedConversation(conversationId: string): Conversation | null {
+    return this.conversationCache.get(conversationId) || null
+  }
+
+  setCachedConversation(conversation: Conversation): void {
+    this.conversationCache.set(conversation.id, conversation)
+  }
+
+  clearConversationCache(): void {
+    this.conversationCache.clear()
+  }
+
+  // ============ MÉTHODES DE NETTOYAGE ============
+
+  cleanup(): void {
+    this.clearMessageCache()
+    this.clearConversationCache()
   }
 }
 
-export const chatService = new ChatService();
+export const chatService = new ChatService()

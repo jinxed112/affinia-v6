@@ -1,0 +1,201 @@
+// =============================================
+// ROUTES CHAT - backend/src/modules/chat/chat.routes.ts
+// =============================================
+
+import { Router } from 'express';
+import { body, param, query } from 'express-validator';
+import { enhancedAuthMiddleware as authMiddleware } from '../auth/auth.middleware.enhanced';
+import { chatController } from './chat.controller';
+
+const router = Router();
+
+// ============ ROUTES PUBLIQUES (sans auth) ============
+
+/**
+ * GET /api/chat/health - Health check du système de chat
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Chat system is operational',
+    timestamp: new Date().toISOString(),
+    features: {
+      realtime: true,
+      media_support: true,
+      reactions: true,
+      ephemeral_messages: true,
+      message_editing: true
+    }
+  });
+});
+
+// Appliquer le middleware d'authentification à toutes les autres routes
+router.use(authMiddleware);
+
+// ============ ROUTES CONVERSATIONS ============
+
+/**
+ * GET /api/chat/conversations - Récupérer les conversations de l'utilisateur
+ */
+router.get(
+  '/conversations',
+  [
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('offset').optional().isInt({ min: 0 })
+  ],
+  chatController.getConversations
+);
+
+/**
+ * POST /api/chat/conversations - Créer une nouvelle conversation
+ */
+router.post(
+  '/conversations',
+  [
+    body('participant_id')
+      .isUUID()
+      .withMessage('Participant ID must be a valid UUID')
+  ],
+  chatController.createConversation
+);
+
+/**
+ * GET /api/chat/conversations/:id - Récupérer une conversation spécifique
+ */
+router.get(
+  '/conversations/:id',
+  [
+    param('id').isUUID().withMessage('Conversation ID must be a valid UUID')
+  ],
+  chatController.getConversation
+);
+
+// ============ ROUTES MESSAGES ============
+
+/**
+ * GET /api/chat/conversations/:id/messages - Récupérer les messages d'une conversation
+ */
+router.get(
+  '/conversations/:id/messages',
+  [
+    param('id').isUUID().withMessage('Conversation ID must be a valid UUID'),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('offset').optional().isInt({ min: 0 })
+  ],
+  chatController.getMessages
+);
+
+/**
+ * POST /api/chat/conversations/:id/messages - Envoyer un message
+ */
+router.post(
+  '/conversations/:id/messages',
+  [
+    param('id').isUUID().withMessage('Conversation ID must be a valid UUID'),
+    body('content')
+      .optional()
+      .isLength({ min: 1, max: 4000 })
+      .withMessage('Content must be between 1 and 4000 characters'),
+    body('message_type')
+      .optional()
+      .isIn(['text', 'image', 'voice', 'system'])
+      .withMessage('Invalid message type'),
+    body('media_url')
+      .optional()
+      .isURL()
+      .withMessage('Media URL must be valid'),
+    body('reply_to_id')
+      .optional()
+      .isUUID()
+      .withMessage('Reply to ID must be a valid UUID'),
+    body('expires_in_minutes')
+      .optional()
+      .isInt({ min: 1, max: 10080 }) // Max 7 jours
+      .withMessage('Expiration must be between 1 minute and 7 days')
+  ],
+  chatController.sendMessage
+);
+
+/**
+ * PUT /api/chat/messages/:id - Modifier un message
+ */
+router.put(
+  '/messages/:id',
+  [
+    param('id').isUUID().withMessage('Message ID must be a valid UUID'),
+    body('content')
+      .optional()
+      .isLength({ min: 1, max: 4000 })
+      .withMessage('Content must be between 1 and 4000 characters'),
+    body('media_url')
+      .optional()
+      .isURL()
+      .withMessage('Media URL must be valid')
+  ],
+  chatController.updateMessage
+);
+
+/**
+ * DELETE /api/chat/messages/:id - Supprimer un message
+ */
+router.delete(
+  '/messages/:id',
+  [
+    param('id').isUUID().withMessage('Message ID must be a valid UUID')
+  ],
+  chatController.deleteMessage
+);
+
+/**
+ * POST /api/chat/messages/:id/react - Réagir à un message
+ */
+router.post(
+  '/messages/:id/react',
+  [
+    param('id').isUUID().withMessage('Message ID must be a valid UUID'),
+    body('emoji')
+      .isLength({ min: 1, max: 10 })
+      .withMessage('Emoji is required and must be valid'),
+    body('action')
+      .optional()
+      .isIn(['add', 'remove'])
+      .withMessage('Action must be "add" or "remove"')
+  ],
+  chatController.reactToMessage
+);
+
+// ============ ROUTES LECTURES ============
+
+/**
+ * POST /api/chat/conversations/:id/read - Marquer les messages comme lus
+ */
+router.post(
+  '/conversations/:id/read',
+  [
+    param('id').isUUID().withMessage('Conversation ID must be a valid UUID'),
+    body('last_message_id')
+      .isUUID()
+      .withMessage('Last message ID must be a valid UUID')
+  ],
+  chatController.markAsRead
+);
+
+/**
+ * GET /api/chat/conversations/:id/unread-count - Compter les messages non lus
+ */
+router.get(
+  '/conversations/:id/unread-count',
+  [
+    param('id').isUUID().withMessage('Conversation ID must be a valid UUID')
+  ],
+  chatController.getUnreadCount
+);
+
+// ============ ROUTES STATISTIQUES ============
+
+/**
+ * GET /api/chat/stats - Statistiques globales du chat
+ */
+router.get('/stats', chatController.getChatStats);
+
+export default router;

@@ -1,5 +1,6 @@
+// backend/src/modules/discovery/discovery.controller.ts
 // =============================================
-// CONTRÔLEUR BACKEND - Découverte et Miroir Privé - CORRIGÉ
+// CONTRÔLEUR BACKEND - Découverte et Miroir Privé - CORRIGÉ RLS
 // =============================================
 
 import { Response } from 'express';
@@ -24,7 +25,7 @@ interface DiscoveryFilters {
 class DiscoveryController {
   
   /**
-   * GET /api/discovery - Récupérer les profils pour la découverte
+   * ✅ CORRIGÉ - GET /api/discovery - Récupérer les profils pour la découverte
    */
   async getDiscoveryProfiles(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -47,7 +48,7 @@ class DiscoveryController {
 
       console.log('🔍 Discovery Controller - Filtres reçus:', filters);
 
-      const result = await discoveryService.getDiscoveryProfiles(userId, filters);
+      const result = await discoveryService.getDiscoveryProfiles(userId, req.userToken!, filters);
 
       res.json({
         success: true,
@@ -65,7 +66,7 @@ class DiscoveryController {
   }
 
   /**
-   * POST /api/discovery/mirror-request - Demander l'accès au miroir
+   * ✅ CORRIGÉ - POST /api/discovery/mirror-request - Demander l'accès au miroir
    */
   async requestMirrorAccess(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -94,8 +95,8 @@ class DiscoveryController {
         return;
       }
 
-      // VRAIE IMPLÉMENTATION - Insertion en base
-      const result = await discoveryService.requestMirrorAccess(senderId, receiver_id);
+      // ✅ CORRIGÉ - Insertion en base avec RLS
+      const result = await discoveryService.requestMirrorAccess(senderId, receiver_id, req.userToken!);
 
       if (result.success) {
         res.json({
@@ -121,7 +122,7 @@ class DiscoveryController {
   }
 
   /**
-   * PUT /api/discovery/mirror-request/:requestId - Répondre à une demande
+   * ✅ CORRIGÉ - PUT /api/discovery/mirror-request/:requestId - Répondre à une demande
    */
   async respondToMirrorRequest(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -141,8 +142,8 @@ class DiscoveryController {
 
       console.log('📝 Mirror Response Controller - Request:', requestId, 'Response:', response);
 
-      // VRAIE IMPLÉMENTATION - Mise à jour en base
-      const result = await discoveryService.respondToMirrorRequest(requestId, userId, response);
+      // ✅ CORRIGÉ - Mise à jour en base avec RLS
+      const result = await discoveryService.respondToMirrorRequest(requestId, userId, response, req.userToken!);
 
       if (result.success) {
         res.json({
@@ -168,14 +169,14 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/mirror-requests/received - Mes demandes reçues
+   * ✅ CORRIGÉ - GET /api/discovery/mirror-requests/received - Mes demandes reçues
    */
   async getReceivedMirrorRequests(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
 
-      // VRAIE IMPLÉMENTATION - Récupération depuis la base
-      const requests = await discoveryService.getReceivedMirrorRequests(userId);
+      // ✅ CORRIGÉ - Récupération depuis la base avec RLS
+      const requests = await discoveryService.getReceivedMirrorRequests(userId, req.userToken!);
 
       res.json({
         success: true,
@@ -193,14 +194,14 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/mirror-requests/sent - Mes demandes envoyées
+   * ✅ CORRIGÉ - GET /api/discovery/mirror-requests/sent - Mes demandes envoyées
    */
   async getSentMirrorRequests(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
 
-      // VRAIE IMPLÉMENTATION - Récupération depuis la base
-      const requests = await discoveryService.getSentMirrorRequests(userId);
+      // ✅ CORRIGÉ - Récupération depuis la base avec RLS
+      const requests = await discoveryService.getSentMirrorRequests(userId, req.userToken!);
 
       res.json({
         success: true,
@@ -218,15 +219,15 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/mirror/:profileId/can-view - Vérifier l'accès au miroir
+   * ✅ CORRIGÉ - GET /api/discovery/mirror/:profileId/can-view - Vérifier l'accès au miroir
    */
   async canViewMirror(req: AuthRequest, res: Response): Promise<void> {
     try {
       const viewerId = req.user!.id;
       const { profileId } = req.params;
 
-      // VRAIE IMPLÉMENTATION - Vérification des permissions
-      const canView = await discoveryService.canViewMirror(viewerId, profileId);
+      // ✅ CORRIGÉ - Vérification des permissions avec RLS
+      const canView = await discoveryService.canViewMirror(viewerId, profileId, req.userToken!);
 
       res.json({
         success: true,
@@ -246,7 +247,7 @@ class DiscoveryController {
   }
 
   /**
-   * POST /api/discovery/mirror/:profileId/read - Enregistrer la lecture d'un miroir
+   * ✅ CORRIGÉ - POST /api/discovery/mirror/:profileId/read - Enregistrer la lecture d'un miroir
    */
   async recordMirrorRead(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -255,8 +256,8 @@ class DiscoveryController {
 
       console.log('📖 Mirror Read Controller - Viewer:', viewerId, 'Profile:', profileId);
 
-      // VRAIE IMPLÉMENTATION - Enregistrement de la lecture
-      await discoveryService.recordMirrorRead(viewerId, profileId);
+      // ✅ CORRIGÉ - Enregistrement de la lecture avec RLS
+      await discoveryService.recordMirrorRead(viewerId, profileId, req.userToken!);
 
       res.json({
         success: true,
@@ -274,14 +275,14 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/notifications/stats - Statistiques de notifications
+   * ✅ CORRIGÉ - GET /api/discovery/notifications/stats - Statistiques de notifications
    */
   async getNotificationStats(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
 
-      // VRAIE IMPLÉMENTATION - Calcul des stats depuis la base
-      const stats = await discoveryService.getNotificationStats(userId);
+      // ✅ CORRIGÉ - Calcul des stats depuis la base avec RLS
+      const stats = await discoveryService.getNotificationStats(userId, req.userToken!);
 
       res.json({
         success: true,
@@ -299,7 +300,7 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/notifications - Récupérer les notifications
+   * ✅ CORRIGÉ - GET /api/discovery/notifications - Récupérer les notifications
    */
   async getNotifications(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -307,8 +308,8 @@ class DiscoveryController {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
 
-      // VRAIE IMPLÉMENTATION - Récupération depuis la base
-      const notifications = await discoveryService.getNotifications(userId, limit, offset);
+      // ✅ CORRIGÉ - Récupération depuis la base avec RLS
+      const notifications = await discoveryService.getNotifications(userId, req.userToken!, limit, offset);
 
       res.json({
         success: true,
@@ -326,7 +327,7 @@ class DiscoveryController {
   }
 
   /**
-   * PUT /api/discovery/notifications/:id/read - Marquer comme lu
+   * ✅ CORRIGÉ - PUT /api/discovery/notifications/:id/read - Marquer comme lu
    */
   async markNotificationAsRead(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -335,8 +336,8 @@ class DiscoveryController {
 
       console.log('✅ Mark Notification Read Controller - User:', userId, 'Notification:', id);
 
-      // VRAIE IMPLÉMENTATION - Mise à jour en base
-      await discoveryService.markNotificationAsRead(userId, id);
+      // ✅ CORRIGÉ - Mise à jour en base avec RLS
+      await discoveryService.markNotificationAsRead(userId, id, req.userToken!);
 
       res.json({
         success: true,
@@ -354,7 +355,7 @@ class DiscoveryController {
   }
 
   /**
-   * PUT /api/discovery/notifications/read-all - Marquer toutes comme lues
+   * ✅ CORRIGÉ - PUT /api/discovery/notifications/read-all - Marquer toutes comme lues
    */
   async markAllNotificationsAsRead(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -362,8 +363,8 @@ class DiscoveryController {
 
       console.log('✅ Mark All Notifications Read Controller - User:', userId);
 
-      // VRAIE IMPLÉMENTATION - Mise à jour en base
-      await discoveryService.markAllNotificationsAsRead(userId);
+      // ✅ CORRIGÉ - Mise à jour en base avec RLS
+      await discoveryService.markAllNotificationsAsRead(userId, req.userToken!);
 
       res.json({
         success: true,
@@ -381,7 +382,7 @@ class DiscoveryController {
   }
 
   /**
-   * GET /api/discovery/profile/:id - Récupérer un profil spécifique pour la découverte
+   * ✅ CORRIGÉ - GET /api/discovery/profile/:id - Récupérer un profil spécifique pour la découverte
    */
   async getDiscoveryProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -390,8 +391,8 @@ class DiscoveryController {
 
       console.log('👤 Get Discovery Profile Controller - User:', userId, 'Profile:', id);
 
-      // VRAIE IMPLÉMENTATION - Récupération depuis la base
-      const profile = await discoveryService.getDiscoveryProfile(userId, id);
+      // ✅ CORRIGÉ - Récupération depuis la base avec RLS
+      const profile = await discoveryService.getDiscoveryProfile(userId, id, req.userToken!);
 
       res.json({
         success: true,

@@ -1,4 +1,5 @@
-import { supabaseAdmin } from '../../config/database';
+// backend/src/modules/profile/profile.service.ts
+import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
 
 export interface Profile {
   id: string;
@@ -42,7 +43,6 @@ export interface ProfileCard {
 }
 
 export interface DashboardData {
-  // Données utilisateur de base
   profile: {
     id: string;
     name: string;
@@ -52,8 +52,6 @@ export interface DashboardData {
     xp: number;
     avatar_url: string | null;
   };
-  
-  // Données pour l'AffiniaCard
   cardData: {
     userName: string;
     age?: number;
@@ -65,8 +63,6 @@ export interface DashboardData {
       photo_order?: number;
     }>;
   } | null;
-  
-  // Statut des fonctionnalités
   features: {
     hasStarterCard: boolean;
     hasMirror: boolean;
@@ -77,11 +73,13 @@ export interface DashboardData {
 
 class ProfileService {
   /**
-   * Récupère un profil complet
+   * ✅ CORRIGÉ - Récupère un profil avec RLS
    */
-  async getProfile(userId: string): Promise<Profile | null> {
+  async getProfile(userId: string, userToken: string): Promise<Profile | null> {
     try {
-      const { data, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+      
+      const { data, error } = await userSupabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -100,14 +98,16 @@ class ProfileService {
   }
 
   /**
-   * Met à jour un profil
+   * ✅ CORRIGÉ - Met à jour un profil avec RLS
    */
-  async updateProfile(userId: string, updates: ProfileUpdate): Promise<Profile> {
+  async updateProfile(userId: string, updates: ProfileUpdate, userToken: string): Promise<Profile> {
     try {
+      const userSupabase = createUserSupabase(userToken);
+      
       // Valider les données
       const cleanUpdates = this.validateProfileUpdates(updates);
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await userSupabase
         .from('profiles')
         .update({
           ...cleanUpdates,
@@ -129,16 +129,18 @@ class ProfileService {
   }
 
   /**
-   * Récupère les données pour la carte Affinia
+   * ✅ CORRIGÉ - Récupère les données pour la carte Affinia avec RLS
    */
-  async getProfileCardData(userId: string): Promise<ProfileCard | null> {
+  async getProfileCardData(userId: string, userToken: string): Promise<ProfileCard | null> {
     try {
+      const userSupabase = createUserSupabase(userToken);
+      
       // Récupérer le profil
-      const profile = await this.getProfile(userId);
+      const profile = await this.getProfile(userId, userToken);
       if (!profile) return null;
 
-      // Récupérer la dernière réponse au questionnaire
-      const { data: questionnaireData } = await supabaseAdmin
+      // Récupérer la dernière réponse au questionnaire avec RLS
+      const { data: questionnaireData } = await userSupabase
         .from('questionnaire_responses')
         .select('profile_json, completed_at')
         .eq('user_id', userId)
@@ -146,16 +148,14 @@ class ProfileService {
         .limit(1)
         .single();
 
-      // Compter le nombre de questionnaires
-      const { count } = await supabaseAdmin
+      // Compter le nombre de questionnaires avec RLS
+      const { count } = await userSupabase
         .from('questionnaire_responses')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
       // Construire les données de la carte
       const profileJson = questionnaireData?.profile_json as any || {};
-      
-      // Déterminer la rareté basée sur le score d'authenticité
       const authenticityScore = profileJson.authenticity_score || 0;
       const rarity = this.calculateRarity(authenticityScore, profile.level);
 
@@ -183,15 +183,15 @@ class ProfileService {
   }
 
   /**
-   * Récupère toutes les données nécessaires pour le dashboard
-   * Optimisé pour une seule requête depuis le frontend
+   * ✅ CORRIGÉ - Récupère toutes les données nécessaires pour le dashboard avec RLS
    */
-  async getDashboardData(userId: string): Promise<DashboardData | null> {
+  async getDashboardData(userId: string, userToken: string): Promise<DashboardData | null> {
     try {
       console.log(`Récupération des données dashboard pour l'utilisateur: ${userId}`);
+      const userSupabase = createUserSupabase(userToken);
 
-      // 1. Récupérer le profil de base
-      const { data: profile, error: profileError } = await supabaseAdmin
+      // 1. Récupérer le profil de base avec RLS
+      const { data: profile, error: profileError } = await userSupabase
         .from('profiles')
         .select('id, email, full_name, avatar_url, credits, level, xp, age')
         .eq('id', userId)
@@ -204,8 +204,8 @@ class ProfileService {
 
       console.log('Profil récupéré:', profile);
 
-      // 2. Récupérer les données du questionnaire pour l'AffiniaCard
-      const { data: questionnaireData, error: questionnaireError } = await supabaseAdmin
+      // 2. Récupérer les données du questionnaire avec RLS
+      const { data: questionnaireData, error: questionnaireError } = await userSupabase
         .from('questionnaire_responses')
         .select('profile_json, answers')
         .eq('user_id', userId)
@@ -217,8 +217,8 @@ class ProfileService {
         console.log('Questionnaire error (non-critique):', questionnaireError);
       }
 
-      // 3. Récupérer les photos du profil
-      const { data: photos, error: photosError } = await supabaseAdmin
+      // 3. Récupérer les photos du profil avec RLS
+      const { data: photos, error: photosError } = await userSupabase
         .from('profile_photos')
         .select('id, photo_url, is_main, photo_order')
         .eq('user_id', userId)
@@ -230,13 +230,13 @@ class ProfileService {
 
       console.log('Photos récupérées:', photos);
 
-      // 4. Vérifier les cartes (avec gestion d'erreur si table n'existe pas)
+      // 4. Vérifier les cartes avec RLS (avec gestion d'erreur si table n'existe pas)
       let hasStarterCard = false;
       let mysteryCardsAvailable = 0;
       let nextCardAvailable = null;
 
       try {
-        const { data: userCards } = await supabaseAdmin
+        const { data: userCards } = await userSupabase
           .from('user_cards')
           .select('type, is_mystery, available, created_at')
           .eq('user_id', userId);
@@ -244,12 +244,12 @@ class ProfileService {
         if (userCards && userCards.length > 0) {
           hasStarterCard = userCards.some(card => card.type === 'starter');
           mysteryCardsAvailable = userCards.filter(card => card.is_mystery && card.available).length;
-          
+
           // Calculer prochaine carte (24h après la dernière)
-          const lastCard = userCards.sort((a, b) => 
+          const lastCard = userCards.sort((a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           )[0];
-          
+
           if (lastCard) {
             const nextAvailable = new Date(new Date(lastCard.created_at).getTime() + 24 * 60 * 60 * 1000);
             if (nextAvailable.getTime() > Date.now()) {
@@ -261,15 +261,15 @@ class ProfileService {
         console.log('Table user_cards non accessible:', cardsError.message);
       }
 
-      // 5. Vérifier le miroir (avec gestion d'erreur si table n'existe pas)
+      // 5. Vérifier le miroir avec RLS (avec gestion d'erreur si table n'existe pas)
       let hasMirror = false;
       try {
-        const { data: mirror } = await supabaseAdmin
+        const { data: mirror } = await userSupabase
           .from('user_mirrors')
           .select('id')
           .eq('user_id', userId)
           .single();
-        
+
         hasMirror = !!mirror;
       } catch (mirrorError: any) {
         console.log('Table user_mirrors non accessible:', mirrorError.message);
@@ -292,7 +292,7 @@ class ProfileService {
           id: profile.id,
           name: profile.full_name || profile.email.split('@')[0],
           email: profile.email,
-          credits: profile.credits || 0, // ← Vraie valeur depuis la DB
+          credits: profile.credits || 0,
           level: profile.level || 1,
           xp: profile.xp || 0,
           avatar_url: profile.avatar_url
@@ -316,15 +316,16 @@ class ProfileService {
   }
 
   /**
-   * Récupère les statistiques détaillées
+   * ✅ CORRIGÉ - Récupère les statistiques détaillées avec RLS
    */
-  async getProfileStats(userId: string): Promise<any> {
+  async getProfileStats(userId: string, userToken: string): Promise<any> {
     try {
-      const profile = await this.getProfile(userId);
+      const userSupabase = createUserSupabase(userToken);
+      const profile = await this.getProfile(userId, userToken);
       if (!profile) throw new Error('Profile not found');
 
-      // Stats des questionnaires
-      const { data: questionnaires } = await supabaseAdmin
+      // Stats des questionnaires avec RLS
+      const { data: questionnaires } = await userSupabase
         .from('questionnaire_responses')
         .select('created_at, completed_at')
         .eq('user_id', userId)
@@ -333,8 +334,6 @@ class ProfileService {
       // Calculer les stats
       const totalQuestionnaires = questionnaires?.length || 0;
       const lastQuestionnaireDate = questionnaires?.[0]?.created_at;
-      
-      // Temps moyen de complétion
       const avgCompletionTime = this.calculateAvgCompletionTime(questionnaires || []);
 
       // Progression XP
@@ -361,7 +360,6 @@ class ProfileService {
           avgCompletionTime
         },
         achievements: {
-          // À implémenter
           unlocked: [],
           inProgress: []
         }
@@ -373,7 +371,7 @@ class ProfileService {
   }
 
   /**
-   * Vérifie si un utilisateur peut voir un profil
+   * ✅ GARDE ADMIN - Vérifie si un utilisateur peut voir un profil (logique métier)
    */
   async canViewProfile(requesterId: string, targetId: string): Promise<boolean> {
     // Pour l'instant, tout le monde peut voir les profils publics
@@ -397,9 +395,8 @@ class ProfileService {
     };
   }
 
-  /**
-   * Valide et nettoie les updates
-   */
+  // ============ MÉTHODES PRIVÉES ============
+
   private validateProfileUpdates(updates: ProfileUpdate): ProfileUpdate {
     const clean: ProfileUpdate = {};
 
@@ -425,13 +422,7 @@ class ProfileService {
     return clean;
   }
 
-  /**
-   * Calcule la rareté basée sur plusieurs facteurs
-   */
-  private calculateRarity(
-    authenticityScore: number, 
-    level: number
-  ): 'common' | 'rare' | 'epic' | 'legendary' {
+  private calculateRarity(authenticityScore: number, level: number): 'common' | 'rare' | 'epic' | 'legendary' {
     const combinedScore = (authenticityScore * 0.7) + (level * 3);
 
     if (combinedScore >= 90) return 'legendary';
@@ -440,17 +431,10 @@ class ProfileService {
     return 'common';
   }
 
-  /**
-   * Calcule l'XP nécessaire pour un niveau
-   */
   private getXpForLevel(level: number): number {
-    // Formule : 100 * level * (level + 1) / 2
     return 100 * level * (level + 1) / 2;
   }
 
-  /**
-   * Calcule le temps moyen de complétion
-   */
   private calculateAvgCompletionTime(questionnaires: any[]): string {
     if (questionnaires.length === 0) return 'N/A';
 
@@ -466,7 +450,7 @@ class ProfileService {
 
     const avgMs = times.reduce((a, b) => a + b, 0) / times.length;
     const avgMinutes = Math.round(avgMs / 60000);
-    
+
     return `${avgMinutes} minutes`;
   }
 }

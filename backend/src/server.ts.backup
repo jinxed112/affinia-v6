@@ -7,19 +7,13 @@ import { createServer } from 'http'; // ← NOUVEAU pour WebSocket
 
 // Import des routes qui existent
 import { questionnaireRoutes } from './modules/questionnaire/questionnaire.routes';
-import { authRoutes } from './modules/auth/auth.routes';
 import { profileRoutes } from './modules/profile/profile.routes';
-import { authRoutes } from './modules/auth/auth.routes';
 
 // ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery + Chat
 import { gamificationRoutes } from './modules/gamification/gamification.routes';
-import { authRoutes } from './modules/auth/auth.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
-import { authRoutes } from './modules/auth/auth.routes';
 import discoveryRoutes from './modules/discovery/discovery.routes';
-import { authRoutes } from './modules/auth/auth.routes';
 import chatRoutes from './modules/chat/chat.routes'; // ← NOUVEAU
-import { authRoutes } from './modules/auth/auth.routes';
 
 // Configuration
 dotenv.config();
@@ -84,19 +78,13 @@ app.get('/api/status', (req, res) => {
 
 // 🎯 Routes API
 app.use('/api/questionnaire', questionnaireRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profileRoutes);
-app.use('/api/auth', authRoutes);
 
 // ✨ NOUVELLES ROUTES - Gamification + Admin + Discovery + Chat
 app.use('/api/gamification', gamificationRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/discovery', discoveryRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes); // ← NOUVEAU
-app.use('/api/auth', authRoutes);
 
 // 📋 Documentation basique
 app.get('/api/docs', (req, res) => {

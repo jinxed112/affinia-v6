@@ -1,5 +1,5 @@
 // backend/src/modules/questionnaire/questionnaire.service.ts
-import { supabaseAdmin } from '../../config/database';
+import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
 import { ProfileJson } from './chatgpt-parser.service';
 import { generateAffiniaPromptV8Secure } from '../../../../shared/prompts/affinia-prompt';
 
@@ -15,7 +15,7 @@ export interface QuestionnaireAnswers {
   energySource: 'solo_time' | 'social_energy' | 'balanced_mix';
   communicationStyle: 'direct_honest' | 'diplomatic_careful' | 'emotional_expressive' | 'reserved_thoughtful';
 
-  // Step 2 - En amour  
+  // Step 2 - En amour
   lovePriority: 'emotional_connection' | 'mutual_respect' | 'shared_growth' | 'fun_complicity';
   conflictApproach: 'address_immediately' | 'cool_down_first' | 'avoid_when_possible' | 'seek_compromise';
 
@@ -39,10 +39,10 @@ export interface QuestionnaireResponse {
 
 class QuestionnaireService {
   /**
-   * 🎯 Génère un prompt sécurisé (CORRIGÉ)
+   * 🎯 Génère un prompt sécurisé (GARDE SANS RLS - pure logique)
    */
   async generatePrompt(
-    answers: QuestionnaireAnswers, // ✅ Interface corrigée
+    answers: QuestionnaireAnswers,
     messageCount: number = 0,
     conversationDuration: number = 0
   ): Promise<{ prompt: string; sessionId: string }> {
@@ -56,16 +56,15 @@ class QuestionnaireService {
         lovePriority: answers.lovePriority,
         conflictApproach: answers.conflictApproach
       });
-      
-      // ✅ Appel fonction génération avec interface corrigée
+
       const result = generateAffiniaPromptV8Secure(
         answers,
         messageCount,
         conversationDuration
       );
-      
+
       console.log(`✅ Prompt généré pour ${answers.firstName} - SessionId: ${result.sessionId}`);
-      
+
       return result;
     } catch (error) {
       console.error('❌ Erreur génération prompt:', error);
@@ -74,25 +73,26 @@ class QuestionnaireService {
   }
 
   /**
-   * Soumet un nouveau questionnaire complet
+   * ✅ CORRIGÉ - Soumet un nouveau questionnaire complet avec RLS
    */
   async submitQuestionnaire(
     userId: string,
     answers: QuestionnaireAnswers,
-    generatedPrompt: string
+    generatedPrompt: string,
+    userToken: string
   ): Promise<QuestionnaireResponse> {
     try {
       console.log('📝 Soumission questionnaire pour userId:', userId);
-      
-      // Ajouter des XP pour la complétion
+      const userSupabase = createUserSupabase(userToken);
+
+      // Ajouter des XP pour la complétion (utilise supabaseAdmin car système)
       await this.addXpForCompletion(userId);
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await userSupabase
         .from('questionnaire_responses')
         .insert({
           user_id: userId,
           answers,
-          
           prompt_version: 'V8',
           completed_at: new Date().toISOString()
         })
@@ -113,17 +113,19 @@ class QuestionnaireService {
   }
 
   /**
-   * Met à jour avec le profil IA et le JSON parsé
+   * ✅ CORRIGÉ - Met à jour avec le profil IA et le JSON parsé avec RLS
    */
   async updateWithAIProfile(
     responseId: string,
     generatedProfile: string,
-    profileJson: ProfileJson
+    profileJson: ProfileJson,
+    userToken: string
   ): Promise<QuestionnaireResponse> {
     try {
       console.log('🤖 Mise à jour profil IA pour response:', responseId);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await userSupabase
         .from('questionnaire_responses')
         .update({
           generated_profile: generatedProfile,
@@ -139,7 +141,7 @@ class QuestionnaireService {
         throw error;
       }
 
-      // Ajouter des XP bonus pour avoir complété le profil IA
+      // Ajouter des XP bonus pour avoir complété le profil IA (utilise supabaseAdmin car système)
       if (data.user_id) {
         await this.addXpForAIProfile(data.user_id);
       }
@@ -153,11 +155,13 @@ class QuestionnaireService {
   }
 
   /**
-   * Récupère toutes les réponses d'un utilisateur
+   * ✅ CORRIGÉ - Récupère toutes les réponses d'un utilisateur avec RLS
    */
-  async getUserResponses(userId: string): Promise<QuestionnaireResponse[]> {
+  async getUserResponses(userId: string, userToken: string): Promise<QuestionnaireResponse[]> {
     try {
-      const { data, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+      
+      const { data, error } = await userSupabase
         .from('questionnaire_responses')
         .select('*')
         .eq('user_id', userId)
@@ -173,11 +177,13 @@ class QuestionnaireService {
   }
 
   /**
-   * Récupère la dernière réponse
+   * ✅ CORRIGÉ - Récupère la dernière réponse avec RLS
    */
-  async getLatestResponse(userId: string): Promise<QuestionnaireResponse | null> {
+  async getLatestResponse(userId: string, userToken: string): Promise<QuestionnaireResponse | null> {
     try {
-      const { data, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+      
+      const { data, error } = await userSupabase
         .from('questionnaire_responses')
         .select('*')
         .eq('user_id', userId)
@@ -195,11 +201,13 @@ class QuestionnaireService {
   }
 
   /**
-   * Récupère une réponse spécifique
+   * ✅ CORRIGÉ - Récupère une réponse spécifique avec RLS
    */
-  async getResponse(responseId: string): Promise<QuestionnaireResponse | null> {
+  async getResponse(responseId: string, userToken: string): Promise<QuestionnaireResponse | null> {
     try {
-      const { data, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+      
+      const { data, error } = await userSupabase
         .from('questionnaire_responses')
         .select('*')
         .eq('id', responseId)
@@ -215,11 +223,11 @@ class QuestionnaireService {
   }
 
   /**
-   * Vérifie si l'utilisateur peut soumettre un nouveau questionnaire
+   * ✅ CORRIGÉ - Vérifie si l'utilisateur peut soumettre un nouveau questionnaire avec RLS
    */
-  async canSubmitNewQuestionnaire(userId: string): Promise<boolean> {
+  async canSubmitNewQuestionnaire(userId: string, userToken: string): Promise<boolean> {
     try {
-      const latest = await this.getLatestResponse(userId);
+      const latest = await this.getLatestResponse(userId, userToken);
 
       if (!latest) return true;
 
@@ -228,7 +236,7 @@ class QuestionnaireService {
       const now = new Date();
       const hoursSinceLastSubmission = (now.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60);
 
-      return true;
+      return true; // Pour l'instant on autorise toujours
     } catch (error) {
       console.error('Check can submit error:', error);
       return false;
@@ -236,11 +244,13 @@ class QuestionnaireService {
   }
 
   /**
-   * Vérifie si un utilisateur a complété le questionnaire
+   * ✅ CORRIGÉ - Vérifie si un utilisateur a complété le questionnaire avec RLS
    */
-  async hasCompletedQuestionnaire(userId: string): Promise<boolean> {
+  async hasCompletedQuestionnaire(userId: string, userToken: string): Promise<boolean> {
     try {
-      const { count, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+      
+      const { count, error } = await userSupabase
         .from('questionnaire_responses')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
@@ -255,7 +265,7 @@ class QuestionnaireService {
   }
 
   /**
-   * 💎 Ajoute de l'XP pour la complétion du questionnaire
+   * 💎 GARDE ADMIN - Ajoute de l'XP pour la complétion du questionnaire (système)
    */
   private async addXpForCompletion(userId: string): Promise<void> {
     try {
@@ -263,7 +273,7 @@ class QuestionnaireService {
 
       console.log(`🎯 Attribution ${XP_REWARD} XP pour complétion questionnaire - User: ${userId}`);
 
-      // Essayer d'abord la fonction RPC si elle existe
+      // Utiliser supabaseAdmin car c'est une opération système
       const { error: rpcError } = await supabaseAdmin
         .rpc('add_user_xp', {
           user_id: userId,
@@ -272,12 +282,12 @@ class QuestionnaireService {
 
       if (rpcError) {
         console.log('🔄 RPC add_user_xp non disponible, utilisation UPDATE direct');
-        
-        // Fallback : Update direct
+
+        // Fallback : Update direct avec supabaseAdmin
         const { error: updateError } = await supabaseAdmin
           .from('profiles')
-          .update({ 
-            
+          .update({
+            xp: supabaseAdmin.raw(`xp + ${XP_REWARD}`),
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
@@ -297,7 +307,7 @@ class QuestionnaireService {
   }
 
   /**
-   * 💎 Ajoute de l'XP bonus pour le profil IA
+   * 💎 GARDE ADMIN - Ajoute de l'XP bonus pour le profil IA (système)
    */
   private async addXpForAIProfile(userId: string): Promise<void> {
     try {
@@ -305,10 +315,11 @@ class QuestionnaireService {
 
       console.log(`🤖 Attribution ${XP_BONUS} XP bonus profil IA - User: ${userId}`);
 
+      // Utiliser supabaseAdmin car c'est une opération système
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ 
-          
+        .update({
+          xp: supabaseAdmin.raw(`xp + ${XP_BONUS}`),
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);

@@ -1,14 +1,10 @@
+// backend/src/modules/discovery/discovery.service.ts
 import { DiscoveryProfile, DiscoveryFilters, DiscoveryResponse } from "../../../shared/types/discovery";
 // =============================================
-// SERVICE BACKEND - Découverte et Miroir Privé - ADAPTÉ À TA STRUCTURE DB
+// SERVICE BACKEND - Découverte et Miroir Privé avec RLS
 // =============================================
 
-// Import de la configuration Supabase existante
-import { supabaseAdmin } from '../../config/database';
-
-// Types temporaires (à déplacer dans types/discovery.ts plus tard)
-
-
+import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
 
 interface MirrorRequestResponse {
   success: boolean;
@@ -25,12 +21,13 @@ interface NotificationStats {
 }
 
 class DiscoveryService {
-  
+
   /**
-   * Récupère les profils pour la page découverte
+   * ✅ CORRIGÉ - Récupère les profils pour la page découverte avec RLS
    */
   async getDiscoveryProfiles(
-    userId: string, 
+    userId: string,
+    userToken: string,
     filters: DiscoveryFilters = {}
   ): Promise<DiscoveryResponse> {
     try {
@@ -49,8 +46,8 @@ class DiscoveryService {
         offset = 0
       } = filters;
 
-      // REQUÊTE 1 - Récupérer les profils (sans photos)
-      // Adapter à ta structure avec questionnaire_responses
+      // Utiliser supabaseAdmin pour les requêtes de découverte car c'est des profils publics
+      // Mais on va filtrer les données sensibles
       let query = supabaseAdmin
         .from('profiles')
         .select(`
@@ -96,17 +93,17 @@ class DiscoveryService {
 
       console.log(`✅ Discovery - ${profiles.length} profils trouvés`);
 
-      // REQUÊTE 2 - Récupérer toutes les photos pour ces profils
+      // REQUÊTE 2 - Récupérer toutes les photos pour ces profils (supabaseAdmin car infos publiques)
       const profileIds = profiles.map(p => p.id);
       let allPhotos: any[] = [];
-      
+
       if (profileIds.length > 0) {
         const { data: photosData, error: photosError } = await supabaseAdmin
           .from('profile_photos')
           .select('*')
           .in('user_id', profileIds)
           .order('photo_order', { ascending: true });
-          
+
         if (photosError) {
           console.error('❌ Discovery - Erreur photos:', photosError);
         } else {
@@ -115,15 +112,16 @@ class DiscoveryService {
         }
       }
 
-      // REQUÊTE 3 - Vérifier l'état des demandes de miroir pour ces profils
+      // REQUÊTE 3 - Vérifier l'état des demandes de miroir avec RLS (utiliser userToken)
+      const userSupabase = createUserSupabase(userToken);
       let mirrorRequests: any[] = [];
       if (profileIds.length > 0) {
-        const { data: requestsData, error: requestsError } = await supabaseAdmin
+        const { data: requestsData, error: requestsError } = await userSupabase
           .from('mirror_requests')
           .select('receiver_id, status')
           .eq('sender_id', userId)
           .in('receiver_id', profileIds);
-          
+
         if (requestsError) {
           console.error('❌ Discovery - Erreur mirror requests:', requestsError);
         } else {
@@ -132,7 +130,7 @@ class DiscoveryService {
       }
 
       // Récupérer les préférences utilisateur pour calculer les distances
-      const userPrefs = await this.getUserPreferences(userId);
+      const userPrefs = await this.getUserPreferences(userId, userToken);
 
       // Transformer les données pour le frontend
       const discoveryProfiles: DiscoveryProfile[] = profiles.map((profile) => {
@@ -228,12 +226,13 @@ class DiscoveryService {
   }
 
   /**
-   * Récupérer un profil spécifique pour la découverte
+   * ✅ CORRIGÉ - Récupérer un profil spécifique pour la découverte (mixte)
    */
-  async getDiscoveryProfile(userId: string, profileId: string): Promise<DiscoveryProfile> {
+  async getDiscoveryProfile(userId: string, profileId: string, userToken: string): Promise<DiscoveryProfile> {
     try {
       console.log('👤 Discovery - Récupération profil spécifique:', profileId);
 
+      // Utiliser supabaseAdmin pour récupérer les infos publiques du profil
       const { data: profile, error } = await supabaseAdmin
         .from('profiles')
         .select(`
@@ -258,15 +257,15 @@ class DiscoveryService {
         throw new Error('Profile not found');
       }
 
-      // Récupérer les photos
+      // Récupérer les photos (supabaseAdmin car infos publiques)
       const { data: photos } = await supabaseAdmin
         .from('profile_photos')
         .select('*')
         .eq('user_id', profileId)
         .order('photo_order', { ascending: true });
 
-      // Calculer la distance
-      const userPrefs = await this.getUserPreferences(userId);
+      // Calculer la distance avec les préférences utilisateur (RLS)
+      const userPrefs = await this.getUserPreferences(userId, userToken);
       let distance_km: number | undefined;
       if (userPrefs.latitude && userPrefs.longitude && profile.latitude && profile.longitude) {
         distance_km = this.calculateDistance(
@@ -313,17 +312,19 @@ class DiscoveryService {
   }
 
   /**
-   * Demander l'accès au miroir d'un profil - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Demander l'accès au miroir d'un profil avec RLS
    */
   async requestMirrorAccess(
-    senderId: string, 
-    receiverId: string
+    senderId: string,
+    receiverId: string,
+    userToken: string
   ): Promise<MirrorRequestResponse> {
     try {
       console.log('🔐 Mirror Request - De:', senderId, 'vers:', receiverId);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier si une demande existe déjà
-      const { data: existingRequest } = await supabaseAdmin
+      // Vérifier si une demande existe déjà avec RLS
+      const { data: existingRequest } = await userSupabase
         .from('mirror_requests')
         .select('id, status')
         .eq('sender_id', senderId)
@@ -349,15 +350,15 @@ class DiscoveryService {
         }
       }
 
-      // Récupérer les infos du sender pour la notification
+      // Récupérer les infos du sender pour la notification (supabaseAdmin car infos publiques)
       const { data: senderProfile } = await supabaseAdmin
         .from('profiles')
         .select('name, avatar_url')
         .eq('id', senderId)
         .single();
 
-      // Insérer la demande dans mirror_requests
-      const { data: newRequest, error: requestError } = await supabaseAdmin
+      // Insérer la demande dans mirror_requests avec RLS
+      const { data: newRequest, error: requestError } = await userSupabase
         .from('mirror_requests')
         .insert({
           sender_id: senderId,
@@ -372,12 +373,12 @@ class DiscoveryService {
         throw requestError;
       }
 
-      // Créer une notification pour le receiver - ADAPTÉ À TA STRUCTURE
+      // Créer une notification pour le receiver avec supabaseAdmin (système)
       const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
           recipient_id: receiverId,
-          sender_id: senderId, // Ta table a ce champ
+          sender_id: senderId,
           type: 'mirror_request',
           title: 'Nouvelle demande de miroir',
           message: `${senderProfile?.name || 'Quelqu\'un'} souhaite accéder à votre miroir`,
@@ -415,25 +416,26 @@ class DiscoveryService {
   }
 
   /**
-   * Répondre à une demande de miroir - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Répondre à une demande de miroir avec RLS
    */
   async respondToMirrorRequest(
-    requestId: string, 
-    userId: string, 
-    response: 'accepted' | 'rejected'
+    requestId: string,
+    userId: string,
+    response: 'accepted' | 'rejected',
+    userToken: string
   ): Promise<MirrorRequestResponse> {
     try {
       console.log('📝 Mirror Response - Request:', requestId, 'Response:', response);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier que la demande existe et que l'utilisateur est le receiver
-      const { data: request, error: fetchError } = await supabaseAdmin
+      // Vérifier que la demande existe et que l'utilisateur est le receiver avec RLS
+      const { data: request, error: fetchError } = await userSupabase
         .from('mirror_requests')
         .select(`
           id,
           sender_id,
           receiver_id,
-          status,
-          sender:profiles!mirror_requests_sender_id_fkey(name, avatar_url)
+          status
         `)
         .eq('id', requestId)
         .eq('receiver_id', userId)
@@ -447,8 +449,8 @@ class DiscoveryService {
         };
       }
 
-      // Mettre à jour le statut de la demande
-      const { error: updateError } = await supabaseAdmin
+      // Mettre à jour le statut de la demande avec RLS
+      const { error: updateError } = await userSupabase
         .from('mirror_requests')
         .update({
           status: response,
@@ -461,16 +463,16 @@ class DiscoveryService {
         throw updateError;
       }
 
-      // Récupérer le nom du responder pour la notification
+      // Récupérer le nom du responder pour la notification (supabaseAdmin car infos publiques)
       const { data: responderProfile } = await supabaseAdmin
         .from('profiles')
         .select('name, avatar_url')
         .eq('id', userId)
         .single();
 
-      // Créer une notification pour le sender - ADAPTÉ À TA STRUCTURE
+      // Créer une notification pour le sender avec supabaseAdmin (système)
       const notificationType = response === 'accepted' ? 'mirror_accepted' : 'mirror_rejected';
-      const notificationMessage = response === 'accepted' 
+      const notificationMessage = response === 'accepted'
         ? `${responderProfile?.name || 'Quelqu\'un'} a accepté votre demande de miroir`
         : `${responderProfile?.name || 'Quelqu\'un'} a refusé votre demande de miroir`;
 
@@ -478,7 +480,7 @@ class DiscoveryService {
         .from('notifications')
         .insert({
           recipient_id: request.sender_id,
-          sender_id: userId, // Ta table a ce champ
+          sender_id: userId,
           type: notificationType,
           title: response === 'accepted' ? 'Demande acceptée' : 'Demande refusée',
           message: notificationMessage,
@@ -516,25 +518,21 @@ class DiscoveryService {
   }
 
   /**
-   * Récupérer les demandes reçues - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Récupérer les demandes reçues avec RLS
    */
-  async getReceivedMirrorRequests(userId: string): Promise<any[]> {
+  async getReceivedMirrorRequests(userId: string, userToken: string): Promise<any[]> {
     try {
       console.log('📨 Get Received Requests - User:', userId);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { data: requests, error } = await supabaseAdmin
+      const { data: requests, error } = await userSupabase
         .from('mirror_requests')
         .select(`
           id,
           sender_id,
           status,
           created_at,
-          responded_at,
-          sender:profiles!mirror_requests_sender_id_fkey(
-            id,
-            name,
-            avatar_url
-          )
+          responded_at
         `)
         .eq('receiver_id', userId)
         .order('created_at', { ascending: false });
@@ -544,9 +542,25 @@ class DiscoveryService {
         throw error;
       }
 
-      console.log(`✅ Get Received Requests - ${requests?.length || 0} demandes trouvées`);
+      // Enrichir avec les infos des senders (supabaseAdmin car infos publiques)
+      const enrichedRequests = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: senderProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, avatar_url')
+            .eq('id', request.sender_id)
+            .single();
 
-      return requests || [];
+          return {
+            ...request,
+            sender: senderProfile
+          };
+        })
+      );
+
+      console.log(`✅ Get Received Requests - ${enrichedRequests.length} demandes trouvées`);
+
+      return enrichedRequests;
 
     } catch (error) {
       console.error('❌ Get Received Requests - Erreur:', error);
@@ -555,25 +569,21 @@ class DiscoveryService {
   }
 
   /**
-   * Récupérer les demandes envoyées - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Récupérer les demandes envoyées avec RLS
    */
-  async getSentMirrorRequests(userId: string): Promise<any[]> {
+  async getSentMirrorRequests(userId: string, userToken: string): Promise<any[]> {
     try {
       console.log('📤 Get Sent Requests - User:', userId);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { data: requests, error } = await supabaseAdmin
+      const { data: requests, error } = await userSupabase
         .from('mirror_requests')
         .select(`
           id,
           receiver_id,
           status,
           created_at,
-          responded_at,
-          receiver:profiles!mirror_requests_receiver_id_fkey(
-            id,
-            name,
-            avatar_url
-          )
+          responded_at
         `)
         .eq('sender_id', userId)
         .order('created_at', { ascending: false });
@@ -583,9 +593,25 @@ class DiscoveryService {
         throw error;
       }
 
-      console.log(`✅ Get Sent Requests - ${requests?.length || 0} demandes trouvées`);
+      // Enrichir avec les infos des receivers (supabaseAdmin car infos publiques)
+      const enrichedRequests = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: receiverProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, avatar_url')
+            .eq('id', request.receiver_id)
+            .single();
 
-      return requests || [];
+          return {
+            ...request,
+            receiver: receiverProfile
+          };
+        })
+      );
+
+      console.log(`✅ Get Sent Requests - ${enrichedRequests.length} demandes trouvées`);
+
+      return enrichedRequests;
 
     } catch (error) {
       console.error('❌ Get Sent Requests - Erreur:', error);
@@ -594,16 +620,16 @@ class DiscoveryService {
   }
 
   /**
-   * Vérifier si l'utilisateur peut voir un miroir
+   * ✅ CORRIGÉ - Vérifier si l'utilisateur peut voir un miroir avec RLS
    */
-  async canViewMirror(viewerId: string, profileId: string): Promise<boolean> {
+  async canViewMirror(viewerId: string, profileId: string, userToken: string): Promise<boolean> {
     try {
       // Si c'est son propre miroir
       if (viewerId === profileId) {
         return true;
       }
 
-      // Vérifier la visibilité du miroir
+      // Vérifier la visibilité du miroir (supabaseAdmin car info publique)
       const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('mirror_visibility')
@@ -622,9 +648,10 @@ class DiscoveryService {
         return false;
       }
 
-      // Si on_request, vérifier s'il y a une demande acceptée
+      // Si on_request, vérifier s'il y a une demande acceptée avec RLS
       if (profile.mirror_visibility === 'on_request') {
-        const { data: request } = await supabaseAdmin
+        const userSupabase = createUserSupabase(userToken);
+        const { data: request } = await userSupabase
           .from('mirror_requests')
           .select('status')
           .eq('sender_id', viewerId)
@@ -643,16 +670,18 @@ class DiscoveryService {
   }
 
   /**
-   * Enregistrer la lecture d'un miroir - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Enregistrer la lecture d'un miroir avec RLS
    */
-  async recordMirrorRead(viewerId: string, profileId: string): Promise<void> {
+  async recordMirrorRead(viewerId: string, profileId: string, userToken: string): Promise<void> {
     try {
       console.log('📖 Recording mirror read:', viewerId, '->', profileId);
 
       // Enregistrer la vue si ce n'est pas son propre miroir
       if (viewerId !== profileId) {
-        // Utiliser ta structure avec viewed_at et upsert sur viewer+viewed+type
-        const { error } = await supabaseAdmin
+        const userSupabase = createUserSupabase(userToken);
+        
+        // Utiliser RLS pour enregistrer la vue
+        const { error } = await userSupabase
           .from('profile_views')
           .upsert({
             viewer_id: viewerId,
@@ -670,7 +699,7 @@ class DiscoveryService {
           console.error('❌ Record Mirror Read - Erreur:', error);
         }
 
-        // Créer une notification pour le propriétaire du miroir
+        // Créer une notification pour le propriétaire du miroir avec supabaseAdmin (système)
         const { data: viewerProfile } = await supabaseAdmin
           .from('profiles')
           .select('name, avatar_url')
@@ -681,7 +710,7 @@ class DiscoveryService {
           .from('notifications')
           .insert({
             recipient_id: profileId,
-            sender_id: viewerId, // Ta table a ce champ
+            sender_id: viewerId,
             type: 'mirror_read',
             title: 'Miroir consulté',
             message: `${viewerProfile?.name || 'Quelqu\'un'} a lu votre miroir`,
@@ -703,40 +732,41 @@ class DiscoveryService {
   }
 
   /**
-   * Récupérer les statistiques de notifications - ADAPTÉ À TA STRUCTURE
+   * ✅ CORRIGÉ - Récupérer les statistiques de notifications avec RLS
    */
-  async getNotificationStats(userId: string): Promise<NotificationStats> {
+  async getNotificationStats(userId: string, userToken: string): Promise<NotificationStats> {
     try {
       console.log('📊 Get Notification Stats - User:', userId);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Compter les notifications non lues
-      const { count: unreadCount } = await supabaseAdmin
+      // Compter les notifications non lues avec RLS
+      const { count: unreadCount } = await userSupabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('recipient_id', userId)
         .eq('status', 'unread');
 
-      // Compter les vues de profil récentes (7 derniers jours)
+      // Compter les vues de profil récentes (7 derniers jours) avec RLS
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { count: profileViewsCount } = await supabaseAdmin
+      const { count: profileViewsCount } = await userSupabase
         .from('profile_views')
         .select('*', { count: 'exact', head: true })
         .eq('viewed_profile_id', userId)
         .eq('view_type', 'profile')
         .gte('last_viewed_at', sevenDaysAgo.toISOString());
 
-      // Compter les lectures de miroir récentes (7 derniers jours)
-      const { count: mirrorReadsCount } = await supabaseAdmin
+      // Compter les lectures de miroir récentes (7 derniers jours) avec RLS
+      const { count: mirrorReadsCount } = await userSupabase
         .from('profile_views')
         .select('*', { count: 'exact', head: true })
         .eq('viewed_profile_id', userId)
         .eq('view_type', 'mirror')
         .gte('last_viewed_at', sevenDaysAgo.toISOString());
 
-      // Compter les demandes de miroir en attente
-      const { count: pendingRequestsCount } = await supabaseAdmin
+      // Compter les demandes de miroir en attente avec RLS
+      const { count: pendingRequestsCount } = await userSupabase
         .from('mirror_requests')
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', userId)
@@ -759,13 +789,14 @@ class DiscoveryService {
   }
 
   /**
-   * Récupérer les notifications
+   * ✅ CORRIGÉ - Récupérer les notifications avec RLS
    */
-  async getNotifications(userId: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+  async getNotifications(userId: string, userToken: string, limit: number = 20, offset: number = 0): Promise<any[]> {
     try {
       console.log('📄 Get Notifications - User:', userId, 'Limit:', limit, 'Offset:', offset);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { data: notifications, error } = await supabaseAdmin
+      const { data: notifications, error } = await userSupabase
         .from('notifications')
         .select('*')
         .eq('recipient_id', userId)
@@ -788,17 +819,18 @@ class DiscoveryService {
   }
 
   /**
-   * Marquer une notification comme lue
+   * ✅ CORRIGÉ - Marquer une notification comme lue avec RLS
    */
-  async markNotificationAsRead(userId: string, notificationId: string): Promise<void> {
+  async markNotificationAsRead(userId: string, notificationId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Mark Notification Read - User:', userId, 'Notification:', notificationId);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { error } = await supabaseAdmin
+      const { error } = await userSupabase
         .from('notifications')
-        .update({ 
-          status: 'read', 
-          read_at: new Date().toISOString() 
+        .update({
+          status: 'read',
+          read_at: new Date().toISOString()
         })
         .eq('id', notificationId)
         .eq('recipient_id', userId);
@@ -815,17 +847,18 @@ class DiscoveryService {
   }
 
   /**
-   * Marquer toutes les notifications comme lues
+   * ✅ CORRIGÉ - Marquer toutes les notifications comme lues avec RLS
    */
-  async markAllNotificationsAsRead(userId: string): Promise<void> {
+  async markAllNotificationsAsRead(userId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Mark All Notifications Read - User:', userId);
+      const userSupabase = createUserSupabase(userToken);
 
-      const { error } = await supabaseAdmin
+      const { error } = await userSupabase
         .from('notifications')
-        .update({ 
-          status: 'read', 
-          read_at: new Date().toISOString() 
+        .update({
+          status: 'read',
+          read_at: new Date().toISOString()
         })
         .eq('recipient_id', userId)
         .eq('status', 'unread');
@@ -843,8 +876,12 @@ class DiscoveryService {
 
   // ============ MÉTHODES PRIVÉES ============
 
-  private async getUserPreferences(userId: string): Promise<any> {
-    const { data } = await supabaseAdmin
+  /**
+   * ✅ CORRIGÉ - Récupérer les préférences utilisateur avec RLS
+   */
+  private async getUserPreferences(userId: string, userToken: string): Promise<any> {
+    const userSupabase = createUserSupabase(userToken);
+    const { data } = await userSupabase
       .from('profiles')
       .select('latitude, longitude')
       .eq('id', userId)

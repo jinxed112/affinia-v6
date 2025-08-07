@@ -1,5 +1,6 @@
+// backend/src/modules/chat/chat.controller.ts
 // =============================================
-// CONTRÔLEUR CHAT - backend/src/modules/chat/chat.controller.ts
+// CONTRÔLEUR CHAT - CORRIGÉ RLS
 // =============================================
 
 import { Response } from 'express';
@@ -12,7 +13,7 @@ class ChatController {
   // ============ GESTION DES CONVERSATIONS ============
 
   /**
-   * GET /api/chat/conversations - Récupérer les conversations de l'utilisateur
+   * ✅ CORRIGÉ - GET /api/chat/conversations - Récupérer les conversations de l'utilisateur
    */
   async getConversations(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -22,7 +23,7 @@ class ChatController {
 
       console.log('📝 Chat Controller - Récupération conversations:', { userId, limit, offset });
 
-      const conversations = await chatService.getUserConversations(userId, limit, offset);
+      const conversations = await chatService.getUserConversations(userId, req.userToken!, limit, offset);
 
       res.json({
         success: true,
@@ -40,7 +41,7 @@ class ChatController {
   }
 
   /**
-   * GET /api/chat/conversations/:id - Récupérer une conversation spécifique
+   * ✅ CORRIGÉ - GET /api/chat/conversations/:id - Récupérer une conversation spécifique
    */
   async getConversation(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -49,7 +50,7 @@ class ChatController {
 
       console.log('👁️ Chat Controller - Récupération conversation:', { userId, conversationId });
 
-      const conversation = await chatService.getConversation(conversationId, userId);
+      const conversation = await chatService.getConversation(conversationId, userId, req.userToken!);
 
       if (!conversation) {
         res.status(404).json({
@@ -126,7 +127,7 @@ class ChatController {
   // ============ GESTION DES MESSAGES ============
 
   /**
-   * GET /api/chat/conversations/:id/messages - Récupérer les messages d'une conversation
+   * ✅ CORRIGÉ - GET /api/chat/conversations/:id/messages - Récupérer les messages d'une conversation
    */
   async getMessages(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -137,7 +138,7 @@ class ChatController {
 
       console.log('📋 Chat Controller - Récupération messages:', { conversationId, userId, limit, offset });
 
-      const messages = await chatService.getConversationMessages(conversationId, userId, limit, offset);
+      const messages = await chatService.getConversationMessages(conversationId, userId, req.userToken!, limit, offset);
 
       res.json({
         success: true,
@@ -155,7 +156,7 @@ class ChatController {
   }
 
   /**
-   * POST /api/chat/conversations/:id/messages - Envoyer un message
+   * ✅ CORRIGÉ - POST /api/chat/conversations/:id/messages - Envoyer un message
    */
   async sendMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -191,7 +192,7 @@ class ChatController {
         media_metadata,
         reply_to_id,
         expires_in_minutes
-      });
+      }, req.userToken!);
 
       res.status(201).json({
         success: true,
@@ -210,7 +211,7 @@ class ChatController {
   }
 
   /**
-   * PUT /api/chat/messages/:id - Modifier un message
+   * ✅ CORRIGÉ - PUT /api/chat/messages/:id - Modifier un message
    */
   async updateMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -236,7 +237,7 @@ class ChatController {
         content,
         media_url,
         media_metadata
-      });
+      }, req.userToken!);
 
       res.json({
         success: true,
@@ -255,7 +256,7 @@ class ChatController {
   }
 
   /**
-   * DELETE /api/chat/messages/:id - Supprimer un message
+   * ✅ CORRIGÉ - DELETE /api/chat/messages/:id - Supprimer un message
    */
   async deleteMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -264,7 +265,7 @@ class ChatController {
 
       console.log('🗑️ Chat Controller - Suppression message:', { messageId, userId });
 
-      const success = await chatService.deleteMessage(messageId, userId);
+      const success = await chatService.deleteMessage(messageId, userId, req.userToken!);
 
       if (success) {
         res.json({
@@ -289,7 +290,7 @@ class ChatController {
   }
 
   /**
-   * POST /api/chat/messages/:id/react - Réagir à un message
+   * ✅ CORRIGÉ - POST /api/chat/messages/:id/react - Réagir à un message
    */
   async reactToMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -314,7 +315,7 @@ class ChatController {
         user_id: userId,
         emoji,
         action
-      });
+      }, req.userToken!);
 
       res.json({
         success: true,
@@ -335,7 +336,7 @@ class ChatController {
   // ============ GESTION DES LECTURES ============
 
   /**
-   * POST /api/chat/conversations/:id/read - Marquer les messages comme lus
+   * ✅ CORRIGÉ - POST /api/chat/conversations/:id/read - Marquer les messages comme lus
    */
   async markAsRead(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -345,7 +346,7 @@ class ChatController {
 
       console.log('✅ Chat Controller - Marquage lu:', { conversationId, userId, last_message_id });
 
-      await chatService.markMessagesAsRead(conversationId, userId, last_message_id);
+      await chatService.markMessagesAsRead(conversationId, userId, last_message_id, req.userToken!);
 
       res.json({
         success: true,
@@ -363,14 +364,14 @@ class ChatController {
   }
 
   /**
-   * GET /api/chat/conversations/:id/unread-count - Compter les messages non lus
+   * ✅ CORRIGÉ - GET /api/chat/conversations/:id/unread-count - Compter les messages non lus
    */
   async getUnreadCount(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
       const { id: conversationId } = req.params;
 
-      const unreadCount = await chatService.getUnreadMessagesCount(conversationId, userId);
+      const unreadCount = await chatService.getUnreadMessagesCount(conversationId, userId, req.userToken!);
 
       res.json({
         success: true,
@@ -388,13 +389,13 @@ class ChatController {
   }
 
   /**
-   * GET /api/chat/stats - Statistiques globales du chat
+   * ✅ CORRIGÉ - GET /api/chat/stats - Statistiques globales du chat
    */
   async getChatStats(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
 
-      const totalUnreadConversations = await chatService.getTotalUnreadConversationsCount(userId);
+      const totalUnreadConversations = await chatService.getTotalUnreadConversationsCount(userId, req.userToken!);
 
       res.json({
         success: true,

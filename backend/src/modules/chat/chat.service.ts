@@ -1,8 +1,9 @@
+// backend/src/modules/chat/chat.service.ts
 // =============================================
-// SERVICE BACKEND - Chat Système Temps Réel
+// SERVICE BACKEND - Chat Système Temps Réel avec RLS
 // =============================================
 
-import { supabaseAdmin } from '../../config/database';
+import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
 
 // Types pour le chat
 export interface Conversation {
@@ -13,7 +14,6 @@ export interface Conversation {
   last_message_at: string;
   last_message_id: string | null;
   status: 'active' | 'archived' | 'blocked';
-  // Données jointes
   other_participant?: {
     id: string;
     name: string;
@@ -32,13 +32,12 @@ export interface Message {
   media_url: string | null;
   media_metadata: any;
   reply_to_id: string | null;
-  reactions: Record<string, string[]>; // {"❤️": ["user_id1"], "😂": ["user_id2"]}
+  reactions: Record<string, string[]>;
   expires_at: string | null;
   edited_at: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
-  // Données jointes
   sender?: {
     id: string;
     name: string;
@@ -69,7 +68,7 @@ export interface SendMessageParams {
   media_url?: string;
   media_metadata?: any;
   reply_to_id?: string;
-  expires_in_minutes?: number; // Pour messages éphémères
+  expires_in_minutes?: number;
 }
 
 export interface UpdateMessageParams {
@@ -88,7 +87,7 @@ export interface ReactToMessageParams {
 }
 
 class ChatService {
-  private webSocketService?: any; // Référence vers ChatWebSocketService
+  private webSocketService?: any;
 
   setWebSocketService(webSocketService: any) {
     this.webSocketService = webSocketService;
@@ -97,7 +96,7 @@ class ChatService {
   // ============ GESTION DES CONVERSATIONS ============
 
   /**
-   * Créer une nouvelle conversation (appelée automatiquement après miroir accepté)
+   * ✅ GARDE ADMIN - Créer une nouvelle conversation (système après miroir accepté)
    */
   async createConversation(params: CreateConversationParams): Promise<Conversation> {
     try {
@@ -114,7 +113,7 @@ class ChatService {
         return existingConversation;
       }
 
-      // Créer la nouvelle conversation
+      // Créer la nouvelle conversation avec supabaseAdmin (système)
       const { data: newConversation, error } = await supabaseAdmin
         .from('conversations')
         .insert({
@@ -133,8 +132,8 @@ class ChatService {
 
       console.log('✅ Conversation créée:', newConversation.id);
 
-      // Envoyer un message système de bienvenue
-      await this.sendMessage({
+      // Envoyer un message système de bienvenue avec supabaseAdmin
+      await this.sendSystemMessage({
         conversation_id: newConversation.id,
         sender_id: 'system',
         content: '🎉 Félicitations ! Vous pouvez maintenant discuter suite à l\'acceptation du miroir.',
@@ -153,7 +152,7 @@ class ChatService {
   }
 
   /**
-   * Chercher une conversation existante entre deux utilisateurs
+   * ✅ GARDE ADMIN - Chercher une conversation existante entre deux utilisateurs (système)
    */
   async findExistingConversation(userId1: string, userId2: string): Promise<Conversation | null> {
     try {
@@ -175,14 +174,15 @@ class ChatService {
   }
 
   /**
-   * Récupérer les conversations d'un utilisateur
+   * ✅ CORRIGÉ - Récupérer les conversations d'un utilisateur avec RLS
    */
-  async getUserConversations(userId: string, limit: number = 20, offset: number = 0): Promise<Conversation[]> {
+  async getUserConversations(userId: string, userToken: string, limit: number = 20, offset: number = 0): Promise<Conversation[]> {
     try {
       console.log('📝 Chat Service - Récupération conversations pour:', userId);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Récupérer les conversations avec les infos des autres participants
-      const { data: conversations, error } = await supabaseAdmin
+      // Récupérer les conversations avec RLS
+      const { data: conversations, error } = await userSupabase
         .from('conversations')
         .select(`
           id,
@@ -206,24 +206,24 @@ class ChatService {
         return [];
       }
 
-      // Enrichir avec les données des autres participants
+      // Enrichir avec les données des autres participants (utilise supabaseAdmin pour les profils publics)
       const enrichedConversations = await Promise.all(
         conversations.map(async (conv) => {
-          const otherUserId = conv.participant_1_id === userId 
-            ? conv.participant_2_id 
+          const otherUserId = conv.participant_1_id === userId
+            ? conv.participant_2_id
             : conv.participant_1_id;
 
-          // Récupérer les infos de l'autre participant
+          // Récupérer les infos de l'autre participant avec supabaseAdmin (infos publiques)
           const { data: otherUser } = await supabaseAdmin
             .from('profiles')
             .select('id, name, avatar_url')
             .eq('id', otherUserId)
             .single();
 
-          // Récupérer le dernier message
+          // Récupérer le dernier message avec RLS
           let lastMessage = null;
           if (conv.last_message_id) {
-            const { data: messageData } = await supabaseAdmin
+            const { data: messageData } = await userSupabase
               .from('messages')
               .select('id, content, message_type, created_at, sender_id')
               .eq('id', conv.last_message_id)
@@ -231,8 +231,8 @@ class ChatService {
             lastMessage = messageData;
           }
 
-          // Compter les messages non lus
-          const unreadCount = await this.getUnreadMessagesCount(conv.id, userId);
+          // Compter les messages non lus avec RLS
+          const unreadCount = await this.getUnreadMessagesCount(conv.id, userId, userToken);
 
           return {
             ...conv,
@@ -257,11 +257,13 @@ class ChatService {
   }
 
   /**
-   * Récupérer une conversation spécifique
+   * ✅ CORRIGÉ - Récupérer une conversation spécifique avec RLS
    */
-  async getConversation(conversationId: string, userId: string): Promise<Conversation | null> {
+  async getConversation(conversationId: string, userId: string, userToken: string): Promise<Conversation | null> {
     try {
-      const { data: conversation, error } = await supabaseAdmin
+      const userSupabase = createUserSupabase(userToken);
+
+      const { data: conversation, error } = await userSupabase
         .from('conversations')
         .select('*')
         .eq('id', conversationId)
@@ -272,9 +274,9 @@ class ChatService {
         return null;
       }
 
-      // Enrichir avec les données de l'autre participant
-      const otherUserId = conversation.participant_1_id === userId 
-        ? conversation.participant_2_id 
+      // Enrichir avec les données de l'autre participant (supabaseAdmin pour infos publiques)
+      const otherUserId = conversation.participant_1_id === userId
+        ? conversation.participant_2_id
         : conversation.participant_1_id;
 
       const { data: otherUser } = await supabaseAdmin
@@ -301,11 +303,12 @@ class ChatService {
   // ============ GESTION DES MESSAGES ============
 
   /**
-   * Envoyer un message
+   * ✅ CORRIGÉ - Envoyer un message avec RLS
    */
-  async sendMessage(params: SendMessageParams): Promise<Message> {
+  async sendMessage(params: SendMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('📤 Chat Service - Envoi message:', params);
+      const userSupabase = createUserSupabase(userToken);
 
       // Calculer la date d'expiration si message éphémère
       let expiresAt = null;
@@ -314,8 +317,8 @@ class ChatService {
         expiresAt.setMinutes(expiresAt.getMinutes() + params.expires_in_minutes);
       }
 
-      // Insérer le message
-      const { data: newMessage, error } = await supabaseAdmin
+      // Insérer le message avec RLS
+      const { data: newMessage, error } = await userSupabase
         .from('messages')
         .insert({
           conversation_id: params.conversation_id,
@@ -339,8 +342,8 @@ class ChatService {
 
       console.log('✅ Message envoyé:', newMessage.id);
 
-      // Récupérer le message enrichi avec les données du sender
-      const enrichedMessage = await this.getMessageWithDetails(newMessage.id);
+      // Récupérer le message enrichi
+      const enrichedMessage = await this.getMessageWithDetails(newMessage.id, userToken);
 
       // Notifier les participants via WebSocket
       await this.notifyNewMessage(enrichedMessage);
@@ -354,25 +357,71 @@ class ChatService {
   }
 
   /**
-   * Récupérer les messages d'une conversation
+   * ✅ GARDE ADMIN - Envoyer un message système (sans RLS)
+   */
+  private async sendSystemMessage(params: SendMessageParams): Promise<Message> {
+    try {
+      // Calculer la date d'expiration si message éphémère
+      let expiresAt = null;
+      if (params.expires_in_minutes) {
+        expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() + params.expires_in_minutes);
+      }
+
+      // Insérer le message système avec supabaseAdmin
+      const { data: newMessage, error } = await supabaseAdmin
+        .from('messages')
+        .insert({
+          conversation_id: params.conversation_id,
+          sender_id: params.sender_id,
+          content: params.content || null,
+          message_type: params.message_type || 'system',
+          media_url: params.media_url || null,
+          media_metadata: params.media_metadata || null,
+          reply_to_id: params.reply_to_id || null,
+          expires_at: expiresAt?.toISOString() || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur envoi message système:', error);
+        throw error;
+      }
+
+      console.log('✅ Message système envoyé:', newMessage.id);
+      return newMessage;
+
+    } catch (error) {
+      console.error('❌ Chat Service - Erreur sendSystemMessage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ CORRIGÉ - Récupérer les messages d'une conversation avec RLS
    */
   async getConversationMessages(
     conversationId: string,
     userId: string,
+    userToken: string,
     limit: number = 50,
     offset: number = 0
   ): Promise<Message[]> {
     try {
       console.log('📋 Chat Service - Récupération messages conversation:', conversationId);
+      const userSupabase = createUserSupabase(userToken);
 
       // Vérifier que l'utilisateur a accès à cette conversation
-      const conversation = await this.getConversation(conversationId, userId);
+      const conversation = await this.getConversation(conversationId, userId, userToken);
       if (!conversation) {
         throw new Error('Conversation not found or access denied');
       }
 
-      // Récupérer les messages (non supprimés et non expirés)
-      const { data: messages, error } = await supabaseAdmin
+      // Récupérer les messages avec RLS
+      const { data: messages, error } = await userSupabase
         .from('messages')
         .select(`
           id,
@@ -404,7 +453,7 @@ class ChatService {
         return [];
       }
 
-      // Enrichir les messages avec les données des senders
+      // Enrichir les messages avec les données des senders (supabaseAdmin pour infos publiques)
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
           // Récupérer les infos du sender (sauf pour les messages système)
@@ -415,7 +464,7 @@ class ChatService {
               .select('id, name, avatar_url')
               .eq('id', message.sender_id)
               .single();
-            
+
             sender = senderData ? {
               id: senderData.id,
               name: senderData.name || 'Utilisateur',
@@ -426,7 +475,7 @@ class ChatService {
           // Récupérer le message de réponse si applicable
           let replyTo = null;
           if (message.reply_to_id) {
-            replyTo = await this.getMessageWithDetails(message.reply_to_id);
+            replyTo = await this.getMessageWithDetails(message.reply_to_id, userToken);
           }
 
           return {
@@ -447,25 +496,27 @@ class ChatService {
   }
 
   /**
-   * Modifier un message
+   * ✅ CORRIGÉ - Modifier un message avec RLS
    */
-  async updateMessage(params: UpdateMessageParams): Promise<Message> {
+  async updateMessage(params: UpdateMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('✏️ Chat Service - Modification message:', params.message_id);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier que l'utilisateur est le propriétaire du message
-      const { data: existingMessage } = await supabaseAdmin
+      // Vérifier que l'utilisateur est le propriétaire du message avec RLS
+      const { data: existingMessage } = await userSupabase
         .from('messages')
         .select('sender_id, conversation_id')
         .eq('id', params.message_id)
+        .eq('sender_id', params.user_id)
         .single();
 
-      if (!existingMessage || existingMessage.sender_id !== params.user_id) {
+      if (!existingMessage) {
         throw new Error('Message not found or access denied');
       }
 
-      // Mettre à jour le message
-      const { data: updatedMessage, error } = await supabaseAdmin
+      // Mettre à jour le message avec RLS
+      const { data: updatedMessage, error } = await userSupabase
         .from('messages')
         .update({
           content: params.content,
@@ -484,7 +535,7 @@ class ChatService {
       }
 
       // Récupérer le message enrichi
-      const enrichedMessage = await this.getMessageWithDetails(updatedMessage.id);
+      const enrichedMessage = await this.getMessageWithDetails(updatedMessage.id, userToken);
 
       // Notifier la modification via WebSocket
       await this.notifyMessageUpdated(enrichedMessage);
@@ -498,25 +549,27 @@ class ChatService {
   }
 
   /**
-   * Supprimer un message (soft delete)
+   * ✅ CORRIGÉ - Supprimer un message avec RLS
    */
-  async deleteMessage(messageId: string, userId: string): Promise<boolean> {
+  async deleteMessage(messageId: string, userId: string, userToken: string): Promise<boolean> {
     try {
       console.log('🗑️ Chat Service - Suppression message:', messageId);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier que l'utilisateur est le propriétaire du message
-      const { data: existingMessage } = await supabaseAdmin
+      // Vérifier que l'utilisateur est le propriétaire du message avec RLS
+      const { data: existingMessage } = await userSupabase
         .from('messages')
         .select('sender_id')
         .eq('id', messageId)
+        .eq('sender_id', userId)
         .single();
 
-      if (!existingMessage || existingMessage.sender_id !== userId) {
+      if (!existingMessage) {
         throw new Error('Message not found or access denied');
       }
 
-      // Soft delete
-      const { error } = await supabaseAdmin
+      // Soft delete avec RLS
+      const { error } = await userSupabase
         .from('messages')
         .update({
           deleted_at: new Date().toISOString(),
@@ -541,14 +594,15 @@ class ChatService {
   }
 
   /**
-   * Réagir à un message
+   * ✅ CORRIGÉ - Réagir à un message avec RLS
    */
-  async reactToMessage(params: ReactToMessageParams): Promise<Message> {
+  async reactToMessage(params: ReactToMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('😊 Chat Service - Réaction message:', params);
+      const userSupabase = createUserSupabase(userToken);
 
-      // Récupérer le message existant
-      const { data: message, error } = await supabaseAdmin
+      // Récupérer le message existant avec RLS
+      const { data: message, error } = await userSupabase
         .from('messages')
         .select('reactions')
         .eq('id', params.message_id)
@@ -564,7 +618,6 @@ class ChatService {
       const userId = params.user_id;
 
       if (params.action === 'add') {
-        // Ajouter la réaction
         if (!reactions[emoji]) {
           reactions[emoji] = [];
         }
@@ -572,7 +625,6 @@ class ChatService {
           reactions[emoji].push(userId);
         }
       } else {
-        // Supprimer la réaction
         if (reactions[emoji]) {
           reactions[emoji] = reactions[emoji].filter(id => id !== userId);
           if (reactions[emoji].length === 0) {
@@ -581,8 +633,8 @@ class ChatService {
         }
       }
 
-      // Mettre à jour en base
-      const { data: updatedMessage, error: updateError } = await supabaseAdmin
+      // Mettre à jour en base avec RLS
+      const { data: updatedMessage, error: updateError } = await userSupabase
         .from('messages')
         .update({
           reactions: reactions,
@@ -597,7 +649,7 @@ class ChatService {
       }
 
       // Récupérer le message enrichi
-      const enrichedMessage = await this.getMessageWithDetails(updatedMessage.id);
+      const enrichedMessage = await this.getMessageWithDetails(updatedMessage.id, userToken);
 
       // Notifier via WebSocket
       await this.notifyMessageReaction(enrichedMessage, params.emoji, params.action);
@@ -613,14 +665,15 @@ class ChatService {
   // ============ GESTION DES LECTURES ============
 
   /**
-   * Marquer les messages comme lus
+   * ✅ CORRIGÉ - Marquer les messages comme lus avec RLS
    */
-  async markMessagesAsRead(conversationId: string, userId: string, lastMessageId: string): Promise<void> {
+  async markMessagesAsRead(conversationId: string, userId: string, lastMessageId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Chat Service - Marquage lu:', { conversationId, userId, lastMessageId });
+      const userSupabase = createUserSupabase(userToken);
 
-      // Upsert du marqueur de lecture
-      const { error } = await supabaseAdmin
+      // Upsert du marqueur de lecture avec RLS
+      const { error } = await userSupabase
         .from('message_reads')
         .upsert({
           conversation_id: conversationId,
@@ -646,23 +699,50 @@ class ChatService {
   }
 
   /**
-   * Compter les messages non lus dans une conversation
+   * ✅ CORRIGÉ - Compter les messages non lus avec RLS
    */
-  async getUnreadMessagesCount(conversationId: string, userId: string): Promise<number> {
+  async getUnreadMessagesCount(conversationId: string, userId: string, userToken: string): Promise<number> {
     try {
-      // Utiliser la fonction SQL créée précédemment
-      const { data, error } = await supabaseAdmin
-        .rpc('get_unread_messages_count', {
-          conversation_id: conversationId,
-          user_id: userId
-        });
+      const userSupabase = createUserSupabase(userToken);
 
-      if (error) {
-        console.error('❌ Erreur comptage non lus:', error);
-        return 0;
+      // Utiliser une requête directe au lieu de RPC pour RLS
+      const { data: lastRead } = await userSupabase
+        .from('message_reads')
+        .select('last_read_message_id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+        .single();
+
+      if (!lastRead || !lastRead.last_read_message_id) {
+        // Compter tous les messages non supprimés dans la conversation
+        const { count } = await userSupabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conversationId)
+          .neq('sender_id', userId)
+          .is('deleted_at', null);
+
+        return count || 0;
       }
 
-      return data || 0;
+      // Compter les messages après le dernier lu
+      const { data: lastReadMessage } = await userSupabase
+        .from('messages')
+        .select('created_at')
+        .eq('id', lastRead.last_read_message_id)
+        .single();
+
+      if (!lastReadMessage) return 0;
+
+      const { count } = await userSupabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId)
+        .neq('sender_id', userId)
+        .gt('created_at', lastReadMessage.created_at)
+        .is('deleted_at', null);
+
+      return count || 0;
 
     } catch (error) {
       console.error('❌ Chat Service - Erreur getUnreadMessagesCount:', error);
@@ -671,11 +751,11 @@ class ChatService {
   }
 
   /**
-   * Récupérer le nombre total de conversations non lues
+   * ✅ CORRIGÉ - Récupérer le nombre total de conversations non lues avec RLS
    */
-  async getTotalUnreadConversationsCount(userId: string): Promise<number> {
+  async getTotalUnreadConversationsCount(userId: string, userToken: string): Promise<number> {
     try {
-      const conversations = await this.getUserConversations(userId, 100, 0);
+      const conversations = await this.getUserConversations(userId, userToken, 100, 0);
       return conversations.filter(conv => (conv.unread_count || 0) > 0).length;
     } catch (error) {
       console.error('❌ Chat Service - Erreur getTotalUnreadConversationsCount:', error);
@@ -686,14 +766,13 @@ class ChatService {
   // ============ INTÉGRATION AVEC LE SYSTÈME DE MIROIR ============
 
   /**
-   * Créer automatiquement une conversation après acceptation d'un miroir
-   * (À appeler depuis discoveryService.respondToMirrorRequest)
+   * ✅ GARDE ADMIN - Créer automatiquement une conversation après acceptation d'un miroir
    */
   async createConversationFromMirrorAcceptance(senderId: string, receiverId: string): Promise<Conversation> {
     try {
       console.log('🪞➡️💬 Création conversation depuis miroir accepté:', { senderId, receiverId });
 
-      // Créer la conversation
+      // Créer la conversation (utilise supabaseAdmin car système)
       const conversation = await this.createConversation({
         participant_1_id: senderId,
         participant_2_id: receiverId
@@ -714,10 +793,12 @@ class ChatService {
   // ============ MÉTHODES PRIVÉES ============
 
   /**
-   * Récupérer un message avec tous ses détails
+   * ✅ CORRIGÉ - Récupérer un message avec tous ses détails avec RLS
    */
-  private async getMessageWithDetails(messageId: string): Promise<Message> {
-    const { data: message, error } = await supabaseAdmin
+  private async getMessageWithDetails(messageId: string, userToken: string): Promise<Message> {
+    const userSupabase = createUserSupabase(userToken);
+    
+    const { data: message, error } = await userSupabase
       .from('messages')
       .select('*')
       .eq('id', messageId)
@@ -727,7 +808,7 @@ class ChatService {
       throw new Error('Message not found');
     }
 
-    // Enrichir avec les données du sender
+    // Enrichir avec les données du sender (supabaseAdmin pour infos publiques)
     let sender = null;
     if (message.sender_id !== 'system') {
       const { data: senderData } = await supabaseAdmin
@@ -735,7 +816,7 @@ class ChatService {
         .select('id, name, avatar_url')
         .eq('id', message.sender_id)
         .single();
-      
+
       sender = senderData ? {
         id: senderData.id,
         name: senderData.name || 'Utilisateur',
@@ -754,7 +835,7 @@ class ChatService {
    */
   private async notifyNewConversation(conversation: Conversation): Promise<void> {
     console.log('🔔 Notification nouvelle conversation:', conversation.id);
-    
+
     if (this.webSocketService) {
       this.webSocketService.notifyNewConversation([
         conversation.participant_1_id,
@@ -768,11 +849,11 @@ class ChatService {
    */
   private async notifyNewMessage(message: Message): Promise<void> {
     console.log('🔔 Notification nouveau message:', message.id);
-    
+
     if (this.webSocketService) {
       this.webSocketService.notifyNewMessage(
-        message.conversation_id, 
-        message, 
+        message.conversation_id,
+        message,
         message.sender_id
       );
     }
@@ -783,7 +864,7 @@ class ChatService {
    */
   private async notifyMessageUpdated(message: Message): Promise<void> {
     console.log('🔔 Notification message modifié:', message.id);
-    
+
     if (this.webSocketService) {
       this.webSocketService.notifyMessageUpdate(message.conversation_id, message);
     }
@@ -794,8 +875,8 @@ class ChatService {
    */
   private async notifyMessageDeleted(messageId: string): Promise<void> {
     console.log('🔔 Notification message supprimé:', messageId);
-    
-    // Récupérer l'info de la conversation depuis le message
+
+    // Récupérer l'info de la conversation depuis le message (avec supabaseAdmin car juste pour l'ID)
     const { data: message } = await supabaseAdmin
       .from('messages')
       .select('conversation_id')
@@ -812,13 +893,13 @@ class ChatService {
    */
   private async notifyMessageReaction(message: Message, emoji: string, action: 'add' | 'remove'): Promise<void> {
     console.log('🔔 Notification réaction:', { messageId: message.id, emoji, action });
-    
+
     if (this.webSocketService) {
       this.webSocketService.notifyMessageReaction(
-        message.conversation_id, 
-        message.id, 
-        emoji, 
-        action, 
+        message.conversation_id,
+        message.id,
+        emoji,
+        action,
         message.sender_id
       );
     }
@@ -833,18 +914,18 @@ class ChatService {
   }
 
   /**
-   * Créer une notification de nouveau chat
+   * ✅ GARDE ADMIN - Créer une notification de nouveau chat (système)
    */
   private async createChatNotification(recipientId: string, senderId: string, conversationId: string): Promise<void> {
     try {
-      // Récupérer le nom de l'expéditeur
+      // Récupérer le nom de l'expéditeur avec supabaseAdmin
       const { data: senderProfile } = await supabaseAdmin
         .from('profiles')
         .select('name, avatar_url')
         .eq('id', senderId)
         .single();
 
-      // Créer la notification
+      // Créer la notification avec supabaseAdmin
       await supabaseAdmin
         .from('notifications')
         .insert({

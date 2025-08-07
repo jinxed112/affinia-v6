@@ -1,7 +1,7 @@
 // Exports basés sur le vrai App.tsx
 export { HomePage } from './HomePage';
 export { ProfilePage } from './ProfilePage';
-export { MiroirPage } from './MiroirPage';
+export { MirrorPage } from './MirrorPage';
 export { DiscoveryPage } from './DiscoveryPage';
 export { MirrorRequestsPage } from './MirrorRequestsPage';
 export { AdminPage } from './AdminPage';

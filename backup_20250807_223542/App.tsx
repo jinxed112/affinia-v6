@@ -9,7 +9,7 @@ import AuthConfirm from './components/AuthConfirm'
 import Login from './pages/Login'
 import { HomePage } from './pages/HomePage'
 import { ProfilePage } from './pages/ProfilePage'
-import { MirrorPage } from './pages/MirrorPage'
+import { MiroirPage } from './pages/MiroirPage'
 import { DiscoveryPage } from './pages/DiscoveryPage'
 import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
 import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
@@ -74,7 +74,7 @@ function AppContent() {
           <Route path="/miroir" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
-                <MirrorPage isDarkMode={isDarkMode} />
+                <MiroirPage isDarkMode={isDarkMode} />
               </OnboardingGuard>
             </PrivateRoute>
           } />
