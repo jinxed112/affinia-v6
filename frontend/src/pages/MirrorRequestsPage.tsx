@@ -1,8 +1,8 @@
 // =============================================
-// PAGE DEMANDES DE MIROIR - Gestion complète
+// PAGE DEMANDES DE MIROIR - Version Debug Enhanced
 // =============================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useMirrorRequests } from '../hooks/useMirrorRequests';
@@ -34,6 +34,26 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [responding, setResponding] = useState<string | null>(null);
 
+  // ✅ DEBUG: Vérifier que le composant est bien la bonne version
+  useEffect(() => {
+    console.log('🟦 MirrorRequestsPage LOADED - Version Debug Enhanced:', {
+      timestamp: new Date().toISOString(),
+      version: 'debug-enhanced-v2',
+      receivedRequests: receivedRequests.length,
+      sentRequests: sentRequests.length
+    });
+  }, [receivedRequests.length, sentRequests.length]);
+
+  // ✅ DEBUG: Test fonction disponible dans window
+  useEffect(() => {
+    (window as any).testMirrorNavigation = (userId: string) => {
+      console.log('🧪 TEST NAVIGATION:', userId);
+      navigate(`/miroir/${userId}`);
+    };
+    
+    console.log('🧪 Test function added to window.testMirrorNavigation');
+  }, [navigate]);
+
   const handleRespond = async (requestId: string, response: 'accepted' | 'rejected') => {
     try {
       setResponding(requestId);
@@ -45,11 +65,31 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
     }
   };
 
-  // ✅ FIX: Fonction de navigation sécurisée
+  // ✅ FIX: Fonction de navigation avec DEBUG COMPLET
   const handleViewMirror = (request: any) => {
+    console.log('🟦 CLICK DÉTECTÉ - handleViewMirror appelée !', {
+      timestamp: new Date().toISOString(),
+      request_id: request?.id,
+      request_status: request?.status,
+      activeTab
+    });
+
+    // ✅ DEBUG: Vérifier structure complète de request
+    console.log('🟦 REQUEST OBJECT COMPLET:', {
+      request: JSON.stringify(request, null, 2)
+    });
+
     const targetUserId = activeTab === 'received' 
       ? request.sender_id 
       : request.receiver_id;
+    
+    console.log('🟦 TARGET USER CALCULATION:', {
+      activeTab,
+      sender_id: request?.sender_id,
+      receiver_id: request?.receiver_id,
+      targetUserId,
+      calculation: `activeTab=${activeTab} ? sender_id=${request?.sender_id} : receiver_id=${request?.receiver_id}`
+    });
     
     console.log('🔍 DEBUG Navigation MirrorPage:', {
       activeTab,
@@ -65,12 +105,37 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
     });
     
     if (!targetUserId) {
-      console.error('❌ Target User ID manquant!', request);
+      console.error('❌ Target User ID manquant!', {
+        request,
+        activeTab,
+        sender_id: request?.sender_id,
+        receiver_id: request?.receiver_id
+      });
+      
+      // ✅ FALLBACK: Essayer de trouver un ID alternatif
+      const fallbackId = request?.sender?.id || request?.receiver?.id || request?.sender_id || request?.receiver_id;
+      console.log('🔄 TENTATIVE FALLBACK ID:', fallbackId);
+      
+      if (fallbackId) {
+        console.log('✅ USING FALLBACK ID pour navigation:', fallbackId);
+        navigate(`/miroir/${fallbackId}`);
+        return;
+      }
+      
+      alert('Erreur: Impossible de déterminer l\'utilisateur cible');
       return;
     }
     
-    // Navigation sécurisée
-    navigate(`/miroir/${targetUserId}`);
+    // ✅ NAVIGATION AVEC LOGS DÉTAILLÉS
+    console.log('🚀 NAVIGATION EN COURS vers:', `/miroir/${targetUserId}`);
+    
+    try {
+      navigate(`/miroir/${targetUserId}`);
+      console.log('✅ NAVIGATION LANCÉE avec succès');
+    } catch (error) {
+      console.error('❌ ERREUR NAVIGATION:', error);
+      alert(`Erreur navigation: ${error}`);
+    }
   };
 
   if (!user) {
@@ -293,12 +358,19 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
                         </div>
                       )}
 
-                      {/* ✅ FIX: Bouton voir miroir avec navigation sécurisée */}
+                      {/* ✅ BOUTON VOIR MIROIR avec logs DEBUG */}
                       {request.status === 'accepted' && (
                         <BaseComponents.Button
                           variant="primary"
                           size="small"
-                          onClick={() => handleViewMirror(request)}
+                          onClick={() => {
+                            console.log('🟦 BOUTON CLIQUÉ - Avant handleViewMirror', {
+                              timestamp: new Date().toISOString(),
+                              request_id: request.id,
+                              activeTab
+                            });
+                            handleViewMirror(request);
+                          }}
                           className="flex items-center gap-1"
                         >
                           <Eye className="w-4 h-4" />
