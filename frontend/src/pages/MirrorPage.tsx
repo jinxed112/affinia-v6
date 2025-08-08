@@ -178,9 +178,12 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   };
 
   const parseEmotionalText = (rawText: string): string => {
+    console.log("🔍 DEBUG: Raw text length:", rawText?.length);
+    console.log("🔍 DEBUG: Raw text preview:", rawText?.substring(0, 500));
+    
     if (!rawText) return '';
 
-    return rawText
+    const cleaned = rawText
       .replace(/\*\*PARTIE\s+\d+[^*]*\*\*/g, '')
       .replace(/🔒\s*\*[a-f0-9]+\*/g, '')
       .replace(/🔐\s*[a-z0-9]+/g, '')
@@ -192,6 +195,11 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+      
+    console.log("🔍 DEBUG: Cleaned text length:", cleaned?.length);
+    console.log("🔍 DEBUG: Cleaned preview:", cleaned?.substring(0, 500));
+    
+    return cleaned;
   };
 
   // ✅ NOUVELLE FONCTION : Demande de conversation
@@ -413,6 +421,13 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   if (!profileData) return null;
 
   const cleanText = profileData ? parseEmotionalText(profileData.generated_profile) : '';
+
+  // ✅ DEBUG: Analyser le filtrage des paragraphes
+  console.log("🔍 DEBUG: Final cleanText length:", cleanText?.length);
+  console.log("🔍 DEBUG: Split paragraphs:", cleanText?.split('\n\n')?.length);
+  console.log("🔍 DEBUG: Filtered paragraphs:", cleanText?.split('\n\n')?.filter(p => p.trim().length > 20)?.length);
+  console.log("🔍 DEBUG: All paragraphs lengths:", cleanText?.split('\n\n')?.map(p => p.trim().length));
+  console.log("🔍 DEBUG: First few paragraphs:", cleanText?.split('\n\n')?.slice(0, 3)?.map(p => p.substring(0, 100) + '...'));
 
   return (
     <div className={`min-h-screen ${designSystem.getBgClasses('primary')} relative overflow-hidden`}>
