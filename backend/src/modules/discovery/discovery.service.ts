@@ -1,7 +1,7 @@
 // backend/src/modules/discovery/discovery.service.ts
 import { DiscoveryProfile, DiscoveryFilters, DiscoveryResponse } from "../../../shared/types/discovery";
 // =============================================
-// SERVICE BACKEND - Découverte et Miroir Privé avec RLS
+// SERVICE BACKEND - Découverte et Miroir Privé avec RLS CORRIGÉ
 // =============================================
 
 import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
@@ -32,6 +32,13 @@ class DiscoveryService {
   ): Promise<DiscoveryResponse> {
     try {
       console.log('🔍 Discovery - Récupération profils pour:', userId, 'avec filtres:', filters);
+
+      // ✅ VALIDATION TOKEN AJOUTÉE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getDiscoveryProfiles:', tokenError);
+        throw new Error('Unauthorized');
+      }
 
       const {
         gender,
@@ -112,11 +119,10 @@ class DiscoveryService {
         }
       }
 
-      // REQUÊTE 3 - Vérifier l'état des demandes de miroir avec RLS (utiliser userToken)
-      const userSupabase = createUserSupabase(userToken);
+      // ✅ REQUÊTE 3 CORRIGÉE - Vérifier l'état des demandes de miroir avec supabaseAdmin + WHERE
       let mirrorRequests: any[] = [];
       if (profileIds.length > 0) {
-        const { data: requestsData, error: requestsError } = await userSupabase
+        const { data: requestsData, error: requestsError } = await supabaseAdmin
           .from('mirror_requests')
           .select('receiver_id, status')
           .eq('sender_id', userId)
@@ -232,6 +238,13 @@ class DiscoveryService {
     try {
       console.log('👤 Discovery - Récupération profil spécifique:', profileId);
 
+      // ✅ VALIDATION TOKEN AJOUTÉE
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getDiscoveryProfile:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
       // Utiliser supabaseAdmin pour récupérer les infos publiques du profil
       const { data: profile, error } = await supabaseAdmin
         .from('profiles')
@@ -321,15 +334,54 @@ class DiscoveryService {
   ): Promise<MirrorRequestResponse> {
     try {
       console.log('🔐 Mirror Request - De:', senderId, 'vers:', receiverId);
-      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier si une demande existe déjà avec RLS
-      const { data: existingRequest } = await userSupabase
+      // ✅ VALIDATION TOKEN (même pattern que profile/questionnaire)
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user) {
+        console.error('❌ Token invalide dans requestMirrorAccess:', tokenError);
+        throw new Error('Unauthorized');
+      }
+      
+      // ✅ VÉRIFICATION senderId match
+      if (user.id !== senderId) {
+        console.error('❌ SenderId mismatch:', { 
+          tokenUserId: user.id, 
+          providedSenderId: senderId 
+        });
+        throw new Error('Unauthorized');
+      }
+
+      console.log('✅ Token validé pour mirror request:', user.email);
+
+      // ✅ VÉRIFICATION receiverId différent + existe
+      if (senderId === receiverId) {
+        return {
+          success: false,
+          message: 'Vous ne pouvez pas demander accès à votre propre miroir'
+        };
+      }
+
+      const { data: receiverExists } = await supabaseAdmin
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .eq('id', receiverId)
+        .single();
+
+      if (!receiverExists) {
+        return {
+          success: false,
+          message: 'Profil destinataire introuvable'
+        };
+      }
+
+      // ✅ VÉRIFICATION demande existante avec supabaseAdmin + WHERE
+      const { data: existingRequest } = await supabaseAdmin
         .from('mirror_requests')
         .select('id, status')
         .eq('sender_id', senderId)
         .eq('receiver_id', receiverId)
-        .single();
+        .maybeSingle();
 
       if (existingRequest) {
         if (existingRequest.status === 'pending') {
@@ -357,13 +409,14 @@ class DiscoveryService {
         .eq('id', senderId)
         .single();
 
-      // Insérer la demande dans mirror_requests avec RLS
-      const { data: newRequest, error: requestError } = await userSupabase
+      // ✅ CRÉATION SÉCURISÉE avec supabaseAdmin + WHERE explicite
+      const { data: newRequest, error: requestError } = await supabaseAdmin
         .from('mirror_requests')
         .insert({
           sender_id: senderId,
           receiver_id: receiverId,
-          status: 'pending'
+          status: 'pending',
+          requested_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -426,10 +479,17 @@ class DiscoveryService {
   ): Promise<MirrorRequestResponse> {
     try {
       console.log('📝 Mirror Response - Request:', requestId, 'Response:', response);
-      const userSupabase = createUserSupabase(userToken);
 
-      // Vérifier que la demande existe et que l'utilisateur est le receiver avec RLS
-      const { data: request, error: fetchError } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans respondToMirrorRequest:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ VÉRIFIER demande avec supabaseAdmin + WHERE explicite
+      const { data: request, error: fetchError } = await supabaseAdmin
         .from('mirror_requests')
         .select(`
           id,
@@ -449,14 +509,15 @@ class DiscoveryService {
         };
       }
 
-      // Mettre à jour le statut de la demande avec RLS
-      const { error: updateError } = await userSupabase
+      // ✅ MISE À JOUR avec supabaseAdmin + WHERE explicite
+      const { error: updateError } = await supabaseAdmin
         .from('mirror_requests')
         .update({
           status: response,
           responded_at: new Date().toISOString()
         })
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .eq('receiver_id', userId);
 
       if (updateError) {
         console.error('❌ Mirror Response - Erreur mise à jour:', updateError);
@@ -523,9 +584,17 @@ class DiscoveryService {
   async getReceivedMirrorRequests(userId: string, userToken: string): Promise<any[]> {
     try {
       console.log('📨 Get Received Requests - User:', userId);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { data: requests, error } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getReceivedMirrorRequests:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ REQUÊTE avec supabaseAdmin + WHERE explicite
+      const { data: requests, error } = await supabaseAdmin
         .from('mirror_requests')
         .select(`
           id,
@@ -574,9 +643,17 @@ class DiscoveryService {
   async getSentMirrorRequests(userId: string, userToken: string): Promise<any[]> {
     try {
       console.log('📤 Get Sent Requests - User:', userId);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { data: requests, error } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getSentMirrorRequests:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ REQUÊTE avec supabaseAdmin + WHERE explicite
+      const { data: requests, error } = await supabaseAdmin
         .from('mirror_requests')
         .select(`
           id,
@@ -624,6 +701,14 @@ class DiscoveryService {
    */
   async canViewMirror(viewerId: string, profileId: string, userToken: string): Promise<boolean> {
     try {
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== viewerId) {
+        console.error('❌ Token invalide dans canViewMirror:', tokenError);
+        return false;
+      }
+
       // Si c'est son propre miroir
       if (viewerId === profileId) {
         return true;
@@ -648,16 +733,15 @@ class DiscoveryService {
         return false;
       }
 
-      // Si on_request, vérifier s'il y a une demande acceptée avec RLS
+      // Si on_request, vérifier s'il y a une demande acceptée avec supabaseAdmin + WHERE
       if (profile.mirror_visibility === 'on_request') {
-        const userSupabase = createUserSupabase(userToken);
-        const { data: request } = await userSupabase
+        const { data: request } = await supabaseAdmin
           .from('mirror_requests')
           .select('status')
           .eq('sender_id', viewerId)
           .eq('receiver_id', profileId)
           .eq('status', 'accepted')
-          .single();
+          .maybeSingle();
 
         return !!request;
       }
@@ -676,12 +760,18 @@ class DiscoveryService {
     try {
       console.log('📖 Recording mirror read:', viewerId, '->', profileId);
 
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== viewerId) {
+        console.error('❌ Token invalide dans recordMirrorRead:', tokenError);
+        return;
+      }
+
       // Enregistrer la vue si ce n'est pas son propre miroir
       if (viewerId !== profileId) {
-        const userSupabase = createUserSupabase(userToken);
-        
-        // Utiliser RLS pour enregistrer la vue
-        const { error } = await userSupabase
+        // ✅ ENREGISTREMENT avec supabaseAdmin + WHERE explicite
+        const { error } = await supabaseAdmin
           .from('profile_views')
           .upsert({
             viewer_id: viewerId,
@@ -737,36 +827,44 @@ class DiscoveryService {
   async getNotificationStats(userId: string, userToken: string): Promise<NotificationStats> {
     try {
       console.log('📊 Get Notification Stats - User:', userId);
-      const userSupabase = createUserSupabase(userToken);
 
-      // Compter les notifications non lues avec RLS
-      const { count: unreadCount } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getNotificationStats:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ REQUÊTES avec supabaseAdmin + WHERE explicite
+      // Compter les notifications non lues
+      const { count: unreadCount } = await supabaseAdmin
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('recipient_id', userId)
         .eq('status', 'unread');
 
-      // Compter les vues de profil récentes (7 derniers jours) avec RLS
+      // Compter les vues de profil récentes (7 derniers jours)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { count: profileViewsCount } = await userSupabase
+      const { count: profileViewsCount } = await supabaseAdmin
         .from('profile_views')
         .select('*', { count: 'exact', head: true })
         .eq('viewed_profile_id', userId)
         .eq('view_type', 'profile')
         .gte('last_viewed_at', sevenDaysAgo.toISOString());
 
-      // Compter les lectures de miroir récentes (7 derniers jours) avec RLS
-      const { count: mirrorReadsCount } = await userSupabase
+      // Compter les lectures de miroir récentes (7 derniers jours)
+      const { count: mirrorReadsCount } = await supabaseAdmin
         .from('profile_views')
         .select('*', { count: 'exact', head: true })
         .eq('viewed_profile_id', userId)
         .eq('view_type', 'mirror')
         .gte('last_viewed_at', sevenDaysAgo.toISOString());
 
-      // Compter les demandes de miroir en attente avec RLS
-      const { count: pendingRequestsCount } = await userSupabase
+      // Compter les demandes de miroir en attente
+      const { count: pendingRequestsCount } = await supabaseAdmin
         .from('mirror_requests')
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', userId)
@@ -794,9 +892,17 @@ class DiscoveryService {
   async getNotifications(userId: string, userToken: string, limit: number = 20, offset: number = 0): Promise<any[]> {
     try {
       console.log('📄 Get Notifications - User:', userId, 'Limit:', limit, 'Offset:', offset);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { data: notifications, error } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans getNotifications:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ REQUÊTE avec supabaseAdmin + WHERE explicite
+      const { data: notifications, error } = await supabaseAdmin
         .from('notifications')
         .select('*')
         .eq('recipient_id', userId)
@@ -824,9 +930,17 @@ class DiscoveryService {
   async markNotificationAsRead(userId: string, notificationId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Mark Notification Read - User:', userId, 'Notification:', notificationId);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { error } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans markNotificationAsRead:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ MISE À JOUR avec supabaseAdmin + WHERE explicite
+      const { error } = await supabaseAdmin
         .from('notifications')
         .update({
           status: 'read',
@@ -852,9 +966,17 @@ class DiscoveryService {
   async markAllNotificationsAsRead(userId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Mark All Notifications Read - User:', userId);
-      const userSupabase = createUserSupabase(userToken);
 
-      const { error } = await userSupabase
+      // ✅ VALIDATION TOKEN
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      
+      if (tokenError || !user || user.id !== userId) {
+        console.error('❌ Token invalide dans markAllNotificationsAsRead:', tokenError);
+        throw new Error('Unauthorized');
+      }
+
+      // ✅ MISE À JOUR avec supabaseAdmin + WHERE explicite
+      const { error } = await supabaseAdmin
         .from('notifications')
         .update({
           status: 'read',
@@ -880,8 +1002,16 @@ class DiscoveryService {
    * ✅ CORRIGÉ - Récupérer les préférences utilisateur avec RLS
    */
   private async getUserPreferences(userId: string, userToken: string): Promise<any> {
-    const userSupabase = createUserSupabase(userToken);
-    const { data } = await userSupabase
+    // ✅ VALIDATION TOKEN
+    const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+    
+    if (tokenError || !user || user.id !== userId) {
+      console.error('❌ Token invalide dans getUserPreferences:', tokenError);
+      return {};
+    }
+
+    // ✅ REQUÊTE avec supabaseAdmin + WHERE explicite
+    const { data } = await supabaseAdmin
       .from('profiles')
       .select('latitude, longitude')
       .eq('id', userId)
