@@ -42,7 +42,7 @@ interface MirrorAccess {
 const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();  // ✅ CORRIGÉ : était profileId
+  const { id } = useParams<{ id?: string }>();
   const designSystem = useDesignSystem(isDarkMode);
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -52,12 +52,12 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set());
-  const [requestingConversation, setRequestingConversation] = useState(false);  // ✅ NOUVEAU
-  const [conversationRequested, setConversationRequested] = useState(false);   // ✅ NOUVEAU
+  const [requestingConversation, setRequestingConversation] = useState(false);
+  const [conversationRequested, setConversationRequested] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
-  const targetUserId = id || user?.id;  // ✅ CORRIGÉ : était profileId
-  const isViewingOwnMirror = !id || id === user?.id;  // ✅ CORRIGÉ : était profileId
+  const targetUserId = id || user?.id;
+  const isViewingOwnMirror = !id || id === user?.id;
 
   // Couleurs élégantes pour les sections
   const sectionColors = [
@@ -67,24 +67,13 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
     { bg: 'from-rose-900/10 to-pink-900/10', accent: 'rose-400', glow: 'rose-500/20' },
   ];
 
-  // Intersection Observer pour les animations subtiles
+  // ✅ FIX: Affichage simple de toutes les sections (pas d'Intersection Observer)
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const index = parseInt(entry.target.getAttribute('data-section') || '0');
-          if (entry.isIntersecting) {
-            setVisibleSections(prev => new Set([...prev, index]));
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: '-5% 0px' }
-    );
-
-    const sections = document.querySelectorAll('[data-section]');
-    sections.forEach(section => observer.observe(section));
-
-    return () => observer.disconnect();
+    if (profileData) {
+      const cleanText = parseEmotionalText(profileData.generated_profile);
+      const sectionsCount = cleanText?.split('\n\n')?.filter(p => p.trim().length > 20)?.length || 0;
+      setVisibleSections(new Set(Array.from({ length: sectionsCount }, (_, i) => i)));
+    }
   }, [profileData]);
 
   // Scroll progress minimaliste
@@ -178,12 +167,9 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   };
 
   const parseEmotionalText = (rawText: string): string => {
-    console.log("🔍 DEBUG: Raw text length:", rawText?.length);
-    console.log("🔍 DEBUG: Raw text preview:", rawText?.substring(0, 500));
-    
     if (!rawText) return '';
 
-    const cleaned = rawText
+    return rawText
       .replace(/\*\*PARTIE\s+\d+[^*]*\*\*/g, '')
       .replace(/🔒\s*\*[a-f0-9]+\*/g, '')
       .replace(/🔐\s*[a-z0-9]+/g, '')
@@ -195,11 +181,6 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-      
-    console.log("🔍 DEBUG: Cleaned text length:", cleaned?.length);
-    console.log("🔍 DEBUG: Cleaned preview:", cleaned?.substring(0, 500));
-    
-    return cleaned;
   };
 
   // ✅ NOUVELLE FONCTION : Demande de conversation
@@ -422,13 +403,6 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
 
   const cleanText = profileData ? parseEmotionalText(profileData.generated_profile) : '';
 
-  // ✅ DEBUG: Analyser le filtrage des paragraphes
-  console.log("🔍 DEBUG: Final cleanText length:", cleanText?.length);
-  console.log("🔍 DEBUG: Split paragraphs:", cleanText?.split('\n\n')?.length);
-  console.log("🔍 DEBUG: Filtered paragraphs:", cleanText?.split('\n\n')?.filter(p => p.trim().length > 20)?.length);
-  console.log("🔍 DEBUG: All paragraphs lengths:", cleanText?.split('\n\n')?.map(p => p.trim().length));
-  console.log("🔍 DEBUG: First few paragraphs:", cleanText?.split('\n\n')?.slice(0, 3)?.map(p => p.substring(0, 100) + '...'));
-
   return (
     <div className={`min-h-screen ${designSystem.getBgClasses('primary')} relative overflow-hidden`}>
       {/* CSS pour le style raffiné */}
@@ -436,8 +410,8 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Text:ital@0;1&display=swap');
         
         .fade-in {
-          opacity: 0;
-          transform: translateY(30px);
+          opacity: 1;
+          transform: translateY(0);
           transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
