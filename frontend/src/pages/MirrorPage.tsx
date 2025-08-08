@@ -42,7 +42,7 @@ interface MirrorAccess {
 const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { profileId } = useParams<{ profileId?: string }>();
+  const { id } = useParams<{ id?: string }>();  // ✅ CORRIGÉ : était profileId
   const designSystem = useDesignSystem(isDarkMode);
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -52,10 +52,12 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set());
+  const [requestingConversation, setRequestingConversation] = useState(false);  // ✅ NOUVEAU
+  const [conversationRequested, setConversationRequested] = useState(false);   // ✅ NOUVEAU
 
   const contentRef = useRef<HTMLDivElement>(null);
-  const targetUserId = profileId || user?.id;
-  const isViewingOwnMirror = !profileId || profileId === user?.id;
+  const targetUserId = id || user?.id;  // ✅ CORRIGÉ : était profileId
+  const isViewingOwnMirror = !id || id === user?.id;  // ✅ CORRIGÉ : était profileId
 
   // Couleurs élégantes pour les sections
   const sectionColors = [
@@ -192,7 +194,93 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .trim();
   };
 
-  const cleanText = profileData ? parseEmotionalText(profileData.generated_profile) : '';
+  // ✅ NOUVELLE FONCTION : Demande de conversation
+  const handleConversationRequest = async () => {
+    if (!targetUserId || isViewingOwnMirror || conversationRequested) return;
+
+    try {
+      setRequestingConversation(true);
+
+      // Appel à l'API pour créer une demande de conversation
+      const response = await fetch('/api/conversations/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.session?.access_token}`
+        },
+        body: JSON.stringify({
+          receiverId: targetUserId
+        })
+      });
+
+      if (response.ok) {
+        setConversationRequested(true);
+        
+        // Toast de succès
+        const toast = document.createElement('div');
+        toast.innerHTML = `
+          <div style="
+            position: fixed; top: 32px; right: 32px;
+            background: rgba(16, 185, 129, 0.9); backdrop-filter: blur(12px);
+            color: white; padding: 12px 20px; border-radius: 8px;
+            font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+            z-index: 9999; opacity: 0; transform: translateY(-10px);
+            transition: all 0.3s ease;
+          ">
+            Demande envoyée ! 💬
+          </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.firstElementChild!.style.opacity = '1';
+          toast.firstElementChild!.style.transform = 'translateY(0)';
+        }, 10);
+        
+        setTimeout(() => {
+          toast.firstElementChild!.style.opacity = '0';
+          toast.firstElementChild!.style.transform = 'translateY(-10px)';
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+        
+      } else {
+        throw new Error('Erreur lors de la demande');
+      }
+
+    } catch (error) {
+      console.error('Erreur demande conversation:', error);
+      
+      // Toast d'erreur
+      const toast = document.createElement('div');
+      toast.innerHTML = `
+        <div style="
+          position: fixed; top: 32px; right: 32px;
+          background: rgba(239, 68, 68, 0.9); backdrop-filter: blur(12px);
+          color: white; padding: 12px 20px; border-radius: 8px;
+          font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+          z-index: 9999; opacity: 0; transform: translateY(-10px);
+          transition: all 0.3s ease;
+        ">
+          Erreur lors de l'envoi
+        </div>
+      `;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.firstElementChild!.style.opacity = '1';
+        toast.firstElementChild!.style.transform = 'translateY(0)';
+      }, 10);
+      
+      setTimeout(() => {
+        toast.firstElementChild!.style.opacity = '0';
+        toast.firstElementChild!.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+
+    } finally {
+      setRequestingConversation(false);
+    }
+  };
 
   const handleMobileShare = async () => {
     const ownerName = profileData?.profile_info?.name || 'Utilisateur';
@@ -323,6 +411,8 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   }
 
   if (!profileData) return null;
+
+  const cleanText = profileData ? parseEmotionalText(profileData.generated_profile) : '';
 
   return (
     <div className={`min-h-screen ${designSystem.getBgClasses('primary')} relative overflow-hidden`}>
@@ -626,7 +716,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
             </section>
           )}
 
-          {/* Section finale minimaliste */}
+          {/* Section finale minimaliste avec nouveau bouton conversation */}
           <section className="text-center py-12 space-y-8">
             {/* Citation épurée */}
             <div className="max-w-lg mx-auto">
@@ -636,29 +726,94 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
               </p>
             </div>
             
-            {/* Action finale */}
-            <div>
-              {isViewingOwnMirror ? (
-                <button
-                  onClick={handleMobileShare}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${designSystem.cardBackground} elegant-border hover:border-purple-400/30`}
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span className={`text-sm font-medium ${designSystem.getTextClasses('primary')} text-refined`}>
-                    Partager
-                  </span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => navigate('/decouverte')}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${designSystem.cardBackground} elegant-border hover:border-purple-400/30`}
-                >
-                  <Eye className="w-4 h-4" />
-                  <span className={`text-sm font-medium ${designSystem.getTextClasses('primary')} text-refined`}>
-                    Explorer
-                  </span>
-                </button>
+            {/* ✅ NOUVELLES ACTIONS avec bouton conversation */}
+            <div className="space-y-4">
+              {/* Bouton demande de conversation (seulement pour les autres profils) */}
+              {!isViewingOwnMirror && (
+                <div className="max-w-md mx-auto">
+                  <div className={`p-6 rounded-2xl ${designSystem.cardBackground} elegant-border space-y-4`}>
+                    <div className="flex justify-center">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Heart className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className={`text-lg font-medium ${designSystem.getTextClasses('primary')} text-refined`}>
+                        Cette âme vous intrigue ?
+                      </h3>
+                      <p className={`text-sm ${designSystem.getTextClasses('secondary')} text-refined leading-relaxed`}>
+                        Si cette analyse psychologique résonne avec vous, 
+                        proposez une conversation pour approfondir cette connexion.
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={handleConversationRequest}
+                      disabled={requestingConversation || conversationRequested}
+                      className={`
+                        w-full px-6 py-3 rounded-xl font-medium text-refined transition-all duration-300
+                        ${conversationRequested 
+                          ? 'bg-green-600/20 border border-green-400/30 text-green-400 cursor-default' 
+                          : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25'
+                        }
+                        ${requestingConversation ? 'opacity-70 cursor-wait' : ''}
+                        disabled:transform-none disabled:shadow-none
+                      `}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        {requestingConversation ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Envoi en cours...</span>
+                          </>
+                        ) : conversationRequested ? (
+                          <>
+                            <Heart className="w-4 h-4" />
+                            <span>Demande envoyée ✨</span>
+                          </>
+                        ) : (
+                          <>
+                            <Heart className="w-4 h-4" />
+                            <span>Proposer une conversation</span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                    
+                    {conversationRequested && (
+                      <p className={`text-xs ${designSystem.getTextClasses('muted')} text-refined italic`}>
+                        Vous recevrez une notification si {mirrorAccess?.owner_name} accepte votre proposition.
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
+              
+              {/* Action par défaut */}
+              <div>
+                {isViewingOwnMirror ? (
+                  <button
+                    onClick={handleMobileShare}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${designSystem.cardBackground} elegant-border hover:border-purple-400/30`}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span className={`text-sm font-medium ${designSystem.getTextClasses('primary')} text-refined`}>
+                      Partager
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/decouverte')}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${designSystem.cardBackground} elegant-border hover:border-purple-400/30`}
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span className={`text-sm font-medium ${designSystem.getTextClasses('primary')} text-refined`}>
+                      Explorer d'autres âmes
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         </div>
