@@ -1,7 +1,7 @@
 // backend/src/modules/discovery/discovery.service.ts
 import { DiscoveryProfile, DiscoveryFilters, DiscoveryResponse } from "../../../shared/types/discovery";
 // =============================================
-// SERVICE BACKEND - Découverte et Miroir Privé avec RLS CORRIGÉ
+// SERVICE BACKEND - Découverte et Miroir Privé avec RLS CORRIGÉ + SCHEMA FIXED
 // =============================================
 
 import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
@@ -325,7 +325,7 @@ class DiscoveryService {
   }
 
   /**
-   * ✅ CORRIGÉ - Demander l'accès au miroir d'un profil avec RLS
+   * ✅ CORRIGÉ - Demander l'accès au miroir d'un profil avec RLS + SCHEMA FIXED
    */
   async requestMirrorAccess(
     senderId: string,
@@ -409,14 +409,15 @@ class DiscoveryService {
         .eq('id', senderId)
         .single();
 
-      // ✅ CRÉATION SÉCURISÉE avec supabaseAdmin + WHERE explicite
+      // ✅ CRÉATION SÉCURISÉE avec supabaseAdmin + SCHEMA CORRECT
       const { data: newRequest, error: requestError } = await supabaseAdmin
         .from('mirror_requests')
         .insert({
           sender_id: senderId,
           receiver_id: receiverId,
-          status: 'pending',
-          requested_at: new Date().toISOString()
+          status: 'pending'
+          // ✅ created_at se remplit automatiquement avec now()
+          // ❌ SUPPRIMÉ requested_at (colonne inexistante)
         })
         .select()
         .single();
@@ -509,12 +510,12 @@ class DiscoveryService {
         };
       }
 
-      // ✅ MISE À JOUR avec supabaseAdmin + WHERE explicite
+      // ✅ MISE À JOUR avec supabaseAdmin + WHERE explicite + SCHEMA CORRECT
       const { error: updateError } = await supabaseAdmin
         .from('mirror_requests')
         .update({
           status: response,
-          responded_at: new Date().toISOString()
+          responded_at: new Date().toISOString()  // ✅ GARDE responded_at (existe)
         })
         .eq('id', requestId)
         .eq('receiver_id', userId);
