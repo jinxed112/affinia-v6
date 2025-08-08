@@ -65,15 +65,37 @@ export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDa
       isAllowedWithoutQuestionnaire,
       isAllowedAfterQuestionnaire,
       isLoading,
+      authLoading,
+      profileLoading,
       isNewUser
     })
-  }, [user, currentPath, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, isLoading, isNewUser])
+  }, [user, currentPath, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, isLoading, authLoading, profileLoading, isNewUser])
 
-  // ✅ GESTION DE LA REDIRECTION AMÉLIORÉE
+  // ✅ FIX: GESTION DE LA REDIRECTION AMÉLIORÉE
   useEffect(() => {
-    // ✅ ATTENDRE QUE TOUT SOIT CHARGÉ (crucial pour éviter redirection prématurée)
+    // ✅ SPECIAL CASE: Pour les routes miroir, être plus permissif  
+    if (currentPath.startsWith('/miroir/')) {
+      console.log('🔮 Route miroir détectée, vérification simplifiée:', currentPath)
+      
+      // Pour les miroirs, on attend seulement que l'auth soit prête
+      if (authLoading || !user) {
+        console.log('⏳ Attente auth pour route miroir...')
+        return
+      }
+      
+      // Si auth OK, laisser passer même si profile loading
+      console.log('✅ Auth OK pour route miroir, accès accordé')
+      return
+    }
+
+    // ✅ POUR LES AUTRES ROUTES: logique normale
     if (isLoading || !user) {
-      console.log('⏳ OnboardingGuard - En attente du chargement...')
+      console.log('⏳ OnboardingGuard - En attente du chargement...', {
+        isLoading,
+        user: !!user,
+        authLoading,
+        profileLoading
+      })
       return
     }
 
@@ -133,10 +155,10 @@ export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDa
       }
     }
 
-  }, [user, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, currentPath, isNewUser, navigate, isLoading, showWelcomeScreen])
+  }, [user, authLoading, profileLoading, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, currentPath, isNewUser, navigate, isLoading, showWelcomeScreen])
 
   // Loading state
-  if (isLoading) {
+  if (isLoading && !currentPath.startsWith('/miroir/')) {
     return (
       <div className={`min-h-screen transition-colors duration-300 ${designSystem.getBgClasses('primary')}`}>
         <BaseComponents.MysticalBackground isDarkMode={isDarkMode} intensity="low" />
