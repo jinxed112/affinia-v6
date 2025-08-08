@@ -79,6 +79,15 @@ function AppContent() {
             </PrivateRoute>
           } />
 
+          {/* ✅ NOUVELLE ROUTE AJOUTÉE - Miroir avec ID utilisateur */}
+          <Route path="/miroir/:id" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MirrorPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
           <Route path="/decouverte" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
