@@ -45,6 +45,34 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
     }
   };
 
+  // ✅ FIX: Fonction de navigation sécurisée
+  const handleViewMirror = (request: any) => {
+    const targetUserId = activeTab === 'received' 
+      ? request.sender_id 
+      : request.receiver_id;
+    
+    console.log('🔍 DEBUG Navigation MirrorPage:', {
+      activeTab,
+      targetUserId,
+      request: {
+        id: request.id,
+        sender_id: request.sender_id,
+        receiver_id: request.receiver_id,
+        sender: request.sender,
+        receiver: request.receiver,
+        status: request.status
+      }
+    });
+    
+    if (!targetUserId) {
+      console.error('❌ Target User ID manquant!', request);
+      return;
+    }
+    
+    // Navigation sécurisée
+    navigate(`/miroir/${targetUserId}`);
+  };
+
   if (!user) {
     navigate('/login');
     return null;
@@ -265,16 +293,12 @@ export const MirrorRequestsPage: React.FC<MirrorRequestsPageProps> = ({ isDarkMo
                         </div>
                       )}
 
-                      {/* Bouton voir miroir si accepté */}
+                      {/* ✅ FIX: Bouton voir miroir avec navigation sécurisée */}
                       {request.status === 'accepted' && (
                         <BaseComponents.Button
                           variant="primary"
                           size="small"
-                          onClick={() => navigate(`/miroir/${
-                            activeTab === 'received' 
-                              ? request.sender?.id || request.sender_id
-                              : request.receiver?.id || request.receiver_id
-                          }`)}
+                          onClick={() => handleViewMirror(request)}
                           className="flex items-center gap-1"
                         >
                           <Eye className="w-4 h-4" />
