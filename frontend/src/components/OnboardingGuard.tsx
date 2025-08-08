@@ -1,4 +1,4 @@
-// src/components/OnboardingGuard.tsx
+// src/components/OnboardingGuard.tsx - VERSION CORRIGÉE
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -19,6 +19,18 @@ const ALLOWED_ROUTES_WITHOUT_QUESTIONNAIRE = [
   '/login'
 ]
 
+// ✅ AJOUTÉ - Routes autorisées APRÈS questionnaire complété
+const ALLOWED_ROUTES_AFTER_QUESTIONNAIRE = [
+  '/',
+  '/discovery',
+  '/chat',
+  '/profile',
+  '/demandes-miroir',      // ✅ ROUTE MIROIR AJOUTÉE
+  '/miroir',               // ✅ ROUTE MIROIR AJOUTÉE  
+  '/notifications',
+  '/settings'
+]
+
 export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDarkMode }) => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -34,9 +46,15 @@ export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDa
   // State pour gérer l'affichage
   const isLoading = authLoading || profileLoading
   const currentPath = location.pathname
-  const isAllowedRoute = ALLOWED_ROUTES_WITHOUT_QUESTIONNAIRE.some(route => 
+  
+  // ✅ LOGIQUE ROUTES AMÉLIORÉE
+  const isAllowedWithoutQuestionnaire = ALLOWED_ROUTES_WITHOUT_QUESTIONNAIRE.some(route => 
     currentPath.startsWith(route)
   )
+  
+  const isAllowedAfterQuestionnaire = ALLOWED_ROUTES_AFTER_QUESTIONNAIRE.some(route => 
+    currentPath.startsWith(route)
+  ) || currentPath.startsWith('/miroir/') // ✅ Routes dynamiques miroir
 
   // Debug
   useEffect(() => {
@@ -44,58 +62,78 @@ export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDa
       user: user?.email,
       currentPath,
       hasCompletedQuestionnaire,
-      isAllowedRoute,
+      isAllowedWithoutQuestionnaire,
+      isAllowedAfterQuestionnaire,
       isLoading,
       isNewUser
     })
-  }, [user, currentPath, hasCompletedQuestionnaire, isAllowedRoute, isLoading, isNewUser])
+  }, [user, currentPath, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, isLoading, isNewUser])
 
-  // Gestion de la redirection
+  // ✅ GESTION DE LA REDIRECTION AMÉLIORÉE
   useEffect(() => {
-    // Attendre que tout soit chargé
-    if (isLoading || !user) return
+    // ✅ ATTENDRE QUE TOUT SOIT CHARGÉ (crucial pour éviter redirection prématurée)
+    if (isLoading || !user) {
+      console.log('⏳ OnboardingGuard - En attente du chargement...')
+      return
+    }
 
     console.log('🔍 OnboardingGuard - Vérification redirection:', {
       hasCompletedQuestionnaire,
       currentPath,
-      isAllowedRoute
+      isAllowedWithoutQuestionnaire,
+      isAllowedAfterQuestionnaire
     })
 
-    // Si questionnaire pas complété ET on n'est pas sur une route autorisée
-    if (!hasCompletedQuestionnaire && !isAllowedRoute) {
-      console.log('🚨 Redirection vers questionnaire nécessaire')
+    // ✅ LOGIQUE SIMPLIFIÉE ET CLAIRE
+    if (hasCompletedQuestionnaire) {
+      // Questionnaire complété
+      if (currentPath === '/questionnaire') {
+        console.log('✅ Questionnaire complété, redirection vers dashboard')
+        navigate('/')
+        return
+      }
       
-      // Afficher écran de bienvenue si nouvel utilisateur
-      if (isNewUser) {
-        setShowWelcomeScreen(true)
+      // ✅ VÉRIFIER ROUTE AUTORISÉE APRÈS QUESTIONNAIRE
+      if (!isAllowedAfterQuestionnaire) {
+        console.log('❌ Route non autorisée après questionnaire, redirection vers dashboard')
+        navigate('/')
+        return
+      }
+      
+      // ✅ Tout OK, laisser passer
+      console.log('✅ Route autorisée, accès accordé')
+      
+    } else {
+      // Questionnaire pas complété
+      if (!isAllowedWithoutQuestionnaire) {
+        console.log('🚨 Redirection vers questionnaire nécessaire')
         
-        // Countdown de redirection
-        const countdown = setInterval(() => {
-          setRedirectCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdown)
-              localStorage.removeItem('affinia_new_user') // Nettoyer flag
-              navigate('/questionnaire')
-              return 0
-            }
-            return prev - 1
-          })
-        }, 1000)
+        // Afficher écran de bienvenue si nouvel utilisateur
+        if (isNewUser && !showWelcomeScreen) {
+          setShowWelcomeScreen(true)
+          
+          // Countdown de redirection
+          const countdown = setInterval(() => {
+            setRedirectCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdown)
+                localStorage.removeItem('affinia_new_user') // Nettoyer flag
+                navigate('/questionnaire')
+                return 0
+              }
+              return prev - 1
+            })
+          }, 1000)
 
-        return () => clearInterval(countdown)
-      } else {
-        // Redirection directe si utilisateur existant sans questionnaire
-        navigate('/questionnaire')
+          return () => clearInterval(countdown)
+        } else if (!isNewUser) {
+          // Redirection directe si utilisateur existant sans questionnaire
+          navigate('/questionnaire')
+        }
       }
     }
 
-    // Si questionnaire complété ET on est sur /questionnaire, rediriger vers dashboard
-    if (hasCompletedQuestionnaire && currentPath === '/questionnaire') {
-      console.log('✅ Questionnaire complété, redirection vers dashboard')
-      navigate('/')
-    }
-
-  }, [user, hasCompletedQuestionnaire, isAllowedRoute, currentPath, isNewUser, navigate, isLoading])
+  }, [user, hasCompletedQuestionnaire, isAllowedWithoutQuestionnaire, isAllowedAfterQuestionnaire, currentPath, isNewUser, navigate, isLoading, showWelcomeScreen])
 
   // Loading state
   if (isLoading) {
@@ -248,6 +286,6 @@ export const OnboardingGuard: React.FC<OnboardingGuardProps> = ({ children, isDa
     )
   }
 
-  // Si tout est OK, afficher le contenu
+  // ✅ Si tout est OK, afficher le contenu
   return <>{children}</>
 }
