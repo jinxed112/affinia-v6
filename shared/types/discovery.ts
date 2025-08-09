@@ -117,12 +117,16 @@ export interface Notification {
   read_at?: string;
 }
 
+// 🆕 ÉTENDU AVEC CONTACT REQUEST TYPES
 export type NotificationType = 
   | 'profile_view'
   | 'mirror_request'
   | 'mirror_accepted'
   | 'mirror_rejected'
   | 'mirror_read'
+  | 'contact_request'      // 🆕
+  | 'contact_accepted'     // 🆕
+  | 'contact_declined_soft' // 🆕
   | 'system'
   | 'chat_message';
 
@@ -146,8 +150,10 @@ export interface NotificationPayload {
   conversation_id?: string;
   can_start_chat?: boolean;
   
+  // 🆕 Contact request payload
+  sender_message?: string;
+  
   // Chat
-  conversation_id?: string;
   message_preview?: string;
   
   // System
@@ -196,12 +202,20 @@ export const SORT_OPTIONS = {
   RANDOM: 'random' as const,
 } as const;
 
+// 🆕 CONSTANTES CONTACT REQUEST
+export const CONTACT_REQUEST_STATUS = {
+  PENDING: 'pending' as const,
+  ACCEPTED: 'accepted' as const,
+  DECLINED: 'declined' as const,
+} as const;
+
 // ============ TYPES UTILITAIRES ============
 
 export type MirrorVisibility = typeof MIRROR_VISIBILITY[keyof typeof MIRROR_VISIBILITY];
 export type MirrorRequestStatus = typeof MIRROR_REQUEST_STATUS[keyof typeof MIRROR_REQUEST_STATUS];
 export type NotificationStatus = typeof NOTIFICATION_STATUS[keyof typeof NOTIFICATION_STATUS];
 export type SortOption = typeof SORT_OPTIONS[keyof typeof SORT_OPTIONS];
+export type ContactRequestStatus = typeof CONTACT_REQUEST_STATUS[keyof typeof CONTACT_REQUEST_STATUS]; // 🆕
 
 // ============ GUARDS TYPE ============
 
@@ -216,13 +230,19 @@ export function isValidMirrorRequestStatus(value: string): value is MirrorReques
 export function isValidNotificationType(value: string): value is NotificationType {
   const validTypes: NotificationType[] = [
     'profile_view', 'mirror_request', 'mirror_accepted', 
-    'mirror_rejected', 'mirror_read', 'system', 'chat_message'
+    'mirror_rejected', 'mirror_read', 'contact_request', 
+    'contact_accepted', 'contact_declined_soft', 'system', 'chat_message'
   ];
   return validTypes.includes(value as NotificationType);
 }
 
 export function isValidSortOption(value: string): value is SortOption {
   return Object.values(SORT_OPTIONS).includes(value as SortOption);
+}
+
+// 🆕 GUARD POUR CONTACT REQUEST STATUS
+export function isValidContactRequestStatus(value: string): value is ContactRequestStatus {
+  return Object.values(CONTACT_REQUEST_STATUS).includes(value as ContactRequestStatus);
 }
 
 // ============ INTERFACES POUR LES COMPOSANTS ============

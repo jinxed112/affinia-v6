@@ -1,17 +1,18 @@
 // =============================================
-// MIROIR PAGE - Version Raffinée et Élégante
+// MIROIR PAGE - Version Raffinée avec Contact Request System
 // =============================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { discoveryService } from '../services/discoveryService';
+import { contactService } from '../services/contactService';
 import { supabase } from '../lib/supabase';
-import { 
+import {
   Heart, Brain, Zap, Shield, Sparkles, ArrowLeft, Share2,
-  Eye, Target, Flame, CloudRain, Star, User, TrendingUp, Lock, 
+  Eye, Target, Flame, CloudRain, Star, User, TrendingUp, Lock,
   AlertCircle, Calendar, Clock, Scroll, BookOpen, Feather, ChevronDown, ChevronUp,
-  Quote, Compass, Diamond, Gem, Circle
+  Quote, Compass, Diamond, Gem, Circle, MessageSquare
 } from 'lucide-react';
 import { useDesignSystem } from '../styles/designSystem';
 import { BaseComponents } from '../components/ui/BaseComponents';
@@ -52,8 +53,11 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set());
-  const [requestingConversation, setRequestingConversation] = useState(false);
-  const [conversationRequested, setConversationRequested] = useState(false);
+
+  // 🆕 CONTACT REQUEST STATES
+  const [contactRequestStatus, setContactRequestStatus] = useState<'idle' | 'requesting' | 'requested' | 'accepted'>('idle');
+  const [canRequestContact, setCanRequestContact] = useState(false);
+  const [checkingContactAccess, setCheckingContactAccess] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const targetUserId = id || user?.id;
@@ -94,11 +98,37 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       navigate('/login');
       return;
     }
-    
+
     if (targetUserId) {
       checkAccessAndLoadMirror();
     }
   }, [user, targetUserId]);
+
+  // 🆕 VÉRIFIER SI ON PEUT DEMANDER UN CONTACT
+  useEffect(() => {
+    if (!isViewingOwnMirror && targetUserId && mirrorAccess?.can_view) {
+      checkContactAccess();
+    }
+  }, [targetUserId, isViewingOwnMirror, mirrorAccess]);
+
+  const checkContactAccess = async () => {
+    if (!targetUserId || isViewingOwnMirror) return;
+    
+    try {
+      setCheckingContactAccess(true);
+      console.log('🔍 Checking contact access for:', targetUserId);
+      
+      const canRequest = await contactService.canRequestContact(targetUserId);
+      setCanRequestContact(canRequest);
+      
+      console.log('✅ Can request contact:', canRequest);
+    } catch (error) {
+      console.error('❌ Error checking contact access:', error);
+      setCanRequestContact(false);
+    } finally {
+      setCheckingContactAccess(false);
+    }
+  };
 
   const checkAccessAndLoadMirror = async () => {
     try {
@@ -106,7 +136,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       setError(null);
 
       const canView = await discoveryService.canViewMirror(targetUserId!);
-      
+
       if (!canView && !isViewingOwnMirror) {
         setMirrorAccess({ can_view: false, is_owner: false });
         setLoading(false);
@@ -122,8 +152,8 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
         .single();
 
       if (questionnaireError) {
-        setError(questionnaireError.code === 'PGRST116' 
-          ? 'Ce profil n\'a pas encore complété son questionnaire.' 
+        setError(questionnaireError.code === 'PGRST116'
+          ? 'Ce profil n\'a pas encore complété son questionnaire.'
           : 'Erreur lors de la récupération du questionnaire.');
         setLoading(false);
         return;
@@ -183,92 +213,65 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .trim();
   };
 
-  // ✅ NOUVELLE FONCTION : Demande de conversation
-  const handleConversationRequest = async () => {
-    if (!targetUserId || isViewingOwnMirror || conversationRequested) return;
+  // 🆕 NOUVELLE FONCTION : Demande de contact avec le vrai système
+  const handleContactRequest = async () => {
+    if (!targetUserId || isViewingOwnMirror || contactRequestStatus !== 'idle' || !canRequestContact) return;
 
     try {
-      setRequestingConversation(true);
+      setContactRequestStatus('requesting');
+      console.log('💬 Requesting contact for:', targetUserId);
 
-      // Appel à l'API pour créer une demande de conversation
-      const response = await fetch('/api/conversations/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.session?.access_token}`
-        },
-        body: JSON.stringify({
-          receiverId: targetUserId
-        })
-      });
+      const result = await contactService.requestContact(targetUserId);
 
-      if (response.ok) {
-        setConversationRequested(true);
-        
+      if (result.success) {
+        setContactRequestStatus('requested');
+        console.log('✅ Contact request sent successfully');
+
         // Toast de succès
-        const toast = document.createElement('div');
-        toast.innerHTML = `
-          <div style="
-            position: fixed; top: 32px; right: 32px;
-            background: rgba(16, 185, 129, 0.9); backdrop-filter: blur(12px);
-            color: white; padding: 12px 20px; border-radius: 8px;
-            font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
-            z-index: 9999; opacity: 0; transform: translateY(-10px);
-            transition: all 0.3s ease;
-          ">
-            Demande envoyée ! 💬
-          </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-          toast.firstElementChild!.style.opacity = '1';
-          toast.firstElementChild!.style.transform = 'translateY(0)';
-        }, 10);
-        
-        setTimeout(() => {
-          toast.firstElementChild!.style.opacity = '0';
-          toast.firstElementChild!.style.transform = 'translateY(-10px)';
-          setTimeout(() => toast.remove(), 300);
-        }, 3000);
-        
+        showToast('Demande envoyée ! 💬', 'success');
       } else {
-        throw new Error('Erreur lors de la demande');
+        console.error('❌ Contact request failed:', result.message);
+        setContactRequestStatus('idle');
+        showToast(result.message || 'Erreur lors de l\'envoi', 'error');
       }
 
     } catch (error) {
-      console.error('Erreur demande conversation:', error);
-      
-      // Toast d'erreur
-      const toast = document.createElement('div');
-      toast.innerHTML = `
-        <div style="
-          position: fixed; top: 32px; right: 32px;
-          background: rgba(239, 68, 68, 0.9); backdrop-filter: blur(12px);
-          color: white; padding: 12px 20px; border-radius: 8px;
-          font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
-          z-index: 9999; opacity: 0; transform: translateY(-10px);
-          transition: all 0.3s ease;
-        ">
-          Erreur lors de l'envoi
-        </div>
-      `;
-      document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.firstElementChild!.style.opacity = '1';
-        toast.firstElementChild!.style.transform = 'translateY(0)';
-      }, 10);
-      
-      setTimeout(() => {
-        toast.firstElementChild!.style.opacity = '0';
-        toast.firstElementChild!.style.transform = 'translateY(-10px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-
-    } finally {
-      setRequestingConversation(false);
+      console.error('❌ Contact request error:', error);
+      setContactRequestStatus('idle');
+      showToast('Erreur lors de l\'envoi', 'error');
     }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    const bgColor = type === 'success' 
+      ? 'rgba(16, 185, 129, 0.9)' 
+      : 'rgba(239, 68, 68, 0.9)';
+
+    const toast = document.createElement('div');
+    toast.innerHTML = `
+      <div style="
+        position: fixed; top: 32px; right: 32px;
+        background: ${bgColor}; backdrop-filter: blur(12px);
+        color: white; padding: 12px 20px; border-radius: 8px;
+        font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+        z-index: 9999; opacity: 0; transform: translateY(-10px);
+        transition: all 0.3s ease;
+      ">
+        ${message}
+      </div>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.firstElementChild!.style.opacity = '1';
+      toast.firstElementChild!.style.transform = 'translateY(0)';
+    }, 10);
+
+    setTimeout(() => {
+      toast.firstElementChild!.style.opacity = '0';
+      toast.firstElementChild!.style.transform = 'translateY(-10px)';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   };
 
   const handleMobileShare = async () => {
@@ -285,66 +288,39 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       }
     } else {
       navigator.clipboard.writeText(`${shareText}\n\n👉 ${shareUrl}`);
-      
-      // Toast notification minimaliste
-      const toast = document.createElement('div');
-      toast.innerHTML = `
-        <div style="
-          position: fixed; top: 32px; right: 32px;
-          background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(12px);
-          color: white; padding: 12px 20px; border-radius: 8px;
-          font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
-          z-index: 9999; opacity: 0; transform: translateY(-10px);
-          transition: all 0.3s ease;
-        ">
-          Lien copié
-        </div>
-      `;
-      document.body.appendChild(toast);
-      
-      // Animation d'apparition
-      setTimeout(() => {
-        toast.firstElementChild!.style.opacity = '1';
-        toast.firstElementChild!.style.transform = 'translateY(0)';
-      }, 10);
-      
-      setTimeout(() => {
-        toast.firstElementChild!.style.opacity = '0';
-        toast.firstElementChild!.style.transform = 'translateY(-10px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 2000);
+      showToast('Lien copié', 'success');
     }
   };
 
   const analysisSections = [
-    { 
-      key: 'strength_signals', 
-      title: 'Forces Dominantes', 
-      icon: <Star className="w-4 h-4" />, 
+    {
+      key: 'strength_signals',
+      title: 'Forces Dominantes',
+      icon: <Star className="w-4 h-4" />,
       color: 'text-amber-500'
     },
-    { 
-      key: 'weakness_signals', 
-      title: 'Zones Sensibles', 
-      icon: <CloudRain className="w-4 h-4" />, 
+    {
+      key: 'weakness_signals',
+      title: 'Zones Sensibles',
+      icon: <CloudRain className="w-4 h-4" />,
       color: 'text-slate-400'
     },
-    { 
-      key: 'unconscious_patterns', 
-      title: 'Patterns Inconscients', 
-      icon: <Brain className="w-4 h-4" />, 
+    {
+      key: 'unconscious_patterns',
+      title: 'Patterns Inconscients',
+      icon: <Brain className="w-4 h-4" />,
       color: 'text-purple-500'
     },
-    { 
-      key: 'ideal_partner_traits', 
-      title: 'Partenaire Idéal', 
-      icon: <Heart className="w-4 h-4" />, 
+    {
+      key: 'ideal_partner_traits',
+      title: 'Partenaire Idéal',
+      icon: <Heart className="w-4 h-4" />,
       color: 'text-rose-500'
     },
-    { 
-      key: 'relationnal_risks', 
-      title: 'Risques Relationnels', 
-      icon: <Target className="w-4 h-4" />, 
+    {
+      key: 'relationnal_risks',
+      title: 'Risques Relationnels',
+      icon: <Target className="w-4 h-4" />,
       color: 'text-orange-500'
     }
   ];
@@ -359,7 +335,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
               <div className="absolute inset-1 border border-purple-600/60 rounded-full animate-spin" style={{animationDuration: '2s', animationDirection: 'reverse'}}></div>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <h2 className={`text-lg font-medium ${designSystem.getTextClasses('primary')}`}
                 style={{ fontFamily: '"Inter", system-ui, sans-serif', fontWeight: '400' }}>
@@ -408,18 +384,18 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       {/* CSS pour le style raffiné */}
       <style jsx>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Text:ital@0;1&display=swap');
-        
+
         .fade-in {
           opacity: 1;
           transform: translateY(0);
           transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .fade-in.visible {
           opacity: 1;
           transform: translateY(0);
         }
-        
+
         .text-refined {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
           font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
@@ -427,27 +403,27 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
-        
+
         .text-serif {
           font-family: 'Crimson Text', Georgia, serif;
         }
-        
+
         .elegant-border {
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
+
         .dark .elegant-border {
           border: 1px solid rgba(255, 255, 255, 0.06);
         }
-        
+
         .subtle-shadow {
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
         }
-        
+
         .dark .subtle-shadow {
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.3);
         }
-        
+
         .floating-particles {
           position: absolute;
           width: 100%;
@@ -455,7 +431,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
           overflow: hidden;
           pointer-events: none;
         }
-        
+
         .particle {
           position: absolute;
           width: 2px;
@@ -464,23 +440,23 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
           border-radius: 50%;
           animation: float 20s infinite linear;
         }
-        
+
         @keyframes float {
           0% { transform: translateY(100vh) translateX(-10px); opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateY(-10vh) translateX(10px); opacity: 0; }
         }
-        
+
         .breathing {
           animation: breathe 4s ease-in-out infinite;
         }
-        
+
         @keyframes breathe {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.02); }
         }
-        
+
         .initial-letter {
           float: left;
           font-size: 4rem;
@@ -494,7 +470,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        
+
         .quote-mark {
           font-size: 2rem;
           color: rgba(168, 85, 247, 0.4);
@@ -526,17 +502,17 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
 
       {/* Boutons flottants discrets */}
       <div className="fixed top-6 left-6 z-40">
-        <button 
+        <button
           className="p-3 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 transition-all duration-200 hover:bg-slate-800/80 hover:border-purple-400/30"
           onClick={() => navigate(isViewingOwnMirror ? '/profil' : '/decouverte')}
         >
           <ArrowLeft className="w-4 h-4 text-white" />
         </button>
       </div>
-      
+
       {isViewingOwnMirror && (
         <div className="fixed top-6 right-6 z-40">
-          <button 
+          <button
             className="p-3 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 transition-all duration-200 hover:bg-slate-800/80 hover:border-purple-400/30"
             onClick={handleMobileShare}
           >
@@ -548,32 +524,32 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       {/* Contenu principal raffiné */}
       <main className="relative z-10 px-4 pb-16 pt-6" ref={contentRef}>
         <div className="max-w-3xl mx-auto space-y-12">
-          
+
           {/* Révélations avec typographie raffinée */}
           {cleanText && (
             <section className="space-y-8">
               {cleanText.split('\n\n').filter(p => p.trim().length > 20).map((paragraph, index) => {
                 const colorScheme = sectionColors[index % sectionColors.length];
                 const isVisible = visibleSections.has(index);
-                
+
                 return (
-                  <div 
+                  <div
                     key={index}
                     data-section={index}
                     className={`fade-in ${isVisible ? 'visible' : ''} breathing`}
                     style={{ transitionDelay: `${index * 0.1}s` }}
                   >
                     <div className={`
-                      relative elegant-border rounded-2xl p-6 md:p-8 
-                      ${designSystem.cardBackground} subtle-shadow 
+                      relative elegant-border rounded-2xl p-6 md:p-8
+                      ${designSystem.cardBackground} subtle-shadow
                       transition-all duration-300 hover:border-purple-400/20
                       bg-gradient-to-br ${colorScheme.bg}
                       group
                     `}>
-                      
+
                       {/* Lueur subtile au hover */}
                       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br from-${colorScheme.glow} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 -z-10 blur-xl`} />
-                      
+
                       {/* Numéro discret et ornement */}
                       <div className="flex justify-between items-center mb-6">
                         <div className="flex items-center gap-3">
@@ -586,17 +562,17 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
                         </div>
                         <Sparkles className={`w-4 h-4 text-${colorScheme.accent}/60`} />
                       </div>
-                      
+
                       {/* Texte principal avec typographie premium */}
                       <div className="relative">
                         {/* Guillemets décoratifs */}
                         <div className="quote-mark absolute -left-4 -top-2">"</div>
-                        
+
                         <div className={`text-base md:text-lg leading-loose ${designSystem.getTextClasses('primary')} text-refined`}>
                           <span className="initial-letter">
                             {paragraph.charAt(0)}
                           </span>
-                          <span style={{ 
+                          <span style={{
                             lineHeight: '1.8',
                             letterSpacing: '0.01em',
                             fontWeight: '400'
@@ -604,16 +580,16 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
                             {paragraph.slice(1)}
                           </span>
                         </div>
-                        
+
                         {/* Guillemet fermant */}
                         <div className="quote-mark absolute -right-4 -bottom-2 rotate-180">"</div>
                       </div>
-                      
+
                       {/* Constellation décorative */}
                       <div className="mt-6 flex justify-center">
                         <div className="flex items-center gap-1">
                           {[...Array(3)].map((_, i) => (
-                            <div 
+                            <div
                               key={i}
                               className={`w-1 h-1 rounded-full bg-${colorScheme.accent}/60`}
                               style={{ animationDelay: `${i * 0.5}s` }}
@@ -653,7 +629,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
                     if (!data || (Array.isArray(data) && data.length === 0)) return null;
 
                     return (
-                      <div 
+                      <div
                         key={section.key}
                         className={`elegant-border rounded-xl p-4 ${designSystem.cardBackground} subtle-shadow`}
                       >
@@ -666,7 +642,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
                             {section.title}
                           </h3>
                         </div>
-                        
+
                         {/* Contenu adaptatif */}
                         <div className="space-y-2">
                           {Array.isArray(data) ? (
@@ -705,20 +681,20 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
             </section>
           )}
 
-          {/* Section finale minimaliste avec nouveau bouton conversation */}
+          {/* 🆕 SECTION FINALE AVEC CONTACT REQUEST SYSTEM */}
           <section className="text-center py-12 space-y-8">
             {/* Citation épurée */}
             <div className="max-w-lg mx-auto">
               <p className={`text-sm ${designSystem.getTextClasses('muted')} leading-relaxed text-refined italic`}>
-                "Cette révélation a été tissée par l'intelligence d'Affinia, 
+                "Cette révélation a été tissée par l'intelligence d'Affinia,
                 analysant les subtilités pour révéler l'essence."
               </p>
             </div>
-            
-            {/* ✅ NOUVELLES ACTIONS avec bouton conversation */}
+
+            {/* 🆕 NOUVELLES ACTIONS avec Contact Request System */}
             <div className="space-y-4">
-              {/* Bouton demande de conversation (seulement pour les autres profils) */}
-              {!isViewingOwnMirror && (
+              {/* Bouton demande de contact (seulement pour les autres profils) */}
+              {!isViewingOwnMirror && canRequestContact && (
                 <div className="max-w-md mx-auto">
                   <div className={`p-6 rounded-2xl ${designSystem.cardBackground} elegant-border space-y-4`}>
                     <div className="flex justify-center">
@@ -733,52 +709,73 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
                       </h3>
                       <p className={`text-sm ${designSystem.getTextClasses('secondary')} text-refined leading-relaxed`}>
                         Si cette analyse psychologique résonne avec vous, 
-                        proposez une conversation pour approfondir cette connexion.
+                        proposez un contact pour approfondir cette connexion.
                       </p>
                     </div>
                     
                     <button
-                      onClick={handleConversationRequest}
-                      disabled={requestingConversation || conversationRequested}
+                      onClick={handleContactRequest}
+                      disabled={contactRequestStatus !== 'idle'}
                       className={`
                         w-full px-6 py-3 rounded-xl font-medium text-refined transition-all duration-300
-                        ${conversationRequested 
+                        ${contactRequestStatus === 'requested' 
                           ? 'bg-green-600/20 border border-green-400/30 text-green-400 cursor-default' 
+                          : contactRequestStatus === 'accepted'
+                          ? 'bg-blue-600/20 border border-blue-400/30 text-blue-400 cursor-default'
                           : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25'
                         }
-                        ${requestingConversation ? 'opacity-70 cursor-wait' : ''}
+                        ${contactRequestStatus === 'requesting' ? 'opacity-70 cursor-wait' : ''}
                         disabled:transform-none disabled:shadow-none
                       `}
                     >
                       <div className="flex items-center justify-center gap-2">
-                        {requestingConversation ? (
+                        {contactRequestStatus === 'requesting' ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             <span>Envoi en cours...</span>
                           </>
-                        ) : conversationRequested ? (
+                        ) : contactRequestStatus === 'requested' ? (
                           <>
                             <Heart className="w-4 h-4" />
                             <span>Demande envoyée ✨</span>
                           </>
+                        ) : contactRequestStatus === 'accepted' ? (
+                          <>
+                            <MessageSquare className="w-4 h-4" />
+                            <span>Contact accepté ! 💬</span>
+                          </>
                         ) : (
                           <>
                             <Heart className="w-4 h-4" />
-                            <span>Proposer une conversation</span>
+                            <span>Demander un contact</span>
                           </>
                         )}
                       </div>
                     </button>
                     
-                    {conversationRequested && (
+                    {contactRequestStatus === 'requested' && (
                       <p className={`text-xs ${designSystem.getTextClasses('muted')} text-refined italic`}>
-                        Vous recevrez une notification si {mirrorAccess?.owner_name} accepte votre proposition.
+                        Vous recevrez une notification si {mirrorAccess?.owner_name} accepte votre demande.
                       </p>
                     )}
                   </div>
                 </div>
               )}
-              
+
+              {/* État de chargement contact access */}
+              {!isViewingOwnMirror && checkingContactAccess && (
+                <div className="max-w-md mx-auto">
+                  <div className={`p-6 rounded-2xl ${designSystem.cardBackground} elegant-border`}>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-4 h-4 border-2 border-purple-600/30 border-t-purple-600 rounded-full animate-spin" />
+                      <span className={`text-sm ${designSystem.getTextClasses('secondary')} text-refined`}>
+                        Vérification des permissions...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Action par défaut */}
               <div>
                 {isViewingOwnMirror ? (

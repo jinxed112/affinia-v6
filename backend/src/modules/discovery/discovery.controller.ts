@@ -1,11 +1,12 @@
 // backend/src/modules/discovery/discovery.controller.ts
 // =============================================
-// CONTRÔLEUR BACKEND - Découverte et Miroir Privé - CORRIGÉ RLS
+// CONTRÔLEUR BACKEND - Découverte et Miroir Privé - CORRIGÉ RLS + CONTACT REQUESTS
 // =============================================
 
 import { Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
 import { discoveryService } from './discovery.service';
+import { contactService } from './contact.service';
 import { validationResult } from 'express-validator';
 
 // Import manquant pour les types
@@ -404,6 +405,178 @@ class DiscoveryController {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch discovery profile',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // =============================================
+  // 🆕 CONTACT REQUEST SYSTEM METHODS
+  // =============================================
+
+  /**
+   * 🆕 POST /api/discovery/contact-request - Demander un contact
+   */
+  async requestContact(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array()
+        });
+        return;
+      }
+
+      const senderId = req.user!.id;
+      const { receiver_id, message } = req.body;
+
+      console.log('💬 Contact Request Controller - De:', senderId, 'vers:', receiver_id);
+
+      const result = await contactService.requestContact(senderId, receiver_id, message, req.userToken!);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+          data: result.request
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+          can_retry_after: result.can_retry_after
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Contact Request Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to request contact',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * 🆕 PUT /api/discovery/contact-request/:requestId - Répondre à une demande de contact
+   */
+  async respondToContactRequest(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array()
+        });
+        return;
+      }
+
+      const userId = req.user!.id;
+      const { requestId } = req.params;
+      const { response } = req.body;
+
+      console.log('📝 Contact Response Controller - Request:', requestId, 'Response:', response);
+
+      const result = await contactService.respondToContactRequest(requestId, userId, response, req.userToken!);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+          data: result.request
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.message
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Contact Response Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to respond to contact request',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * 🆕 GET /api/discovery/contact-requests/received
+   */
+  async getReceivedContactRequests(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+
+      console.log('📥 Get Received Contact Requests Controller - User:', userId);
+
+      const requests = await contactService.getReceivedContactRequests(userId, req.userToken!);
+
+      res.json({
+        success: true,
+        data: requests
+      });
+    } catch (error) {
+      console.error('❌ Get Received Contact Requests Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch received contact requests',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * 🆕 GET /api/discovery/contact-requests/sent
+   */
+  async getSentContactRequests(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+
+      console.log('📤 Get Sent Contact Requests Controller - User:', userId);
+
+      const requests = await contactService.getSentContactRequests(userId, req.userToken!);
+
+      res.json({
+        success: true,
+        data: requests
+      });
+    } catch (error) {
+      console.error('❌ Get Sent Contact Requests Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch sent contact requests',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * 🆕 GET /api/discovery/contact-requests/can-request/:targetId
+   */
+  async canRequestContact(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { targetId } = req.params;
+
+      console.log('🤔 Can Request Contact Controller - User:', userId, 'Target:', targetId);
+
+      const canRequest = await contactService.canRequestContact(userId, targetId, req.userToken!);
+
+      res.json({
+        success: true,
+        data: { can_request: canRequest }
+      });
+    } catch (error) {
+      console.error('❌ Can Request Contact Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to check contact request permission',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }

@@ -1,5 +1,5 @@
 // =============================================
-// ROUTES BACKEND - Découverte et Miroir Privé
+// ROUTES BACKEND - Découverte et Miroir Privé + CONTACT REQUESTS
 // =============================================
 
 import { Router } from 'express';
@@ -112,6 +112,68 @@ router.post(
   discoveryController.recordMirrorRead
 );
 
+// ============ 🆕 ROUTES CONTACT REQUESTS ============
+
+/**
+ * POST /api/discovery/contact-request - Demander un contact
+ * Body: { receiver_id: string, message?: string }
+ */
+router.post(
+  '/contact-request',
+  [
+    body('receiver_id')
+      .isUUID()
+      .withMessage('Receiver ID must be a valid UUID'),
+    body('message')
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage('Message must be less than 500 characters')
+  ],
+  discoveryController.requestContact
+);
+
+/**
+ * PUT /api/discovery/contact-request/:requestId - Répondre à une demande de contact
+ * Body: { response: 'accepted' | 'declined' }
+ */
+router.put(
+  '/contact-request/:requestId',
+  [
+    param('requestId').isUUID().withMessage('Request ID must be a valid UUID'),
+    body('response')
+      .isIn(['accepted', 'declined'])
+      .withMessage('Response must be "accepted" or "declined"')
+  ],
+  discoveryController.respondToContactRequest
+);
+
+/**
+ * GET /api/discovery/contact-requests/received - Mes demandes de contact reçues
+ */
+router.get(
+  '/contact-requests/received',
+  discoveryController.getReceivedContactRequests
+);
+
+/**
+ * GET /api/discovery/contact-requests/sent - Mes demandes de contact envoyées
+ */
+router.get(
+  '/contact-requests/sent',
+  discoveryController.getSentContactRequests
+);
+
+/**
+ * GET /api/discovery/contact-requests/can-request/:targetId - Vérifier si on peut demander un contact
+ */
+router.get(
+  '/contact-requests/can-request/:targetId',
+  [
+    param('targetId').isUUID().withMessage('Target ID must be a valid UUID')
+  ],
+  discoveryController.canRequestContact
+);
+
 // ============ ROUTES NOTIFICATIONS ============
 
 /**
@@ -220,6 +282,24 @@ export const discoveryValidation = {
       .optional()
       .isLength({ max: 500 })
       .withMessage('Message must be less than 500 characters')
+  ],
+
+  // 🆕 Validation pour les contact requests
+  requestContact: [
+    body('receiver_id')
+      .isUUID()
+      .withMessage('Receiver ID must be a valid UUID'),
+    body('message')
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage('Message must be less than 500 characters')
+  ],
+
+  respondToContact: [
+    param('requestId').isUUID().withMessage('Request ID must be a valid UUID'),
+    body('response')
+      .isIn(['accepted', 'declined'])
+      .withMessage('Response must be "accepted" or "declined"')
   ]
 };
 */
@@ -265,6 +345,16 @@ export const rateLimitMirrorRequests = (
 ) => {
   // Implémenter rate limiting pour éviter le spam
   // Ex: max 10 demandes par jour par utilisateur
+  next();
+};
+
+export const rateLimitContactRequests = (
+  req: AuthRequest, 
+  res: Response, 
+  next: NextFunction
+) => {
+  // Rate limiting pour contact requests
+  // Ex: max 5 demandes de contact par jour
   next();
 };
 */
