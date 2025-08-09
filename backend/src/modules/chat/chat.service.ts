@@ -1,9 +1,9 @@
 // backend/src/modules/chat/chat.service.ts
 // =============================================
-// SERVICE BACKEND - Chat Système Temps Réel avec RLS
+// SERVICE BACKEND - Chat Système Temps Réel avec NOUVEAU PATTERN RLS
 // =============================================
 
-import { supabaseAdmin, createUserSupabase, UserSupabaseClient } from '../../config/database';
+import { supabaseAdmin } from '../../config/database';
 
 // Types pour le chat
 export interface Conversation {
@@ -136,7 +136,7 @@ class ChatService {
       await this.sendSystemMessage({
         conversation_id: newConversation.id,
         sender_id: 'system',
-        content: '🎉 Félicitations ! Vous pouvez maintenant discuter suite à l\'acceptation du miroir.',
+        content: '🎉 Félicitations ! Vous pouvez maintenant discuter suite à l\'acceptation du contact.',
         message_type: 'system'
       });
 
@@ -174,15 +174,20 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupérer les conversations d'un utilisateur avec RLS
+   * ✅ CORRIGÉ - Récupérer les conversations d'un utilisateur avec NOUVEAU PATTERN RLS
    */
   async getUserConversations(userId: string, userToken: string, limit: number = 20, offset: number = 0): Promise<Conversation[]> {
     try {
       console.log('📝 Chat Service - Récupération conversations pour:', userId);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Unauthorized');
+      }
 
-      // Récupérer les conversations avec RLS
-      const { data: conversations, error } = await userSupabase
+      // Récupérer les conversations avec supabaseAdmin + WHERE explicites
+      const { data: conversations, error } = await supabaseAdmin
         .from('conversations')
         .select(`
           id,
@@ -206,7 +211,7 @@ class ChatService {
         return [];
       }
 
-      // Enrichir avec les données des autres participants (utilise supabaseAdmin pour les profils publics)
+      // Enrichir avec les données des autres participants
       const enrichedConversations = await Promise.all(
         conversations.map(async (conv) => {
           const otherUserId = conv.participant_1_id === userId
@@ -220,18 +225,19 @@ class ChatService {
             .eq('id', otherUserId)
             .single();
 
-          // Récupérer le dernier message avec RLS
+          // Récupérer le dernier message
           let lastMessage = null;
           if (conv.last_message_id) {
-            const { data: messageData } = await userSupabase
+            const { data: messageData } = await supabaseAdmin
               .from('messages')
               .select('id, content, message_type, created_at, sender_id')
               .eq('id', conv.last_message_id)
+              .eq('conversation_id', conv.id)
               .single();
             lastMessage = messageData;
           }
 
-          // Compter les messages non lus avec RLS
+          // Compter les messages non lus
           const unreadCount = await this.getUnreadMessagesCount(conv.id, userId, userToken);
 
           return {
@@ -257,13 +263,17 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupérer une conversation spécifique avec RLS
+   * ✅ CORRIGÉ - Récupérer une conversation spécifique avec NOUVEAU PATTERN RLS
    */
   async getConversation(conversationId: string, userId: string, userToken: string): Promise<Conversation | null> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Unauthorized');
+      }
 
-      const { data: conversation, error } = await userSupabase
+      const { data: conversation, error } = await supabaseAdmin
         .from('conversations')
         .select('*')
         .eq('id', conversationId)
@@ -274,7 +284,7 @@ class ChatService {
         return null;
       }
 
-      // Enrichir avec les données de l'autre participant (supabaseAdmin pour infos publiques)
+      // Enrichir avec les données de l'autre participant
       const otherUserId = conversation.participant_1_id === userId
         ? conversation.participant_2_id
         : conversation.participant_1_id;
@@ -303,12 +313,23 @@ class ChatService {
   // ============ GESTION DES MESSAGES ============
 
   /**
-   * ✅ CORRIGÉ - Envoyer un message avec RLS
+   * ✅ CORRIGÉ - Envoyer un message avec NOUVEAU PATTERN RLS
    */
   async sendMessage(params: SendMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('📤 Chat Service - Envoi message:', params);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== params.sender_id) {
+        throw new Error('Unauthorized');
+      }
+
+      // Vérifier que l'utilisateur a accès à cette conversation
+      const conversation = await this.getConversation(params.conversation_id, params.sender_id, userToken);
+      if (!conversation) {
+        throw new Error('Conversation not found or access denied');
+      }
 
       // Calculer la date d'expiration si message éphémère
       let expiresAt = null;
@@ -317,8 +338,8 @@ class ChatService {
         expiresAt.setMinutes(expiresAt.getMinutes() + params.expires_in_minutes);
       }
 
-      // Insérer le message avec RLS
-      const { data: newMessage, error } = await userSupabase
+      // Insérer le message avec supabaseAdmin
+      const { data: newMessage, error } = await supabaseAdmin
         .from('messages')
         .insert({
           conversation_id: params.conversation_id,
@@ -339,6 +360,15 @@ class ChatService {
         console.error('❌ Erreur envoi message:', error);
         throw error;
       }
+
+      // Mettre à jour le last_message_at de la conversation
+      await supabaseAdmin
+        .from('conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_id: newMessage.id
+        })
+        .eq('id', params.conversation_id);
 
       console.log('✅ Message envoyé:', newMessage.id);
 
@@ -391,6 +421,15 @@ class ChatService {
         throw error;
       }
 
+      // Mettre à jour le last_message_at de la conversation
+      await supabaseAdmin
+        .from('conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_id: newMessage.id
+        })
+        .eq('id', params.conversation_id);
+
       console.log('✅ Message système envoyé:', newMessage.id);
       return newMessage;
 
@@ -401,7 +440,7 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupérer les messages d'une conversation avec RLS
+   * ✅ CORRIGÉ - Récupérer les messages d'une conversation avec NOUVEAU PATTERN RLS
    */
   async getConversationMessages(
     conversationId: string,
@@ -412,7 +451,12 @@ class ChatService {
   ): Promise<Message[]> {
     try {
       console.log('📋 Chat Service - Récupération messages conversation:', conversationId);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Unauthorized');
+      }
 
       // Vérifier que l'utilisateur a accès à cette conversation
       const conversation = await this.getConversation(conversationId, userId, userToken);
@@ -420,8 +464,8 @@ class ChatService {
         throw new Error('Conversation not found or access denied');
       }
 
-      // Récupérer les messages avec RLS
-      const { data: messages, error } = await userSupabase
+      // Récupérer les messages avec supabaseAdmin
+      const { data: messages, error } = await supabaseAdmin
         .from('messages')
         .select(`
           id,
@@ -453,7 +497,7 @@ class ChatService {
         return [];
       }
 
-      // Enrichir les messages avec les données des senders (supabaseAdmin pour infos publiques)
+      // Enrichir les messages avec les données des senders
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
           // Récupérer les infos du sender (sauf pour les messages système)
@@ -475,7 +519,11 @@ class ChatService {
           // Récupérer le message de réponse si applicable
           let replyTo = null;
           if (message.reply_to_id) {
-            replyTo = await this.getMessageWithDetails(message.reply_to_id, userToken);
+            try {
+              replyTo = await this.getMessageWithDetails(message.reply_to_id, userToken);
+            } catch (e) {
+              // Message de réponse non accessible, continuer
+            }
           }
 
           return {
@@ -496,15 +544,20 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Modifier un message avec RLS
+   * ✅ CORRIGÉ - Modifier un message avec NOUVEAU PATTERN RLS
    */
   async updateMessage(params: UpdateMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('✏️ Chat Service - Modification message:', params.message_id);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== params.user_id) {
+        throw new Error('Unauthorized');
+      }
 
-      // Vérifier que l'utilisateur est le propriétaire du message avec RLS
-      const { data: existingMessage } = await userSupabase
+      // Vérifier que l'utilisateur est le propriétaire du message
+      const { data: existingMessage } = await supabaseAdmin
         .from('messages')
         .select('sender_id, conversation_id')
         .eq('id', params.message_id)
@@ -515,8 +568,8 @@ class ChatService {
         throw new Error('Message not found or access denied');
       }
 
-      // Mettre à jour le message avec RLS
-      const { data: updatedMessage, error } = await userSupabase
+      // Mettre à jour le message avec supabaseAdmin
+      const { data: updatedMessage, error } = await supabaseAdmin
         .from('messages')
         .update({
           content: params.content,
@@ -526,6 +579,7 @@ class ChatService {
           updated_at: new Date().toISOString()
         })
         .eq('id', params.message_id)
+        .eq('sender_id', params.user_id)
         .select()
         .single();
 
@@ -549,15 +603,20 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Supprimer un message avec RLS
+   * ✅ CORRIGÉ - Supprimer un message avec NOUVEAU PATTERN RLS
    */
   async deleteMessage(messageId: string, userId: string, userToken: string): Promise<boolean> {
     try {
       console.log('🗑️ Chat Service - Suppression message:', messageId);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Unauthorized');
+      }
 
-      // Vérifier que l'utilisateur est le propriétaire du message avec RLS
-      const { data: existingMessage } = await userSupabase
+      // Vérifier que l'utilisateur est le propriétaire du message
+      const { data: existingMessage } = await supabaseAdmin
         .from('messages')
         .select('sender_id')
         .eq('id', messageId)
@@ -568,14 +627,15 @@ class ChatService {
         throw new Error('Message not found or access denied');
       }
 
-      // Soft delete avec RLS
-      const { error } = await userSupabase
+      // Soft delete avec supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('messages')
         .update({
           deleted_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', messageId);
+        .eq('id', messageId)
+        .eq('sender_id', userId);
 
       if (error) {
         console.error('❌ Erreur suppression message:', error);
@@ -594,22 +654,33 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Réagir à un message avec RLS
+   * ✅ CORRIGÉ - Réagir à un message avec NOUVEAU PATTERN RLS
    */
   async reactToMessage(params: ReactToMessageParams, userToken: string): Promise<Message> {
     try {
       console.log('😊 Chat Service - Réaction message:', params);
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== params.user_id) {
+        throw new Error('Unauthorized');
+      }
 
-      // Récupérer le message existant avec RLS
-      const { data: message, error } = await userSupabase
+      // Récupérer le message existant
+      const { data: message, error } = await supabaseAdmin
         .from('messages')
-        .select('reactions')
+        .select('reactions, conversation_id')
         .eq('id', params.message_id)
         .single();
 
       if (error || !message) {
         throw new Error('Message not found');
+      }
+
+      // Vérifier accès à la conversation
+      const conversation = await this.getConversation(message.conversation_id, params.user_id, userToken);
+      if (!conversation) {
+        throw new Error('Access denied to conversation');
       }
 
       // Modifier les réactions
@@ -633,8 +704,8 @@ class ChatService {
         }
       }
 
-      // Mettre à jour en base avec RLS
-      const { data: updatedMessage, error: updateError } = await userSupabase
+      // Mettre à jour en base avec supabaseAdmin
+      const { data: updatedMessage, error: updateError } = await supabaseAdmin
         .from('messages')
         .update({
           reactions: reactions,
@@ -665,15 +736,26 @@ class ChatService {
   // ============ GESTION DES LECTURES ============
 
   /**
-   * ✅ CORRIGÉ - Marquer les messages comme lus avec RLS
+   * ✅ CORRIGÉ - Marquer les messages comme lus avec NOUVEAU PATTERN RLS
    */
   async markMessagesAsRead(conversationId: string, userId: string, lastMessageId: string, userToken: string): Promise<void> {
     try {
       console.log('✅ Chat Service - Marquage lu:', { conversationId, userId, lastMessageId });
-      const userSupabase = createUserSupabase(userToken);
+      
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        throw new Error('Unauthorized');
+      }
 
-      // Upsert du marqueur de lecture avec RLS
-      const { error } = await userSupabase
+      // Vérifier accès à la conversation
+      const conversation = await this.getConversation(conversationId, userId, userToken);
+      if (!conversation) {
+        throw new Error('Access denied to conversation');
+      }
+
+      // Upsert du marqueur de lecture avec supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('message_reads')
         .upsert({
           conversation_id: conversationId,
@@ -699,14 +781,18 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Compter les messages non lus avec RLS
+   * ✅ CORRIGÉ - Compter les messages non lus avec NOUVEAU PATTERN RLS
    */
   async getUnreadMessagesCount(conversationId: string, userId: string, userToken: string): Promise<number> {
     try {
-      const userSupabase = createUserSupabase(userToken);
+      // ✅ Validation token
+      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+      if (tokenError || !user || user.id !== userId) {
+        return 0;
+      }
 
-      // Utiliser une requête directe au lieu de RPC pour RLS
-      const { data: lastRead } = await userSupabase
+      // Récupérer le dernier message lu
+      const { data: lastRead } = await supabaseAdmin
         .from('message_reads')
         .select('last_read_message_id')
         .eq('conversation_id', conversationId)
@@ -714,8 +800,8 @@ class ChatService {
         .single();
 
       if (!lastRead || !lastRead.last_read_message_id) {
-        // Compter tous les messages non supprimés dans la conversation
-        const { count } = await userSupabase
+        // Compter tous les messages non supprimés dans la conversation (pas de l'utilisateur)
+        const { count } = await supabaseAdmin
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('conversation_id', conversationId)
@@ -726,7 +812,7 @@ class ChatService {
       }
 
       // Compter les messages après le dernier lu
-      const { data: lastReadMessage } = await userSupabase
+      const { data: lastReadMessage } = await supabaseAdmin
         .from('messages')
         .select('created_at')
         .eq('id', lastRead.last_read_message_id)
@@ -734,7 +820,7 @@ class ChatService {
 
       if (!lastReadMessage) return 0;
 
-      const { count } = await userSupabase
+      const { count } = await supabaseAdmin
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('conversation_id', conversationId)
@@ -751,7 +837,7 @@ class ChatService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupérer le nombre total de conversations non lues avec RLS
+   * ✅ CORRIGÉ - Récupérer le nombre total de conversations non lues avec NOUVEAU PATTERN RLS
    */
   async getTotalUnreadConversationsCount(userId: string, userToken: string): Promise<number> {
     try {
@@ -766,11 +852,11 @@ class ChatService {
   // ============ INTÉGRATION AVEC LE SYSTÈME DE MIROIR ============
 
   /**
-   * ✅ GARDE ADMIN - Créer automatiquement une conversation après acceptation d'un miroir
+   * ✅ GARDE ADMIN - Créer automatiquement une conversation après acceptation d'un contact
    */
   async createConversationFromMirrorAcceptance(senderId: string, receiverId: string): Promise<Conversation> {
     try {
-      console.log('🪞➡️💬 Création conversation depuis miroir accepté:', { senderId, receiverId });
+      console.log('🪞➡️💬 Création conversation depuis contact accepté:', { senderId, receiverId });
 
       // Créer la conversation (utilise supabaseAdmin car système)
       const conversation = await this.createConversation({
@@ -793,12 +879,16 @@ class ChatService {
   // ============ MÉTHODES PRIVÉES ============
 
   /**
-   * ✅ CORRIGÉ - Récupérer un message avec tous ses détails avec RLS
+   * ✅ CORRIGÉ - Récupérer un message avec tous ses détails avec NOUVEAU PATTERN RLS
    */
   private async getMessageWithDetails(messageId: string, userToken: string): Promise<Message> {
-    const userSupabase = createUserSupabase(userToken);
-    
-    const { data: message, error } = await userSupabase
+    // ✅ Validation token
+    const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
+    if (tokenError || !user) {
+      throw new Error('Unauthorized');
+    }
+
+    const { data: message, error } = await supabaseAdmin
       .from('messages')
       .select('*')
       .eq('id', messageId)
@@ -808,7 +898,7 @@ class ChatService {
       throw new Error('Message not found');
     }
 
-    // Enrichir avec les données du sender (supabaseAdmin pour infos publiques)
+    // Enrichir avec les données du sender (sauf pour les messages système)
     let sender = null;
     if (message.sender_id !== 'system') {
       const { data: senderData } = await supabaseAdmin
@@ -876,7 +966,7 @@ class ChatService {
   private async notifyMessageDeleted(messageId: string): Promise<void> {
     console.log('🔔 Notification message supprimé:', messageId);
 
-    // Récupérer l'info de la conversation depuis le message (avec supabaseAdmin car juste pour l'ID)
+    // Récupérer l'info de la conversation depuis le message
     const { data: message } = await supabaseAdmin
       .from('messages')
       .select('conversation_id')
