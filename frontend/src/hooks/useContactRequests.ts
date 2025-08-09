@@ -1,13 +1,13 @@
-// frontend/src/hooks/useContactRequests.ts
+// frontend/src/hooks/useContactRequests.ts - VERSION TEMPORAIRE
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { contactService } from '../services/contactService'
-import type { ContactRequest } from '../../../shared/types/contact'
+// import { contactService } from '../services/contactService'  // ⏸️ COMMENTÉ TEMPORAIREMENT
+// import type { ContactRequest } from '../../../shared/types/contact'  // ⏸️ COMMENTÉ TEMPORAIREMENT
 
 export const useContactRequests = () => {
   const { user } = useAuth()
-  const [receivedRequests, setReceivedRequests] = useState<ContactRequest[]>([])
-  const [sentRequests, setSentRequests] = useState<ContactRequest[]>([])
+  const [receivedRequests, setReceivedRequests] = useState<any[]>([])  // ⚠️ TYPE TEMPORAIRE
+  const [sentRequests, setSentRequests] = useState<any[]>([])  // ⚠️ TYPE TEMPORAIRE
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,13 +18,9 @@ export const useContactRequests = () => {
       setLoading(true)
       setError(null)
       
-      const [received, sent] = await Promise.all([
-        contactService.getReceivedContactRequests(),
-        contactService.getSentContactRequests()
-      ])
-      
-      setReceivedRequests(received)
-      setSentRequests(sent)
+      // TODO: Implémenter quand contactService sera prêt
+      setReceivedRequests([])
+      setSentRequests([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       console.error('❌ useContactRequests - Erreur:', err)
@@ -34,26 +30,16 @@ export const useContactRequests = () => {
   }, [user])
 
   const requestContact = useCallback(async (receiverId: string, message?: string): Promise<boolean> => {
-    try {
-      await contactService.requestContact(receiverId, message)
-      await loadRequests() // Refresh
-      return true
-    } catch (error) {
-      console.error('❌ useContactRequests - requestContact error:', error)
-      return false
-    }
-  }, [loadRequests])
+    // TODO: Implémenter quand contactService sera prêt
+    console.log('TODO: requestContact', receiverId, message)
+    return false
+  }, [])
 
   const respondToRequest = useCallback(async (requestId: string, response: 'accepted' | 'declined'): Promise<boolean> => {
-    try {
-      await contactService.respondToContactRequest(requestId, response)
-      await loadRequests() // Refresh
-      return true
-    } catch (error) {
-      console.error('❌ useContactRequests - respondToRequest error:', error)
-      return false
-    }
-  }, [loadRequests])
+    // TODO: Implémenter quand contactService sera prêt
+    console.log('TODO: respondToRequest', requestId, response)
+    return false
+  }, [])
 
   useEffect(() => {
     loadRequests()
