@@ -305,7 +305,7 @@ class QuestionnaireController {
   }
 
   /**
-   * ✅ CORRIGÉ - Met à jour une réponse avec le profil IA
+   * ✅ CORRIGÉ MOBILE-FRIENDLY - Met à jour une réponse avec le profil IA
    */
   async updateWithAIProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -318,6 +318,8 @@ class QuestionnaireController {
       const { responseId } = req.params;
       const userId = req.user!.id;
       const { chatGPTResponse } = req.body;
+
+      console.log('🔧 updateWithAIProfile - responseId:', responseId, 'userId:', userId);
 
       // Vérifier que la réponse appartient à l'utilisateur
       const response = await questionnaireService.getResponse(responseId, req.userToken!);
@@ -335,20 +337,53 @@ class QuestionnaireController {
         return;
       }
 
-      // Parser et sauvegarder
-      const parsedData = chatGPTParser.parseResponse(chatGPTResponse);
+      // 🚀 VERSION TOLÉRANTE AUX ERREURS - Essayer de parser, sinon sauvegarder en mode simplifié
+      try {
+        // Tentative de parsing normal
+        const parsedData = chatGPTParser.parseResponse(chatGPTResponse);
+        
+        const updated = await questionnaireService.updateWithAIProfile(
+          responseId,
+          parsedData.profileText,
+          parsedData.profileJson,
+          req.userToken!
+        );
 
-      const updated = await questionnaireService.updateWithAIProfile(
-        responseId,
-        parsedData.profileText,
-        parsedData.profileJson,
-        req.userToken!
-      );
+        res.json({
+          success: true,
+          message: 'AI profile saved successfully',
+          response: updated
+        });
 
-      res.json({
-        message: 'AI profile saved successfully',
-        response: updated
-      });
+      } catch (parseError) {
+        console.log('⚠️ Parsing failed, trying simplified save:', parseError.message);
+        
+        // 🔧 MODE DÉGRADÉ : Sauvegarder juste le texte brut
+        try {
+          // Utiliser updateWithAIProfile avec profileJson null
+          const updated = await questionnaireService.updateWithAIProfile(
+            responseId,
+            chatGPTResponse.trim(), // Texte brut
+            null, // Pas de JSON
+            req.userToken!
+          );
+
+          res.json({
+            success: true,
+            message: 'AI profile saved in simplified mode (mobile-friendly)',
+            response: updated,
+            note: 'JSON parsing skipped due to format issues'
+          });
+
+        } catch (saveError) {
+          console.error('❌ Even simplified save failed:', saveError);
+          res.status(500).json({ 
+            error: 'Failed to save AI profile',
+            details: process.env.NODE_ENV === 'development' ? saveError.message : 'Internal error'
+          });
+        }
+      }
+
     } catch (error) {
       console.error('Update with AI profile error:', error);
       res.status(500).json({ error: 'Failed to save AI profile' });
