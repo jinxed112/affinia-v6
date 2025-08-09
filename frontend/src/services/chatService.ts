@@ -156,6 +156,11 @@ class ChatService {
     }
   }
 
+  // ✅ MÉTHODE AJOUTÉE - Récupérer les réactions d'un message
+  getMessageReactions(message: Message): Record<string, string[]> {
+    return message?.reactions || {}
+  }
+
   // ============ MÉTHODES LECTURES ============
 
   async markAsRead(conversationId: string, lastMessageId: string): Promise<void> {
