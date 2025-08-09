@@ -1,5 +1,5 @@
 // =============================================
-// MIROIR PAGE - Version Raffinée avec Contact Request System
+// MIROIR PAGE - Version Corrigée Contact Request System
 // =============================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -213,7 +213,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .trim();
   };
 
-  // 🆕 NOUVELLE FONCTION : Demande de contact avec le vrai système
+  // ✅ NOUVELLE FONCTION CORRIGÉE : Contact Request avec le vrai système
   const handleContactRequest = async () => {
     if (!targetUserId || isViewingOwnMirror || contactRequestStatus !== 'idle' || !canRequestContact) return;
 
@@ -226,8 +226,6 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       if (result.success) {
         setContactRequestStatus('requested');
         console.log('✅ Contact request sent successfully');
-
-        // Toast de succès
         showToast('Demande envoyée ! 💬', 'success');
       } else {
         console.error('❌ Contact request failed:', result.message);
@@ -681,7 +679,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
             </section>
           )}
 
-          {/* 🆕 SECTION FINALE AVEC CONTACT REQUEST SYSTEM */}
+          {/* ✅ SECTION FINALE AVEC CONTACT REQUEST SYSTEM CORRIGÉ */}
           <section className="text-center py-12 space-y-8">
             {/* Citation épurée */}
             <div className="max-w-lg mx-auto">
@@ -691,7 +689,7 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
               </p>
             </div>
 
-            {/* 🆕 NOUVELLES ACTIONS avec Contact Request System */}
+            {/* ✅ ACTIONS AVEC CONTACT REQUEST SYSTEM */}
             <div className="space-y-4">
               {/* Bouton demande de contact (seulement pour les autres profils) */}
               {!isViewingOwnMirror && canRequestContact && (
