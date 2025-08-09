@@ -698,10 +698,16 @@ class DiscoveryService {
   }
 
   /**
-   * ✅ CORRIGÉ - Vérifier si l'utilisateur peut voir un miroir avec RLS
+   * ✅ CORRIGÉ - Vérifier si l'utilisateur peut voir un miroir avec LOGIQUE BIDIRECTIONNELLE
    */
   async canViewMirror(viewerId: string, profileId: string, userToken: string): Promise<boolean> {
     try {
+      console.log('🔍 canViewMirror called:', {
+        viewerId,
+        profileId,
+        timestamp: new Date().toISOString()
+      });
+
       // ✅ VALIDATION TOKEN
       const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
       
@@ -712,6 +718,7 @@ class DiscoveryService {
 
       // Si c'est son propre miroir
       if (viewerId === profileId) {
+        console.log('✅ canViewMirror - Own mirror access granted');
         return true;
       }
 
@@ -722,34 +729,57 @@ class DiscoveryService {
         .eq('id', profileId)
         .single();
 
-      if (!profile) return false;
+      if (!profile) {
+        console.log('❌ canViewMirror - Profile not found');
+        return false;
+      }
+
+      console.log('🔍 canViewMirror - Profile visibility:', profile.mirror_visibility);
 
       // Si public, tout le monde peut voir
       if (profile.mirror_visibility === 'public') {
+        console.log('✅ canViewMirror - Public mirror access granted');
         return true;
       }
 
       // Si privé, personne ne peut voir
       if (profile.mirror_visibility === 'private') {
+        console.log('❌ canViewMirror - Private mirror access denied');
         return false;
       }
 
-      // Si on_request, vérifier s'il y a une demande acceptée avec supabaseAdmin + WHERE
+      // ✅ LOGIQUE BIDIRECTIONNELLE CORRIGÉE
       if (profile.mirror_visibility === 'on_request') {
+        console.log('🔍 canViewMirror - Checking bidirectional mirror requests...');
+        
+        // Vérifier s'il y a une demande acceptée dans SOIT direction
         const { data: request } = await supabaseAdmin
           .from('mirror_requests')
-          .select('status')
-          .eq('sender_id', viewerId)
-          .eq('receiver_id', profileId)
+          .select('status, sender_id, receiver_id')
           .eq('status', 'accepted')
+          .or(`and(sender_id.eq.${viewerId},receiver_id.eq.${profileId}),and(sender_id.eq.${profileId},receiver_id.eq.${viewerId})`)
           .maybeSingle();
 
-        return !!request;
+        console.log('🔍 canViewMirror - Bidirectional request result:', {
+          found: !!request,
+          request: request ? {
+            sender_id: request.sender_id,
+            receiver_id: request.receiver_id,
+            status: request.status
+          } : null
+        });
+
+        const hasAccess = !!request;
+        console.log(`${hasAccess ? '✅' : '❌'} canViewMirror - Bidirectional access ${hasAccess ? 'granted' : 'denied'}`);
+        
+        return hasAccess;
       }
 
+      console.log('❌ canViewMirror - Unknown visibility type');
       return false;
+      
     } catch (error) {
-      console.error('❌ Can View Mirror - Erreur:', error);
+      console.error('❌ canViewMirror - Erreur:', error);
       return false;
     }
   }
