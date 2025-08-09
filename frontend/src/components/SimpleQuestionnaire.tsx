@@ -56,7 +56,6 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
   const [sessionId, setSessionId] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [aiResponse, setAiResponse] = useState<string>('');
-  const [verifying, setVerifying] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleChange = (field: keyof FormData, value: string) => {
@@ -125,9 +124,10 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
     }
   };
 
-  const handleVerifyAndSave = async () => {
+  // ✅ NOUVELLE FONCTION SIMPLIFIÉE - Sans vérification JSON complexe
+  const handleSimplifiedSave = async () => {
     if (!user || !aiResponse.trim() || !sessionId) return;
-    setVerifying(true);
+    setSaving(true);
     setError(null);
 
     try {
@@ -135,31 +135,23 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
         ? 'http://localhost:3001/api/questionnaire'
         : 'https://affinia-v6-backend.onrender.com/api/questionnaire';
 
-      const verifyResponse = await fetch(`${API_BASE}/verify-profile`, {
-        method: 'POST',
-        headers: await getAuthHeaders(),
-        body: JSON.stringify({
-          sessionId: sessionId,
-          profileText: aiResponse.trim(),
-          userId: user.id
-        })
-      });
-
-      const verifyData = await verifyResponse.json();
-      if (!verifyResponse.ok) throw new Error(verifyData.error || 'Erreur de vérification');
-      if (!verifyData.valid) throw new Error(verifyData.message || 'Profil invalide');
-
-      setSaving(true);
-
+      // 🔐 SÉCURITÉ CONSERVÉE : Validation session et utilisateur
+      const headers = await getAuthHeaders();
+      
+      // 📝 ÉTAPE 1 : Soumettre le questionnaire
       const submitResponse = await fetch(`${API_BASE}/submit`, {
         method: 'POST',
-        headers: await getAuthHeaders(),
+        headers,
         body: JSON.stringify({
           answers: {
-            firstName: formData.firstName, age: parseInt(formData.age),
-            gender: formData.gender, orientation: formData.orientation,
-            energySource: formData.energySource, communicationStyle: formData.communicationStyle,
-            lovePriority: formData.lovePriority, conflictApproach: formData.conflictApproach,
+            firstName: formData.firstName, 
+            age: parseInt(formData.age),
+            gender: formData.gender, 
+            orientation: formData.orientation,
+            energySource: formData.energySource, 
+            communicationStyle: formData.communicationStyle,
+            lovePriority: formData.lovePriority, 
+            conflictApproach: formData.conflictApproach,
             relationship_learning: formData.relationship_learning || undefined,
             ideal_partner: formData.ideal_partner || undefined,
             free_expression: formData.free_expression || undefined
@@ -169,21 +161,30 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
       });
 
       const submitData = await submitResponse.json();
-      if (!submitResponse.ok) throw new Error(submitData.error || 'Erreur de sauvegarde');
+      if (!submitResponse.ok) {
+        throw new Error(submitData.error || 'Erreur de sauvegarde');
+      }
 
+      // 📝 ÉTAPE 2 : Sauvegarder la réponse IA (sans validation JSON complexe)
       const updateResponse = await fetch(`${API_BASE}/${submitData.responseId}/ai-profile`, {
         method: 'PUT',
-        headers: await getAuthHeaders(),
-        body: JSON.stringify({ chatGPTResponse: aiResponse })
+        headers,
+        body: JSON.stringify({ 
+          chatGPTResponse: aiResponse.trim() // ✅ Simple trim, pas de parsing
+        })
       });
 
-      if (!updateResponse.ok) throw new Error('Erreur de mise à jour du profil');
+      const updateData = await updateResponse.json();
+      if (!updateResponse.ok) {
+        throw new Error(updateData.error || 'Erreur de mise à jour du profil');
+      }
+
+      // 🎉 Succès !
       setStep('success');
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
-      setVerifying(false);
       setSaving(false);
     }
   };
@@ -388,28 +389,62 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">🤖</div>
             <h2 className={`text-3xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Colle ta Réponse ChatGPT</h2>
-            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Colle ici TOUTE la réponse que ChatGPT t'a donnée</p>
+            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              ✅ Colle simplement ta réponse - pas de vérification complexe
+            </p>
           </div>
 
           <div className="mb-6">
-            <label className={`block font-medium mb-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Réponse complète de ChatGPT/Claude *</label>
-            <textarea value={aiResponse} onChange={(e) => setAiResponse(e.target.value)} placeholder="Colle ici toute la réponse de ChatGPT, depuis le début jusqu'à la fin, y compris le JSON..." className={`w-full px-4 py-4 rounded-xl border resize-none focus:ring-2 focus:ring-purple-500 ${isDarkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} rows={15} required />
-            <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>⚠️ Important : Colle TOUTE la réponse, pas seulement une partie !</p>
+            <label className={`block font-medium mb-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              Réponse de ChatGPT/Claude *
+            </label>
+            <textarea 
+              value={aiResponse} 
+              onChange={(e) => setAiResponse(e.target.value)}
+              placeholder="Colle ici la réponse de ChatGPT ou Claude AI..."
+              className={`w-full px-4 py-4 rounded-xl border resize-none focus:ring-2 focus:ring-purple-500 ${
+                isDarkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              }`}
+              rows={15} 
+              required 
+              style={{ fontSize: '16px' }} // Évite le zoom iOS
+            />
+            <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              📱 Mobile friendly : colle simplement le texte, même partiel !
+            </p>
           </div>
 
           <div className="flex justify-center gap-4">
-            <button onClick={() => setStep('prompt')} className={`px-6 py-3 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>← Retour au prompt</button>
-            <button onClick={handleVerifyAndSave} disabled={!aiResponse.trim() || verifying || saving} className={`px-8 py-3 rounded-xl font-medium transition-all ${!aiResponse.trim() || verifying || saving ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'}`}>
-              {verifying ? (<span className="flex items-center gap-2"><Loader className="w-4 h-4 animate-spin" />Vérification...</span>) : saving ? (<span className="flex items-center gap-2"><Loader className="w-4 h-4 animate-spin" />Sauvegarde...</span>) : ('Vérifier et Sauvegarder')}
+            <button onClick={() => setStep('prompt')} className={`px-6 py-3 rounded-lg font-medium transition-all ${isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+              ← Retour au prompt
+            </button>
+            <button 
+              onClick={handleSimplifiedSave} 
+              disabled={!aiResponse.trim() || saving} 
+              className={`px-8 py-3 rounded-xl font-medium transition-all ${
+                !aiResponse.trim() || saving 
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+              }`}
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader className="w-4 h-4 animate-spin" />
+                  Sauvegarde...
+                </span>
+              ) : (
+                '✅ Sauvegarder Directement'
+              )}
             </button>
           </div>
 
-          <div className={`mt-6 p-4 rounded-xl border ${isDarkMode ? 'bg-yellow-900/20 border-yellow-800 text-yellow-200' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}>
-            <h4 className="font-medium mb-2">🔍 Que vérifions-nous ?</h4>
+          <div className={`mt-6 p-4 rounded-xl border ${isDarkMode ? 'bg-green-900/20 border-green-800 text-green-200' : 'bg-green-50 border-green-200 text-green-800'}`}>
+            <h4 className="font-medium mb-2">✅ Version Simplifiée</h4>
             <ul className="text-sm space-y-1">
-              <li>• Que la réponse correspond bien à ton session</li>
-              <li>• Que le profil est complet et valide</li>
-              <li>• Que les données JSON sont correctes</li>
+              <li>• Pas de vérification JSON complexe</li>
+              <li>• Colle n'importe quel format de réponse</li>
+              <li>• Sécurité conservée (session, utilisateur)</li>
+              <li>• Compatible mobile et desktop</li>
             </ul>
           </div>
         </div>
@@ -420,21 +455,52 @@ const SimpleQuestionnaire: React.FC<SimpleQuestionnaireProps> = ({ isDarkMode })
           <div className="text-center">
             <div className="text-8xl mb-6">🎉</div>
             <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Félicitations !</h2>
-            <p className={`text-xl mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Ton profil psychologique a été créé et sauvegardé avec succès !</p>
+            <p className={`text-xl mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Ton profil psychologique a été créé et sauvegardé avec succès !
+            </p>
             
             <div className={`p-6 rounded-xl border mb-8 ${isDarkMode ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200'}`}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div><div className="text-3xl mb-2">✅</div><p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>Questionnaire<br/>Complété</p></div>
-                <div><div className="text-3xl mb-2">🧠</div><p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>Analyse IA<br/>Sauvegardée</p></div>
-                <div><div className="text-3xl mb-2">🚀</div><p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>Prêt pour<br/>les Rencontres</p></div>
+                <div>
+                  <div className="text-3xl mb-2">✅</div>
+                  <p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>
+                    Questionnaire<br/>Complété
+                  </p>
+                </div>
+                <div>
+                  <div className="text-3xl mb-2">🧠</div>
+                  <p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>
+                    Analyse IA<br/>Sauvegardée
+                  </p>
+                </div>
+                <div>
+                  <div className="text-3xl mb-2">🚀</div>
+                  <p className={`font-medium ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>
+                    Prêt pour<br/>les Rencontres
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Tu peux maintenant découvrir d'autres utilisateurs et commencer tes rencontres psychologiques !</p>
+              <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                Tu peux maintenant découvrir d'autres utilisateurs et commencer tes rencontres psychologiques !
+              </p>
               <div className="flex justify-center gap-4">
-                <button onClick={() => window.location.href = '/discovery'} className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all">🔍 Découvrir la Communauté</button>
-                <button onClick={() => window.location.href = '/profile'} className={`px-6 py-4 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>👤 Voir mon Profil</button>
+                <button 
+                  onClick={() => window.location.href = '/discovery'} 
+                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
+                >
+                  🔍 Découvrir la Communauté
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/profile'} 
+                  className={`px-6 py-4 rounded-xl font-medium transition-all ${
+                    isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  👤 Voir mon Profil
+                </button>
               </div>
             </div>
           </div>
