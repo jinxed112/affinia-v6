@@ -198,9 +198,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
     }
   };
 
-  const handleNavigateToMirrorRequests = () => {
+  const handleNavigateToRequests = () => {
     setIsOpen(false);
-    navigate('/demandes-miroir');
+    navigate('/demandes');
   };
 
   const getNotificationIcon = (type: NotificationType) => {
@@ -267,7 +267,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
     switch (notification.type) {
       case 'mirror_request':
         setIsOpen(false);
-        navigate('/demandes-miroir');
+        navigate('/demandes');
         break;
       case 'mirror_accepted':
         if (notification.payload.responder_id) {
@@ -518,7 +518,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
               isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'
             }`}>
               <button
-                onClick={handleNavigateToMirrorRequests}
+                onClick={handleNavigateToRequests}
                 className={`w-full text-sm px-4 py-2.5 rounded-lg font-medium transition-colors ${
                   isDarkMode
                     ? 'bg-purple-600 hover:bg-purple-700 text-white'

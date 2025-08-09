@@ -25,8 +25,8 @@ const ALLOWED_ROUTES_AFTER_QUESTIONNAIRE = [
   '/discovery',
   '/chat',
   '/profile',
-  '/demandes-miroir',      // ✅ ROUTE MIROIR AJOUTÉE
-  '/miroir',               // ✅ ROUTE MIROIR AJOUTÉE  
+  '/demandes',              // ✅ ROUTE UNIFIÉE
+  '/miroir',                // ✅ ROUTE MIROIR AJOUTÉE  
   '/notifications',
   '/settings'
 ]

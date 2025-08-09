@@ -11,7 +11,7 @@ import { HomePage } from './pages/HomePage'
 import { ProfilePage } from './pages/ProfilePage'
 import { MirrorPage } from './pages/MirrorPage'
 import { DiscoveryPage } from './pages/DiscoveryPage'
-import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
+import { RequestsPage } from './pages/RequestsPage'
 import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from './pages'
@@ -79,7 +79,6 @@ function AppContent() {
             </PrivateRoute>
           } />
 
-          {/* ✅ NOUVELLE ROUTE AJOUTÉE - Miroir avec ID utilisateur */}
           <Route path="/miroir/:id" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
@@ -96,10 +95,10 @@ function AppContent() {
             </PrivateRoute>
           } />
 
-          <Route path="/demandes-miroir" element={
+          <Route path="/demandes" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
-                <MirrorRequestsPage isDarkMode={isDarkMode} />
+                <RequestsPage isDarkMode={isDarkMode} />
               </OnboardingGuard>
             </PrivateRoute>
           } />
