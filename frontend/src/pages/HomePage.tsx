@@ -29,9 +29,14 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
   const [photos, setPhotos] = useState<ProfilePhoto[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(true)
 
-  // Vérifier si le questionnaire est complété (version simplifiée)
+  // Vérifier si le questionnaire est complété (version robuste)
   const hasCompletedQuestionnaire = () => {
-    return questionnaire?.profile_json != null;
+    // Vérifier plusieurs conditions pour être sûr
+    return !!(
+      questionnaire?.profile_json || 
+      questionnaire?.generated_profile ||
+      (questionnaire && Object.keys(questionnaire).length > 2)
+    );
   }
 
   // Charger les photos
