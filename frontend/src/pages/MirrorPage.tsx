@@ -1,5 +1,5 @@
 // =============================================
-// MIROIR PAGE - Version Complète avec Extraction JSON Mobile
+// MIROIR PAGE - Version Complète avec Fix Mobile Paragraphes
 // =============================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -120,11 +120,11 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
     }
   };
 
-  // ✅ FIX: Affichage simple de toutes les sections (pas d'Intersection Observer)
+  // ✅ CORRIGÉ : Affichage simple de toutes les sections (pas d'Intersection Observer)
   useEffect(() => {
     if (profileData) {
       const cleanText = parseEmotionalText(profileData.generated_profile);
-      const sectionsCount = cleanText?.split('\n\n')?.filter(p => p.trim().length > 20)?.length || 0;
+      const sectionsCount = smartSplitParagraphs(cleanText).length;
       setVisibleSections(new Set(Array.from({ length: sectionsCount }, (_, i) => i)));
     }
   }, [profileData]);
@@ -324,6 +324,73 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
     console.log('✅ parseEmotionalText - Preview:', result.substring(0, 200));
     
     return result;
+  };
+
+  // 🆕 NOUVELLE FONCTION : Découpage intelligent pour mobile
+  const smartSplitParagraphs = (text: string): string[] => {
+    if (!text) return [];
+
+    // 1. Vérifier s'il y a déjà des doubles sauts de ligne (format desktop)
+    if (text.includes('\n\n')) {
+      console.log('📱 Format desktop détecté avec \\n\\n');
+      return text.split('\n\n').filter(p => p.trim().length > 20);
+    }
+
+    console.log('📱 Format mobile détecté, découpage intelligent...');
+
+    // 2. Découpage intelligent pour mobile (pas de \n\n)
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const paragraphs: string[] = [];
+    let currentParagraph = '';
+
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i];
+      const trimmedSentence = sentence.trim();
+      if (trimmedSentence.length === 0) continue;
+
+      // Ajouter la phrase au paragraphe actuel
+      currentParagraph += (currentParagraph ? ' ' : '') + trimmedSentence;
+
+      // Critères de fin de paragraphe :
+      // - Le paragraphe fait au moins 200 caractères ET
+      // - La phrase se termine par un point fort (. ! ?) ET
+      // - La prochaine phrase commence par une majuscule ou un mot clé
+      const isLongEnough = currentParagraph.length >= 200;
+      const endsWithStrongPunctuation = /[.!?]$/.test(trimmedSentence);
+      const nextIndex = i + 1;
+      const nextSentence = nextIndex < sentences.length ? sentences[nextIndex].trim() : '';
+      const nextStartsWell = nextSentence.length > 0 && (
+        /^[A-Z]/.test(nextSentence) || // Majuscule
+        nextSentence.toLowerCase().startsWith('tu ') || // Adresse directe
+        nextSentence.toLowerCase().startsWith('cette ') || // Nouvelle idée
+        nextSentence.toLowerCase().startsWith('mais ') || // Transition
+        nextSentence.toLowerCase().startsWith('il ') ||
+        nextSentence.toLowerCase().startsWith('elle ') ||
+        nextSentence.toLowerCase().startsWith('c\'est ') ||
+        nextSentence.toLowerCase().startsWith('ton ') ||
+        nextSentence.toLowerCase().startsWith('ta ')
+      );
+
+      // Fin de paragraphe si conditions remplies
+      if (isLongEnough && endsWithStrongPunctuation && nextStartsWell) {
+        paragraphs.push(currentParagraph);
+        currentParagraph = '';
+      }
+      
+      // Forcer la fin si le paragraphe devient trop long (> 800 caractères)
+      else if (currentParagraph.length > 800 && endsWithStrongPunctuation) {
+        paragraphs.push(currentParagraph);
+        currentParagraph = '';
+      }
+    }
+
+    // Ajouter le dernier paragraphe s'il reste du contenu
+    if (currentParagraph.trim().length > 20) {
+      paragraphs.push(currentParagraph);
+    }
+
+    console.log(`✅ Découpage mobile : ${paragraphs.length} paragraphes créés`);
+    return paragraphs.filter(p => p.trim().length > 20);
   };
 
   // ✅ NOUVELLE FONCTION CORRIGÉE : Contact Request avec le vrai système
@@ -636,10 +703,10 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       <main className="relative z-10 px-4 pb-16 pt-6" ref={contentRef}>
         <div className="max-w-3xl mx-auto space-y-12">
 
-          {/* Révélations avec typographie raffinée */}
+          {/* ✅ RÉVÉLATIONS AVEC DÉCOUPAGE INTELLIGENT MOBILE/DESKTOP */}
           {cleanText && (
             <section className="space-y-8">
-              {cleanText.split('\n\n').filter(p => p.trim().length > 20).map((paragraph, index) => {
+              {smartSplitParagraphs(cleanText).map((paragraph, index) => {
                 const colorScheme = sectionColors[index % sectionColors.length];
                 const isVisible = visibleSections.has(index);
 
