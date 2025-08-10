@@ -1,5 +1,5 @@
 // =============================================
-// MIROIR PAGE - Version Corrigée Contact Request System
+// MIROIR PAGE - Version Corrigée Contact Request System + Mobile-Friendly
 // =============================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -196,10 +196,28 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
     }
   };
 
+  // ✅ FONCTION CORRIGÉE : Nettoyage renforcé pour contenu mobile
   const parseEmotionalText = (rawText: string): string => {
     if (!rawText) return '';
 
-    return rawText
+    console.log('🔧 parseEmotionalText - Input length:', rawText.length);
+    console.log('🔧 parseEmotionalText - Preview:', rawText.substring(0, 200));
+
+    let cleaned = rawText
+      // 🚀 NOUVEAU : Supprimer les sections PARTIE explicites  
+      .replace(/PARTIE\s+\d+\s*[:\-]\s*[^\n]*/gi, '')
+      .replace(/DONNÉES\s+DE\s+MATCHING/gi, '')
+      
+      // 🚀 NOUVEAU : Supprimer le JSON brut complet (mobile)
+      .replace(/\{\s*[\s\S]*"reliability_score"[\s\S]*\}/g, '')
+      
+      // 🚀 NOUVEAU : Supprimer les lignes JSON spécifiques
+      .replace(/"[a-zA-Z_]+"\s*:\s*[^,\n}]+[,}]/g, '')
+      .replace(/\{\s*$/gm, '')
+      .replace(/^\s*\}/gm, '')
+      .replace(/^\s*"[^"]*":\s*[\[\{]/gm, '')
+      
+      // Anciens nettoyages (conservés)
       .replace(/\*\*PARTIE\s+\d+[^*]*\*\*/g, '')
       .replace(/🔒\s*\*[a-f0-9]+\*/g, '')
       .replace(/🔐\s*[a-z0-9]+/g, '')
@@ -209,8 +227,45 @@ const MirrorPage: React.FC<MirrorPageProps> = ({ isDarkMode = true }) => {
       .replace(/```[\s\S]*?```/g, '')
       .replace(/#{1,6}\s+/g, '')
       .replace(/\*\*(.*?)\*\*/g, '$1')
+      
+      // 🚀 NOUVEAU : Nettoyer les lignes vides multiples
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+
+    // 🚀 NOUVEAU : Filtrage ligne par ligne pour éliminer le JSON
+    const lines = cleaned.split('\n').filter(line => {
+      const trimmed = line.trim();
+      
+      // Supprimer les lignes qui ressemblent à du JSON
+      if (trimmed.match(/^["\{\}\[\],]/) || 
+          trimmed.includes('reliability_score') ||
+          trimmed.includes('strength_signals') ||
+          trimmed.includes('weakness_signals') ||
+          trimmed.includes('cognitive_signals') ||
+          trimmed.includes('affective_indicators') ||
+          trimmed.includes('unconscious_patterns') ||
+          trimmed.includes('relationnal_risks') ||
+          trimmed.includes('ideal_partner_traits') ||
+          trimmed.includes('mirroring_warning') ||
+          trimmed.includes('trait_observations') ||
+          trimmed.match(/^"[^"]*":\s*/) ||
+          trimmed === '{' || trimmed === '}' ||
+          trimmed.startsWith('null,') ||
+          trimmed.startsWith('],') ||
+          trimmed.startsWith('},')) {
+        return false;
+      }
+      
+      // Garder les lignes avec du contenu significatif
+      return trimmed.length > 10;
+    });
+
+    const result = lines.join('\n').trim();
+    
+    console.log('✅ parseEmotionalText - Output length:', result.length);
+    console.log('✅ parseEmotionalText - Preview:', result.substring(0, 200));
+    
+    return result;
   };
 
   // ✅ NOUVELLE FONCTION CORRIGÉE : Contact Request avec le vrai système
