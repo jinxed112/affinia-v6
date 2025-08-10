@@ -1,9 +1,8 @@
-// Header.tsx - Version Premium V2
+// Header.tsx - Version Premium V2 SANS COMPLETION BADGE
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
-import ProfileExtendedService from '../services/profileExtendedService'
 import { NotificationCenter } from './NotificationCenter'
 import { 
   Heart, User, LogOut, Menu, X, Home, Sparkles, Sun, Moon, 
@@ -19,48 +18,28 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => {
-  const { user, profile, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const { profile: extendedProfile, questionnaire } = useProfile()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [completionPercentage, setCompletionPercentage] = useState(0)
-  const [photos, setPhotos] = useState([])
 
   // Hook pour les stats du chat
   const { chatStats } = useChat()
 
   // Vérifier si le questionnaire est complété
   const hasCompletedQuestionnaire = () => {
-    return questionnaire?.profile_json != null;
+    if (!questionnaire) return false;
+    // Format desktop (JSON structuré)
+    if (questionnaire.profile_json) return true;
+    // Format mobile (texte brut avec données valides)
+    if (questionnaire.generated_profile && questionnaire.generated_profile.length > 100) return true;
+    // Fallback : si le questionnaire existe avec des answers complètes
+    if (questionnaire.answers && Object.keys(questionnaire.answers).length > 2) return true;
+    return false;
   }
-
-  // Calculer la completion en temps réel
-  useEffect(() => {
-    const calculateCompletion = async () => {
-      if (!user) return
-
-      try {
-        // Charger les photos pour le calcul
-        const userPhotos = await ProfileExtendedService.getUserPhotos(user.id)
-        setPhotos(userPhotos)
-        
-        // Calculer la completion
-        const completeness = ProfileExtendedService.calculateProfileCompleteness(
-          extendedProfile, 
-          questionnaire, 
-          userPhotos
-        )
-        setCompletionPercentage(completeness.percentage)
-      } catch (error) {
-        console.error('Erreur calcul completion:', error)
-      }
-    }
-
-    calculateCompletion()
-  }, [user, extendedProfile, questionnaire])
 
   // Gérer l'effet au scroll
   useEffect(() => {
@@ -158,26 +137,6 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
             rgba(30, 41, 59, 0.95) 50%,
             rgba(15, 23, 42, 0.95) 100%
           );
-        }
-        
-        .completion-ring-small {
-          background: conic-gradient(
-            from 0deg,
-            #a855f7 0deg,
-            #ec4899 calc(${completionPercentage}% * 360deg / 100%),
-            #374151 calc(${completionPercentage}% * 360deg / 100%),
-            #374151 360deg
-          );
-          border-radius: 50%;
-          position: relative;
-        }
-        
-        .completion-ring-small::before {
-          content: '';
-          position: absolute;
-          inset: 2px;
-          background: ${isDarkMode ? '#0f172a' : '#ffffff'};
-          border-radius: 50%;
         }
         
         .nav-button {
@@ -333,25 +292,6 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
 
               {/* User Section Desktop */}
               <div className="hidden lg:flex items-center gap-3">
-                
-                {/* Completion Badge Premium */}
-                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl shadow-lg border transition-all duration-300 hover-lift ${
-                  isDarkMode
-                    ? 'bg-slate-800/90 border-slate-700/50'
-                    : 'bg-white/90 border-gray-200/50'
-                } premium-blur`}>
-                  <div className="w-8 h-8 completion-ring-small flex items-center justify-center">
-                    <span className="text-xs font-bold relative z-10">{completionPercentage}</span>
-                  </div>
-                  <div className="text-sm">
-                    <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      Profil
-                    </div>
-                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {completionPercentage === 100 ? 'Parfait!' : 'En cours'}
-                    </div>
-                  </div>
-                </div>
 
                 {/* Notifications */}
                 <div className={`p-2 rounded-xl shadow-lg border transition-all duration-300 hover-lift ${
@@ -489,11 +429,6 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                         >
                           <User className="w-4 h-4" />
                           <span>Mon Profil</span>
-                          <div className="ml-auto">
-                            <div className="w-6 h-6 completion-ring-small flex items-center justify-center">
-                              <span className="text-xs font-bold relative z-10">{completionPercentage}</span>
-                            </div>
-                          </div>
                         </button>
 
                         <button
@@ -565,20 +500,6 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                   </button>
                 )}
 
-                {/* Completion Badge Mobile */}
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg border ${
-                  isDarkMode
-                    ? 'bg-slate-800/90 border-slate-700/50'
-                    : 'bg-white/90 border-gray-200/50'
-                } premium-blur`}>
-                  <div className="w-6 h-6 completion-ring-small flex items-center justify-center">
-                    <span className="text-xs font-bold relative z-10">{completionPercentage}</span>
-                  </div>
-                  <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {completionPercentage}%
-                  </span>
-                </div>
-
                 {/* Theme Toggle Mobile */}
                 <button
                   onClick={onThemeToggle}
@@ -645,7 +566,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                     {getDisplayName()}
                   </p>
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Niveau {getUserLevel()} • {completionPercentage}% complet
+                    Niveau {getUserLevel()}
                   </p>
                 </div>
               </div>
@@ -725,9 +646,6 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                 >
                   <User className="w-5 h-5" />
                   <span>Mon Profil</span>
-                  <div className="ml-auto w-6 h-6 completion-ring-small flex items-center justify-center">
-                    <span className="text-xs font-bold relative z-10">{completionPercentage}</span>
-                  </div>
                 </button>
 
                 <button

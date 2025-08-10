@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Zap, Shield, Star, Sparkles, Eye, MapPin, User, Calendar, ChevronDown, ChevronRight, FileText, Brain } from 'lucide-react';
+import { Heart, Zap, Shield, Star, Sparkles, Eye, MapPin, User, Calendar, ChevronLeft, ChevronRight, FileText, Brain, MessageCircle, X } from 'lucide-react';
 
 interface ProfileJson {
   authenticity_score: number;
@@ -12,6 +12,7 @@ interface ProfileJson {
   affective_indicators: {
     emotion_expression: string;
     defense_mechanisms: string[];
+    attachment_style?: string;
   };
   cognitive_signals: {
     language_level: string;
@@ -35,599 +36,482 @@ interface Profile {
   bio?: string;
   city?: string;
   avatar_url?: string;
+  level?: number;
+  xp?: number;
   [key: string]: any;
 }
 
 interface Questionnaire {
   answers?: any;
   profile_json?: any;
+  generated_profile?: string;
   [key: string]: any;
 }
 
 interface AffiniaCardProps {
-  // Props principales (compatibilité avec usage existant)
   userName?: string;
   age?: number;
   avatar?: string;
   photos?: ProfilePhoto[];
   profileJson?: ProfileJson;
   className?: string;
-  
-  // 🆕 Props pour extraction automatique (optionnelles)
   profile?: Profile;
   questionnaire?: Questionnaire;
 }
 
-export const AffiniaCard: React.FC<AffiniaCardProps> = ({ 
-  userName: propUserName,
-  age: propAge,
-  avatar: propAvatar,
-  photos = [],
-  profileJson: propProfileJson,
-  className = "",
-  
-  // Nouveaux props pour extraction automatique
-  profile,
-  questionnaire
-}) => {
+export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
   const [isFlipped, setIsFlipped] = useState(false);
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showTypeModal, setShowTypeModal] = useState(false);
 
-  // 🔧 Extraction automatique des données depuis profile et questionnaire
-  const extractUserData = () => {
-    console.log('🔍 AffiniaCard - Debug extraction:', {
-      profile: profile,
-      questionnaire: questionnaire,
-      propUserName,
-      propAge,
-      propAvatar,
-      propProfileJson
-    });
-
-    // Nom : prop > profile.name > fallback
-    const userName = propUserName || profile?.name || 'Dresseur';
-    
-    // Âge : prop > questionnaire.answers.age
-    let age = propAge;
-    if (!age && questionnaire?.answers) {
-      const answers = typeof questionnaire.answers === 'string' 
-        ? JSON.parse(questionnaire.answers) 
-        : questionnaire.answers;
-      age = answers.age || null;
-      console.log('🎯 Age extrait du questionnaire:', age, 'depuis:', answers);
+  // Conversion mobile → JSON
+  const convertMobileTextToProfileJson = (generatedProfile: string): ProfileJson | null => {
+    try {
+      const jsonMatch = generatedProfile.match(/PARTIE 2[^{]*(\{[\s\S]*\})/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        const parsedJson = JSON.parse(jsonMatch[1]);
+        
+        return {
+          authenticity_score: parsedJson.authenticity_score || 8,
+          attachment_style: parsedJson.affective_indicators?.attachment_style || 'évitant',
+          strength_signals: parsedJson.strength_signals || [],
+          weakness_signals: parsedJson.weakness_signals || [],
+          unconscious_patterns: parsedJson.unconscious_patterns || [],
+          ideal_partner_traits: parsedJson.ideal_partner_traits || [],
+          reliability_score: parsedJson.reliability_score || 0.8,
+          affective_indicators: {
+            emotion_expression: parsedJson.affective_indicators?.emotion_expression || 'modérée',
+            defense_mechanisms: parsedJson.affective_indicators?.defense_mechanisms || [],
+            attachment_style: parsedJson.affective_indicators?.attachment_style || 'évitant'
+          },
+          cognitive_signals: {
+            language_level: parsedJson.cognitive_signals?.language_level || 'élevé',
+            thinking_style: parsedJson.cognitive_signals?.thinking_style || 'analytique',
+            complexity: parsedJson.cognitive_signals?.complexity || 'Complexité élevée'
+          }
+        };
+      }
+      
+      return {
+        authenticity_score: 8,
+        attachment_style: 'évitant',
+        strength_signals: ['Communication directe', 'Authenticité'],
+        weakness_signals: ['En cours d\'analyse'],
+        unconscious_patterns: ['Patterns en cours d\'analyse'],
+        ideal_partner_traits: ['Compatibilité en évaluation'],
+        reliability_score: 0.85,
+        affective_indicators: {
+          emotion_expression: 'modérée',
+          defense_mechanisms: ['Analyse en cours'],
+          attachment_style: 'évitant'
+        },
+        cognitive_signals: {
+          language_level: 'élevé',
+          thinking_style: 'analytique',
+          complexity: 'Profil riche et complexe'
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur conversion mobile text → JSON:', error);
+      return null;
     }
-    
-    // Avatar : prop > profile.avatar_url
-    const avatar = propAvatar || profile?.avatar_url;
-    
-    // ProfileJson : prop > questionnaire.profile_json
-    let profileJson = propProfileJson;
-    if (!profileJson && questionnaire?.profile_json) {
-      profileJson = typeof questionnaire.profile_json === 'string'
-        ? JSON.parse(questionnaire.profile_json)
-        : questionnaire.profile_json;
-      console.log('🎯 ProfileJson extrait:', profileJson);
-    }
-    
-    // Bio : profile.bio
-    const bio = profile?.bio;
-    
-    // City : profile.city
-    const city = profile?.city;
-    
-    // Genre : questionnaire.answers.gender
-    let gender = null;
-    if (questionnaire?.answers) {
-      const answers = typeof questionnaire.answers === 'string' 
-        ? JSON.parse(questionnaire.answers) 
-        : questionnaire.answers;
-      gender = answers.gender || null;
-      console.log('🎯 Genre extrait:', gender, 'depuis:', answers);
-    }
-    
-    const extractedData = {
-      userName,
-      age,
-      avatar,
-      profileJson,
-      bio,
-      city,
-      gender
-    };
-
-    console.log('✅ Données extraites finales:', extractedData);
-    
-    return extractedData;
   };
 
-  const userData = extractUserData();
+  // Extraction propre des données
+  const fullName = props.userName || props.profile?.name || 'Utilisateur';
+  const userName = fullName.split(' ')[0]; // Juste le prénom
+  const photos = props.photos || [];
+  const className = props.className || '';
 
-  // 🆕 LOG DEMANDÉ
-  console.log('🎴 AffiniaCard - Rendu avec:', {
-    isFlipped,
-    hasProfileJson: !!userData.profileJson,
-    userData: userData
-  });
+  // Age
+  let age = props.age;
+  if (!age && props.questionnaire?.answers) {
+    const answers = typeof props.questionnaire.answers === 'string' 
+      ? JSON.parse(props.questionnaire.answers) 
+      : props.questionnaire.answers;
+    age = answers.age;
+  }
 
-  // Si pas de profileJson, on ne peut pas afficher la carte
-  if (!userData.profileJson) {
+  // City
+  const city = props.profile?.city;
+
+  // ProfileJson - Support mobile ET desktop
+  let profileJson = props.profileJson;
+  if (!profileJson && props.questionnaire) {
+    // Desktop : profile_json direct
+    if (props.questionnaire.profile_json) {
+      profileJson = typeof props.questionnaire.profile_json === 'string'
+        ? JSON.parse(props.questionnaire.profile_json)
+        : props.questionnaire.profile_json;
+    }
+    // Mobile : generated_profile (texte à convertir)
+    else if (props.questionnaire.generated_profile) {
+      profileJson = convertMobileTextToProfileJson(props.questionnaire.generated_profile);
+    }
+  }
+
+  // Bio
+  const bio = props.profile?.bio;
+
+  // Photo principale
+  const getMainPhoto = () => {
+    if (photos.length > 0) {
+      return photos[currentPhotoIndex]?.photo_url;
+    }
+    return props.avatar || props.profile?.avatar_url;
+  };
+
+  // Si pas de profil psychologique
+  if (!profileJson) {
     return (
-      <div className={`w-80 h-96 bg-gray-200 rounded-2xl flex items-center justify-center ${className}`}>
-        <p className="text-gray-500">Questionnaire requis</p>
+      <div className={`w-80 h-[500px] bg-gray-800 rounded-3xl flex items-center justify-center ${className}`}>
+        <div className="text-center p-6">
+          <Brain className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-white font-semibold">Questionnaire requis</p>
+          <p className="text-gray-400 text-sm mt-2">Analyse psychologique manquante</p>
+        </div>
       </div>
     );
   }
 
-  // Utiliser la première photo comme avatar, avec fallback
-  const getDisplayAvatar = () => {
-    if (photos.length > 0) {
-      // Chercher toutes les photos principales
-      const mainPhotos = photos.filter(photo => photo.is_main === true || photo.is_primary === true);
-      
-      if (mainPhotos.length > 0) {
-        // Si plusieurs photos principales, prendre celle avec le photo_order le plus élevé
-        const bestMainPhoto = mainPhotos.reduce((best, current) => {
-          const bestOrder = best.photo_order || best.order || 0;
-          const currentOrder = current.photo_order || current.order || 0;
-          return currentOrder > bestOrder ? current : best;
-        });
-        
-        return bestMainPhoto.photo_url;
-      }
-      
-      // Sinon, prendre la première photo triée par ordre
-      const sortedPhotos = [...photos].sort((a, b) => 
-        ((a.photo_order || a.order) || 0) - ((b.photo_order || b.order) || 0)
-      );
-      return sortedPhotos[0].photo_url;
-    }
-    
-    return userData.avatar;
-  };
-
-  const displayAvatar = getDisplayAvatar();
-
-  // Calculer la rareté basée sur authenticity_score
+  // Helpers
   const getRarity = (score: number) => {
-    if (score >= 9) return { name: 'Légendaire', color: 'from-yellow-400 to-orange-500', glow: 'shadow-[0_0_30px_rgba(255,215,0,0.8)]' };
-    if (score >= 7) return { name: 'Rare', color: 'from-purple-400 to-pink-500', glow: 'shadow-[0_0_25px_rgba(168,85,247,0.6)]' };
-    if (score >= 5) return { name: 'Peu Commune', color: 'from-blue-400 to-cyan-500', glow: 'shadow-[0_0_20px_rgba(59,130,246,0.5)]' };
-    return { name: 'Commune', color: 'from-gray-400 to-gray-600', glow: 'shadow-[0_0_15px_rgba(107,114,128,0.4)]' };
+    if (score >= 9) return { name: 'Légendaire', color: 'from-yellow-400 to-orange-500', textColor: 'text-yellow-300' };
+    if (score >= 7) return { name: 'Rare', color: 'from-purple-400 to-pink-500', textColor: 'text-purple-300' };
+    if (score >= 5) return { name: 'Commun', color: 'from-blue-400 to-cyan-500', textColor: 'text-blue-300' };
+    return { name: 'Basique', color: 'from-gray-400 to-gray-600', textColor: 'text-gray-300' };
   };
 
-  // Mapper attachment_style vers type Pokémon
-  const getTypeInfo = (style: string) => {
+  const getPersonalityType = (style: string) => {
     const types = {
-      'ambivalent': { name: 'Psychique', icon: '🔮', color: 'bg-purple-500' },
-      'secure': { name: 'Normal', icon: '⭐', color: 'bg-gray-500' },
-      'avoidant': { name: 'Glace', icon: '❄️', color: 'bg-blue-500' },
-      'disorganized': { name: 'Ténèbres', icon: '🌙', color: 'bg-gray-800' }
+      'évitant': { 
+        name: 'Indépendant', 
+        icon: '❄️', 
+        element: 'Glace', 
+        color: 'bg-blue-500',
+        borderStyle: 'linear-gradient(145deg, #3b82f6, #06b6d4, #1e40af, #0ea5e9)',
+        shadowColor: '59, 130, 246'
+      },
+      'avoidant': { 
+        name: 'Indépendant', 
+        icon: '❄️', 
+        element: 'Glace', 
+        color: 'bg-blue-500',
+        borderStyle: 'linear-gradient(145deg, #3b82f6, #06b6d4, #1e40af, #0ea5e9)',
+        shadowColor: '59, 130, 246'
+      },
+      'ambivalent': { 
+        name: 'Émotionnel', 
+        icon: '💜', 
+        element: 'Psychique', 
+        color: 'bg-purple-500',
+        borderStyle: 'linear-gradient(145deg, #a855f7, #ec4899, #7c3aed, #f97316)',
+        shadowColor: '168, 85, 247'
+      },
+      'secure': { 
+        name: 'Équilibré', 
+        icon: '💚', 
+        element: 'Normal', 
+        color: 'bg-green-500',
+        borderStyle: 'linear-gradient(145deg, #22c55e, #10b981, #16a34a, #84cc16)',
+        shadowColor: '34, 197, 94'
+      },
+      'disorganized': { 
+        name: 'Complexe', 
+        icon: '🌙', 
+        element: 'Ténèbres', 
+        color: 'bg-indigo-500',
+        borderStyle: 'linear-gradient(145deg, #6366f1, #8b5cf6, #4f46e5, #7c3aed)',
+        shadowColor: '99, 102, 241'
+      }
     };
-    return types[style as keyof typeof types] || types['ambivalent'];
+    return types[style as keyof typeof types] || types['avoidant'];
   };
 
-  const rarity = getRarity(userData.profileJson.authenticity_score);
-  const typeInfo = getTypeInfo(userData.profileJson.attachment_style);
-  const mainStrengths = userData.profileJson.strength_signals.slice(0, 3);
-  const mainRisks = userData.profileJson.weakness_signals.slice(0, 2);
+  const rarity = getRarity(profileJson.authenticity_score);
+  const personalityType = getPersonalityType(profileJson.attachment_style);
+  const mainPhoto = getMainPhoto();
 
-  // 🎯 SECTIONS ACCORDION - STYLE MIROIR PAGE
-  const accordionSections = [
-    {
-      id: 'personal',
-      icon: User,
-      title: 'Infos personnelles',
-      emoji: '👤',
-      gradient: 'from-indigo-500 to-blue-500',
-      hasContent: !!(userData.age || userData.gender),
-      content: (
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {userData.age && (
-              <div className="flex items-center gap-1 bg-blue-500/20 rounded-lg px-2 py-1 flex-1 border border-blue-500/30">
-                <Calendar className="w-3 h-3 text-blue-400" />
-                <span className="text-blue-200 text-xs font-medium">{userData.age} ans</span>
-              </div>
-            )}
-            {userData.gender && (
-              <div className="flex items-center gap-1 bg-purple-500/20 rounded-lg px-2 py-1 flex-1 border border-purple-500/30">
-                <User className="w-3 h-3 text-purple-400" />
-                <span className="text-purple-200 text-xs font-medium capitalize">{userData.gender}</span>
-              </div>
-            )}
-          </div>
-          {userData.city && (
-            <div className="flex items-center gap-2 bg-green-500/20 rounded-lg p-2 border border-green-500/30">
-              <MapPin className="w-4 h-4 text-green-400" />
-              <span className="text-green-200 text-sm font-medium">{userData.city}</span>
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      id: 'strengths',
-      icon: Star,
-      title: 'Forces Dominantes',
-      emoji: '⭐',
-      gradient: 'from-blue-500 to-cyan-500',
-      hasContent: userData.profileJson.strength_signals?.length > 0,
-      content: userData.profileJson.strength_signals?.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-center mb-3">
-            <span className="text-2xl">✨</span>
-            <p className="text-xs font-medium text-cyan-300">Rayonnement naturel</p>
-          </div>
-          {userData.profileJson.strength_signals.slice(0, 3).map((strength, index) => (
-            <div key={index} className="bg-cyan-500/10 rounded-lg p-2 border-l-2 border-cyan-400">
-              <p className="text-cyan-200 text-xs">• {strength}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-400 text-sm">Forces en cours d'analyse...</p>
-      )
-    },
-    {
-      id: 'bio',
-      icon: FileText,
-      title: 'À propos',
-      emoji: '📝',
-      gradient: 'from-emerald-500 to-teal-500',
-      hasContent: !!userData.bio,
-      content: userData.bio ? (
-        <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20">
-          <div className="text-center mb-2">
-            <span className="text-lg">🌱</span>
-          </div>
-          <p className="text-emerald-200 text-xs leading-relaxed text-center italic">
-            "{userData.bio}"
-          </p>
-        </div>
-      ) : (
-        <p className="text-gray-400 text-sm">Expression personnelle à venir...</p>
-      )
-    },
-    {
-      id: 'psychology',
-      icon: Brain,
-      title: 'Patterns Inconscients',
-      emoji: '🧠',
-      gradient: 'from-purple-500 to-violet-500',
-      hasContent: true,
-      content: (
-        <div className="space-y-3">
-          <div className="text-center mb-3">
-            <span className="text-2xl">🔮</span>
-            <p className="text-xs font-medium text-violet-300">Psyché profonde</p>
-          </div>
-          
-          <div className="bg-violet-500/10 rounded-lg p-3 border border-violet-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-3 h-3 rounded-full ${typeInfo.color.replace('bg-', 'bg-')}`}></div>
-              <span className="text-violet-200 text-xs font-medium capitalize">{userData.profileJson.attachment_style}</span>
-            </div>
-            <p className="text-violet-300 text-xs">
-              {userData.profileJson.cognitive_signals?.complexity}
-            </p>
-            <p className="text-violet-300 text-xs mt-1">
-              Style: {userData.profileJson.cognitive_signals?.thinking_style}
-            </p>
-          </div>
-          
-          {userData.profileJson.unconscious_patterns && userData.profileJson.unconscious_patterns.length > 0 && (
-            <div className="space-y-1">
-              {userData.profileJson.unconscious_patterns.slice(0, 2).map((pattern, index) => (
-                <div key={index} className="bg-violet-500/5 rounded p-2 border-l-2 border-violet-400">
-                  <p className="text-violet-200 text-xs">🌀 {pattern}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      id: 'seeking',
-      icon: Heart,
-      title: 'Prophétie Relationnelle',
-      emoji: '💫',
-      gradient: 'from-pink-500 to-rose-500',
-      hasContent: userData.profileJson.ideal_partner_traits?.length > 0,
-      content: userData.profileJson.ideal_partner_traits?.length > 0 ? (
-        <div className="bg-pink-500/10 rounded-lg p-3 border-dashed border-pink-500/30">
-          <div className="text-center mb-3">
-            <span className="text-2xl">🔮</span>
-            <p className="text-xs font-medium text-pink-300">Âme sœur révélée</p>
-          </div>
-          <div className="space-y-2">
-            {userData.profileJson.ideal_partner_traits.slice(0, 3).map((trait, index) => (
-              <div key={index} className="bg-rose-500/10 rounded-lg p-2 text-center border border-rose-500/20">
-                <span className="text-rose-200 text-xs">✨ {trait}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-center">
-          <span className="text-2xl">🌙</span>
-          <p className="text-gray-400 text-sm mt-1">Destinée en cours d'écriture...</p>
-        </div>
-      )
-    },
-    {
-      id: 'vulnerabilities',
-      icon: Shield,
-      title: 'Zones Sensibles',
-      emoji: '🌧️',
-      gradient: 'from-gray-500 to-slate-500',
-      hasContent: mainRisks.length > 0,
-      content: mainRisks.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-center mb-3">
-            <span className="text-2xl">💧</span>
-            <p className="text-xs font-medium text-slate-300">Vulnérabilité comme force</p>
-          </div>
-          {mainRisks.map((risk, index) => (
-            <div key={index} className="bg-slate-500/10 rounded-lg p-2 border-l-2 border-slate-400">
-              <p className="text-slate-200 text-xs">🌙 {risk}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center">
-          <span className="text-2xl">🛡️</span>
-          <p className="text-gray-400 text-sm mt-1">Armure émotionnelle solide</p>
-        </div>
-      )
-    },
-    {
-      id: 'photos',
-      icon: Eye,
-      title: 'Galerie Visuelle',
-      emoji: '📸',
-      gradient: 'from-amber-500 to-orange-500',
-      hasContent: photos.length > 0,
-      content: photos.length > 0 ? (
-        <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
-          <div className="text-center mb-2">
-            <span className="text-xl">📷</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-amber-200 text-xs font-medium">
-              {photos.length} moment{photos.length > 1 ? 's' : ''} capturé{photos.length > 1 ? 's' : ''}
-            </span>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-              <span className="text-amber-300 text-xs">Actif</span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="text-center">
-          <span className="text-2xl">📱</span>
-          <p className="text-gray-400 text-sm mt-1">Souvenirs à immortaliser</p>
-        </div>
-      )
+  // Navigation photos
+  const nextPhoto = () => {
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
     }
-  ];
+  };
 
-  const toggleSection = (sectionId: string) => {
-    setActiveSection(activeSection === sectionId ? null : sectionId);
+  const prevPhoto = () => {
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+    }
   };
 
   return (
-    <div className={`relative group ${className}`}>
-      {/* Carte principale avec effet 3D */}
+    <div className={`relative ${className}`}>
+      {/* Wrapper avec contour Pokémon épais */}
       <div 
-        className={`
-          relative w-80 min-h-[480px] bg-gradient-to-br ${rarity.color} 
-          rounded-2xl ${rarity.glow} transition-all duration-500 cursor-pointer
-          hover:scale-105 hover:rotate-1
-        `}
-        onClick={() => {
-          console.log('🎴 Clic sur carte - isFlipped avant:', isFlipped);
-          setIsFlipped(!isFlipped);
-          console.log('🎴 Clic sur carte - isFlipped après:', !isFlipped);
-        }}
-        style={{ 
-          transformStyle: 'preserve-3d',
-          perspective: '1000px',
-          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+        className="w-80 h-[500px] rounded-[28px] p-2 transition-all duration-500 hover:scale-[1.02] relative shadow-2xl"
+        style={{
+          background: personalityType.borderStyle,
+          boxShadow: `0 0 30px rgba(${personalityType.shadowColor}, 0.6), 0 10px 40px rgba(0, 0, 0, 0.4)`
         }}
       >
-        {/* Face avant */}
+        {/* Carte intérieure */}
         <div 
-          className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden"
-          style={{ 
-            backfaceVisibility: 'hidden',
-            transform: 'rotateY(0deg)'
-          }}
+          className="w-full h-full rounded-[20px] overflow-hidden cursor-pointer relative bg-black"
+          onClick={() => setIsFlipped(!isFlipped)}
         >
-          {/* Bord décoratif autour de la carte */}
-          <div className="absolute inset-2 rounded-xl overflow-hidden">
-            {/* Photo principale en arrière-plan */}
-            {displayAvatar ? (
-              <img 
-                src={displayAvatar} 
-                alt={userData.userName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center">
-                <span className="text-8xl opacity-50">{typeInfo.icon}</span>
-              </div>
+        
+        {/* FACE AVANT */}
+        {!isFlipped && (
+          <div className="relative w-full h-full">
+            {/* Photo de fond */}
+            <div className="absolute inset-0">
+              {mainPhoto ? (
+                <img 
+                  src={mainPhoto} 
+                  alt={userName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                  <span className="text-6xl">{personalityType.icon}</span>
+                </div>
+              )}
+              {/* Overlay gradients */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
+            </div>
+
+            {/* Navigation photos */}
+            {photos.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors z-20"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors z-20"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
             )}
-            {/* Overlay très léger */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/15"></div>
-          </div>
 
-          {/* Pattern géométrique discret */}
-          <div className="absolute inset-2 opacity-3 rounded-xl overflow-hidden">
-            <div className="absolute top-3 left-3 w-8 h-8 border border-white rounded-full"></div>
-            <div className="absolute top-6 right-6 w-4 h-4 border border-white transform rotate-45"></div>
-          </div>
-
-          {/* Contenu très compact */}
-          <div className="relative z-10 p-3 flex flex-col h-full">
-            {/* Header mini */}
-            <div className="relative z-10">
-              <div className="bg-black/20 backdrop-blur-sm rounded px-2 py-1 border border-white/5 inline-block">
-                <div className="flex items-center gap-2">
-                  <div>
-                    <h2 className="text-sm font-bold text-white drop-shadow-lg">{userData.userName}</h2>
-                    {userData.age && <p className="text-white/90 text-xs">{userData.age} ans</p>}
+            {/* Header - Nom et Type */}
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 gap-3">
+              <div className="bg-black/30 backdrop-blur-md rounded-xl px-3 py-2 border border-white/10 flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-white text-lg font-bold truncate">{userName}</h2>
+                    {age && (
+                      <p className="text-white/80 text-sm">
+                        {age} ans{city ? ` • ${city}` : ''}
+                      </p>
+                    )}
                   </div>
-                  <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${typeInfo.color} text-white`}>
-                    <span className="text-xs">{typeInfo.icon}</span>
-                    <span className="text-xs font-bold">{rarity.name}</span>
-                  </div>
+                  {/* Indicateur photos intégré */}
+                  {photos.length > 1 && (
+                    <div className="bg-white/20 rounded-full px-2 py-1 text-white text-xs font-bold flex-shrink-0">
+                      {currentPhotoIndex + 1}/{photos.length}
+                    </div>
+                  )}
                 </div>
               </div>
+              
+              {/* Bouton type plus compact */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowTypeModal(true); }}
+                className={`${personalityType.color} text-white px-2.5 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center gap-1 border border-white/20 flex-shrink-0`}
+              >
+                <span className="text-sm">{personalityType.icon}</span>
+                <span className="text-xs font-bold">{personalityType.element}</span>
+              </button>
             </div>
 
-            {/* Zone photo libre maximale */}
-            <div className="flex-1 relative">
-              {/* Éléments décoratifs minimes */}
-              <div className="absolute top-2 right-1 z-20">
-                <Sparkles className="w-3 h-3 text-white animate-pulse drop-shadow-lg" />
-              </div>
-            </div>
-
-            {/* Infos minimales en bas */}
-            <div className="relative z-10 space-y-1">
-              {/* Forces ultra-compactes */}
-              <div className="bg-black/20 backdrop-blur-sm rounded px-2 py-1 border border-white/5">
-                <h3 className="text-white text-xs font-bold mb-1 flex items-center gap-1">
-                  <Zap className="w-2.5 h-2.5" />
-                  Forces
-                </h3>
-                <div className="space-y-0.5">
-                  {mainStrengths.slice(0, 2).map((strength, index) => (
-                    <p key={index} className="text-white text-xs opacity-90 truncate">• {strength}</p>
-                  ))}
-                </div>
-              </div>
-
-              {/* Score mini */}
-              <div className="bg-black/20 backdrop-blur-sm rounded px-2 py-1 border border-white/5 text-center">
+            {/* Footer - Score */}
+            <div className="absolute bottom-4 left-4 right-4">
+              <div className="bg-black/30 backdrop-blur-md rounded-xl px-4 py-3 border border-white/10">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-white/80 text-xs">Authenticité</span>
-                  <span className="text-sm font-bold text-white">{userData.profileJson.authenticity_score}/10</span>
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star 
-                        key={i} 
-                        className={`w-2 h-2 ${i < Math.ceil(userData.profileJson.authenticity_score/2) ? 'text-yellow-300 fill-current' : 'text-white/20'}`} 
-                      />
+                  <span className={`font-bold ${rarity.textColor}`}>{rarity.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-white font-bold text-sm">{profileJson.authenticity_score}/10</span>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-3 h-3 ${i < Math.ceil(profileJson.authenticity_score/2) ? 'text-yellow-400 fill-current' : 'text-white/30'}`} 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FACE ARRIÈRE */}
+        {isFlipped && (
+          <div className="w-full h-full bg-gray-900 p-6 overflow-y-auto">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-white text-xl font-bold">Profil de {userName}</h3>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Sections */}
+            <div className="space-y-6">
+              
+              {/* Identité */}
+              <div className="bg-gray-800 rounded-2xl p-4">
+                <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                  <User className="w-5 h-5 text-blue-400" />
+                  Identité
+                </h4>
+                <div className="space-y-2">
+                  {age && (
+                    <p className="text-gray-300 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-400" />
+                      {age} ans
+                    </p>
+                  )}
+                  {city && (
+                    <p className="text-gray-300 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-green-400" />
+                      {city}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Bio */}
+              {bio && (
+                <div className="bg-gray-800 rounded-2xl p-4">
+                  <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-emerald-400" />
+                    À propos
+                  </h4>
+                  <p className="text-gray-300 italic">"{bio}"</p>
+                </div>
+              )}
+
+              {/* Personnalité */}
+              <div className="bg-gray-800 rounded-2xl p-4">
+                <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                  Personnalité
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{personalityType.icon}</span>
+                    <div>
+                      <p className="text-white font-medium">Type {personalityType.element}</p>
+                      <p className="text-gray-400 text-sm">{personalityType.name}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-400">Style cognitif:</p>
+                      <p className="text-white capitalize">{profileJson.cognitive_signals?.thinking_style}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Expression:</p>
+                      <p className="text-white capitalize">{profileJson.affective_indicators?.emotion_expression}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Forces */}
+              {profileJson.strength_signals && profileJson.strength_signals.length > 0 && (
+                <div className="bg-gray-800 rounded-2xl p-4">
+                  <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-400" />
+                    Forces ({profileJson.strength_signals.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {profileJson.strength_signals.map((strength, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-yellow-400" />
+                        <p className="text-gray-300 text-sm">{strength}</p>
+                      </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Indicateur de photos */}
-            {photos.length > 0 && (
-              <div className="absolute bottom-4 right-4 z-20 w-6 h-6 bg-green-500/80 backdrop-blur-sm rounded-full border-2 border-white flex items-center justify-center">
-                <Eye className="w-3 h-3 text-white drop-shadow-lg" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Face arrière - ACCORDION */}
-        <div 
-          className="absolute inset-0 w-full h-full rounded-2xl bg-slate-900/95 backdrop-blur-xl overflow-hidden"
-          style={{ 
-            backfaceVisibility: 'hidden',
-            transform: 'rotateY(180deg)'
-          }}
-        >
-          <div className="p-4 h-full flex flex-col text-white overflow-y-auto">
-            {/* Header - CLIQUABLE POUR RETOURNER */}
-            <div 
-              className="flex justify-between items-center mb-4 flex-shrink-0 cursor-pointer hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors"
-              onClick={() => setIsFlipped(false)}
-            >
-              <h3 className="text-lg font-bold text-white">À propos de {userData.userName}</h3>
-              <div className="flex items-center gap-2">
-                <div className="text-xs text-gray-400">Retourner</div>
-                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-                  <span className="text-white text-sm">↩️</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Accordion Sections */}
-            <div 
-              className="space-y-2 flex-1"
-              onClick={(e) => e.stopPropagation()} // Empêche le flip seulement sur les accordions
-            >
-              {accordionSections.map((section) => (
-                <div key={section.id} className="border border-gray-700 rounded-lg overflow-hidden">
-                  {/* Header de section - STYLE MIROIR */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSection(section.id);
-                    }}
-                    className="w-full flex items-center justify-between p-3 bg-gray-800/50 hover:bg-gray-800/70 transition-colors duration-200 group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl bg-gradient-to-r ${section.gradient} text-white transform group-hover:scale-110 transition-transform duration-300`}>
-                        <section.icon className="w-3 h-3" />
+              {/* Recherche */}
+              {profileJson.ideal_partner_traits && profileJson.ideal_partner_traits.length > 0 && (
+                <div className="bg-gray-800 rounded-2xl p-4">
+                  <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-pink-400" />
+                    Recherche
+                  </h4>
+                  <div className="space-y-2">
+                    {profileJson.ideal_partner_traits.map((trait, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="text-pink-400">•</span>
+                        <p className="text-gray-300 text-sm">{trait}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{section.emoji}</span>
-                        <span className={`text-sm font-medium ${
-                          section.hasContent ? 'text-white' : 'text-gray-400'
-                        }`}>
-                          {section.title}
-                        </span>
-                      </div>
-                      {section.hasContent && (
-                        <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${section.gradient} animate-pulse`}></div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {activeSection === section.id ? (
-                        <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                      )}
-                    </div>
-                  </button>
-                  
-                  {/* Contenu de section */}
-                  <div className={`overflow-hidden transition-all duration-300 ${
-                    activeSection === section.id ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                  }`}>
-                    <div className="p-3 bg-gray-900/30">
-                      {section.content}
-                    </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
 
-            {/* Footer info - CLIQUABLE POUR RETOURNER */}
-            <div 
-              className="text-center mt-4 pt-3 border-t border-gray-700 flex-shrink-0 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors"
-              onClick={() => setIsFlipped(false)}
-            >
-              <p className="text-xs text-gray-400 hover:text-white transition-colors">
-                👆 Cliquez ici ou sur le header pour retourner la carte
-              </p>
             </div>
           </div>
+        )}
+        
         </div>
-
-        {/* Effet de brillance au hover */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl pointer-events-none"></div>
       </div>
 
-      {/* Ombre portée */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-2xl blur-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      {/* MODAL TYPE DE PERSONNALITÉ */}
+      {showTypeModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-3xl border border-gray-700 p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl ${personalityType.color} flex items-center justify-center`}>
+                  <span className="text-2xl">{personalityType.icon}</span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Type {personalityType.element}</h3>
+                  <p className="text-gray-400">{personalityType.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTypeModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="bg-gray-800 rounded-2xl p-4 mb-4">
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Style d'attachement <strong>{profileJson.attachment_style}</strong> - 
+                Une personnalité unique avec ses propres patterns relationnels et émotionnels.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowTypeModal(false)}
+              className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors"
+            >
+              Compris !
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

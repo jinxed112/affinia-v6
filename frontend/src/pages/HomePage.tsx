@@ -1,4 +1,4 @@
-// HomePage.tsx - Version Premium V2
+// HomePage.tsx - Version Premium V2 CORRIGÉE
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
@@ -29,14 +29,20 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
   const [photos, setPhotos] = useState<ProfilePhoto[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(true)
 
-  // Vérifier si le questionnaire est complété (version robuste)
+  // 🆕 CORRIGÉ - Vérifier si le questionnaire est complété (support format mobile)
   const hasCompletedQuestionnaire = () => {
-    // Vérifier plusieurs conditions pour être sûr
-    return !!(
-      questionnaire?.profile_json || 
-      questionnaire?.generated_profile ||
-      (questionnaire && Object.keys(questionnaire).length > 2)
-    );
+    if (!questionnaire) return false;
+    
+    // Format desktop (JSON structuré)
+    if (questionnaire.profile_json) return true;
+    
+    // Format mobile (texte brut avec données valides)
+    if (questionnaire.generated_profile && questionnaire.generated_profile.length > 100) return true;
+    
+    // Fallback : si le questionnaire existe avec des answers complètes
+    if (questionnaire.answers && Object.keys(questionnaire.answers).length > 2) return true;
+    
+    return false;
   }
 
   // Charger les photos
@@ -56,10 +62,11 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
     loadPhotos()
   }, [user])
 
-  // Calculer la progression
+  // Calculer la progression avec nombres entiers
   const completeness = ProfileExtendedService.calculateProfileCompleteness(profile, questionnaire, photos)
+  const completenessPercentage = Math.round(completeness.percentage)
 
-  // Données pour les étapes de completion
+  // Données pour les étapes de completion avec pourcentages arrondis
   const getCompletionSteps = () => {
     const steps = [
       {
@@ -68,7 +75,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
         description: `${photos.length}/6 photos • +${photos.length > 0 ? '20' : '25'}% de visites`,
         icon: Camera,
         completed: photos.length > 0,
-        progress: Math.min((photos.length / 6) * 100, 100),
+        progress: Math.round(Math.min((photos.length / 6) * 100, 100)),
         color: 'from-amber-500 to-orange-500',
         bgColor: 'bg-amber-500/20',
         textColor: 'text-amber-400',
@@ -274,8 +281,8 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
           background: conic-gradient(
             from 0deg,
             #a855f7 0deg,
-            #ec4899 calc(${completeness.percentage}% * 360deg / 100%),
-            #374151 calc(${completeness.percentage}% * 360deg / 100%),
+            #ec4899 calc(${completenessPercentage}% * 360deg / 100%),
+            #374151 calc(${completenessPercentage}% * 360deg / 100%),
             #374151 360deg
           );
           border-radius: 50%;
@@ -323,10 +330,6 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
           height: 100%;
           width: 100%;
         }
-        
-        .mystical-glow {
-          box-shadow: 0 0 30px rgba(168, 85, 247, 0.2), 0 0 60px rgba(236, 72, 153, 0.1);
-        }
       `}</style>
 
       <BaseComponents.MysticalBackground isDarkMode={isDarkMode} intensity="medium" />
@@ -344,7 +347,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
               <BaseComponents.Card
                 isDarkMode={isDarkMode}
                 variant="highlighted"
-                className="p-8 mystical-glow hover-lift-strong"
+                className="p-8 hover-lift-strong"
               >
                 <div className="flex flex-col lg:flex-row items-center gap-8">
                   
@@ -353,7 +356,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                     <div className="w-28 h-28 completion-ring flex items-center justify-center animate-float">
                       <div className="text-center relative z-10">
                         <div className={`text-3xl font-bold gradient-text`}>
-                          {completeness.percentage}%
+                          {completenessPercentage}%
                         </div>
                         <div className={`text-xs ${designSystem.getTextClasses('muted')}`}>
                           Complet
@@ -385,7 +388,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                         variant="primary"
                         size="large"
                         onClick={() => navigate('/profil')}
-                        className="mystical-glow hover:scale-105 transition-transform duration-300"
+                        className="hover:scale-105 transition-transform duration-300"
                       >
                         <Target className="w-5 h-5 mr-2" />
                         Compléter maintenant
@@ -537,7 +540,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
             {/* SIDEBAR (1/3 sur desktop) */}
             <div className="space-y-6">
               
-              {/* 🎴 SA CARTE AFFINIA */}
+              {/* 🎴 SA CARTE AFFINIA - HALO RETIRÉ */}
               <BaseComponents.Card
                 isDarkMode={isDarkMode}
                 variant="highlighted"
@@ -558,7 +561,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                           photos={photos}
                           profile={profile}
                           questionnaire={questionnaire}
-                          className="hover:scale-105 transition-transform duration-300 mystical-glow"
+                          className="hover:scale-105 transition-transform duration-300"
                         />
                       </div>
                     </div>
@@ -678,7 +681,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                       Score d'authenticité
                     </span>
                     <span className="font-bold text-purple-400">
-                      {hasCompletedQuestionnaire() ? '8.5/10' : '--'}
+                      {hasCompletedQuestionnaire() ? '9/10' : '--'}
                     </span>
                   </div>
                 </div>
@@ -711,7 +714,7 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode = true }) => {
                     <div className="w-20 bg-gray-700 rounded-full h-1.5">
                       <div 
                         className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-1000"
-                        style={{ width: `${((profile?.xp || 0) / 1000) * 100}%` }}
+                        style={{ width: `${Math.round(((profile?.xp || 0) / 1000) * 100)}%` }}
                       />
                     </div>
                     <Gem className="w-4 h-4 text-purple-400" />
