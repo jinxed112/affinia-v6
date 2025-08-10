@@ -305,31 +305,73 @@ class QuestionnaireController {
   }
 
   /**
-   * ✅ CORRIGÉ MOBILE-FRIENDLY - Met à jour une réponse avec le profil IA
+   * ✅ CORRIGÉ MOBILE-FRIENDLY avec DEBUG - Met à jour une réponse avec le profil IA
    */
   async updateWithAIProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
+      console.log('🚀 DEBUG updateWithAIProfile - START');
+      console.log('📋 Method:', req.method);
+      console.log('📋 URL:', req.url);
+      console.log('📋 Params:', req.params);
+      console.log('📋 Body keys:', Object.keys(req.body || {}));
+      console.log('📋 ChatGPT Response length:', req.body?.chatGPTResponse?.length || 0);
+      console.log('📋 User:', req.user?.id || 'NO_USER');
+      console.log('📋 UserToken exists:', !!req.userToken);
+      console.log('📋 Content-Type:', req.headers['content-type']);
+
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
+        console.log('❌ VALIDATION ERRORS:', JSON.stringify(errors.array(), null, 2));
+        res.status(400).json({ 
+          error: 'Validation failed',
+          details: errors.array() 
+        });
         return;
       }
+
+      console.log('✅ Validation express-validator passée');
 
       const { responseId } = req.params;
       const userId = req.user!.id;
       const { chatGPTResponse } = req.body;
 
       console.log('🔧 updateWithAIProfile - responseId:', responseId, 'userId:', userId);
+      console.log('📝 ChatGPT Response preview:', chatGPTResponse?.substring(0, 100) + '...');
+
+      // Vérifications supplémentaires
+      if (!chatGPTResponse) {
+        console.log('❌ Pas de chatGPTResponse dans body');
+        res.status(400).json({ error: 'Missing chatGPTResponse' });
+        return;
+      }
+
+      if (typeof chatGPTResponse !== 'string') {
+        console.log('❌ chatGPTResponse n\'est pas une string:', typeof chatGPTResponse);
+        res.status(400).json({ error: 'chatGPTResponse must be a string' });
+        return;
+      }
+
+      if (chatGPTResponse.trim().length < 10) {
+        console.log('❌ chatGPTResponse trop court:', chatGPTResponse.length);
+        res.status(400).json({ error: 'chatGPTResponse too short' });
+        return;
+      }
+
+      console.log('✅ Validations basiques passées, récupération de la réponse...');
 
       // Vérifier que la réponse appartient à l'utilisateur
       const response = await questionnaireService.getResponse(responseId, req.userToken!);
       if (!response || response.user_id !== userId) {
+        console.log('❌ Access denied - Response:', !!response, 'UserMatch:', response?.user_id === userId);
         res.status(403).json({ error: 'Access denied' });
         return;
       }
 
+      console.log('✅ Response trouvée et ownership vérifié');
+
       // Vérifier qu'il n'y a pas déjà un profil IA
       if (response.profile_json) {
+        console.log('❌ Profil IA existe déjà');
         res.status(400).json({
           error: 'AI profile already exists for this response',
           hint: 'Create a new questionnaire to generate a new profile'
@@ -337,10 +379,14 @@ class QuestionnaireController {
         return;
       }
 
+      console.log('✅ Pas de profil IA existant, début sauvegarde...');
+
       // 🚀 VERSION TOLÉRANTE AUX ERREURS - Essayer de parser, sinon sauvegarder en mode simplifié
       try {
+        console.log('📝 Tentative parsing normal...');
         // Tentative de parsing normal
         const parsedData = chatGPTParser.parseResponse(chatGPTResponse);
+        console.log('✅ Parsing réussi, sauvegarde avec JSON...');
         
         const updated = await questionnaireService.updateWithAIProfile(
           responseId,
@@ -349,6 +395,7 @@ class QuestionnaireController {
           req.userToken!
         );
 
+        console.log('✅ Sauvegarde complète réussie');
         res.json({
           success: true,
           message: 'AI profile saved successfully',
@@ -360,6 +407,7 @@ class QuestionnaireController {
         
         // 🔧 MODE DÉGRADÉ : Sauvegarder juste le texte brut
         try {
+          console.log('🔄 Tentative sauvegarde simplifiée...');
           // Utiliser updateWithAIProfile avec profileJson null
           const updated = await questionnaireService.updateWithAIProfile(
             responseId,
@@ -368,6 +416,7 @@ class QuestionnaireController {
             req.userToken!
           );
 
+          console.log('✅ Sauvegarde simplifiée réussie');
           res.json({
             success: true,
             message: 'AI profile saved in simplified mode (mobile-friendly)',
@@ -385,7 +434,7 @@ class QuestionnaireController {
       }
 
     } catch (error) {
-      console.error('Update with AI profile error:', error);
+      console.error('❌ Update with AI profile error:', error);
       res.status(500).json({ error: 'Failed to save AI profile' });
     }
   }
