@@ -1,5 +1,5 @@
 // =============================================
-// SERVICE WEBSOCKET AFFINIA OPTIMISÉ - CORRIGÉ
+// SERVICE WEBSOCKET AFFINIA OPTIMISÉ - PRODUCTION
 // =============================================
 import { io, Socket } from 'socket.io-client';
 import type { Message } from '../../../shared/types/chat';
@@ -43,14 +43,26 @@ export function connectAffiniaSocket(
     return null;
   }
 
+  // ✅ URL BACKEND SELON ENVIRONNEMENT
+  const getBackendUrl = () => {
+    // Production
+    if (window.location.hostname === 'affinia.netlify.app') {
+      return 'https://affinia-v6-backend.onrender.com';
+    }
+    // Local
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  };
+
+  const backendUrl = getBackendUrl();
+  console.log('🔗 Backend URL:', backendUrl);
   console.log('🔑 Auth WebSocket:', { userId: authData.userId, hasToken: !!authData.token });
 
-  const socket: Socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001', {
+  const socket: Socket = io(backendUrl, {
     auth: { 
       token: authData.token,
       userId: authData.userId 
     },
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'], // ✅ Fallback polling pour Render
     forceNew: true
   });
 
