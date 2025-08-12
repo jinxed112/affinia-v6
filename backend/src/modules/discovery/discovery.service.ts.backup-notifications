@@ -428,7 +428,7 @@ class DiscoveryService {
       }
 
       // Créer une notification pour le receiver avec supabaseAdmin (système)
-      await this.createNotificationSmart(
+      const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
           recipient_id: receiverId,
@@ -538,7 +538,7 @@ class DiscoveryService {
         ? `${responderProfile?.name || 'Quelqu\'un'} a accepté votre demande de miroir`
         : `${responderProfile?.name || 'Quelqu\'un'} a refusé votre demande de miroir`;
 
-      await this.createNotificationSmart(
+      const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
           recipient_id: request.sender_id,
@@ -827,7 +827,7 @@ class DiscoveryService {
           .eq('id', viewerId)
           .single();
 
-        await this.createNotificationSmart(
+        const { error: notifError } = await supabaseAdmin
           .from('notifications')
           .insert({
             recipient_id: profileId,
@@ -1087,166 +1087,3 @@ class DiscoveryService {
 }
 
 export const discoveryService = new DiscoveryService();
-  /**
-   * 🆕 DÉDUPLICATION INTELLIGENTE - Créer notification seulement si pas de doublon récent
-   */
-  private async createNotificationSmart(
-    recipientId: string,
-    senderId: string,
-    type: any,
-    title: string,
-    message: string,
-    payload: any
-  ): Promise<void> {
-    try {
-      // Vérifier si notification similaire existe dans les dernières 24h
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const { data: existingNotif } = await supabaseAdmin
-        .from('notifications')
-        .select('id, created_at')
-        .eq('recipient_id', recipientId)
-        .eq('sender_id', senderId)
-        .eq('type', type)
-        .gte('created_at', yesterday.toISOString())
-        .single();
-
-      if (existingNotif) {
-        console.log('⚡ Notification similaire existe déjà, skip:', type);
-        return;
-      }
-
-      // Créer nouvelle notification seulement si pas de doublon
-      const { error } = await supabaseAdmin
-        .from('notifications')
-        .insert({
-          recipient_id: recipientId,
-          sender_id: senderId,
-          type,
-          title,
-          message,
-          status: 'unread',
-          payload
-        });
-
-      if (error) {
-        console.error('❌ Erreur création notification:', error);
-      } else {
-        console.log('✅ Notification créée (dédup):', type);
-      }
-
-    } catch (error) {
-      console.error('❌ Erreur createNotificationSmart:', error);
-    }
-  }
-
-  /**
-   * 🆕 NETTOYAGE AUTOMATIQUE - Supprimer anciennes notifications
-   */
-  async cleanupOldNotifications(userId: string): Promise<void> {
-    try {
-      // Supprimer notifications > 30 jours
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      await supabaseAdmin
-        .from('notifications')
-        .delete()
-        .eq('recipient_id', userId)
-        .lt('created_at', thirtyDaysAgo.toISOString());
-
-      // Garder max 100 notifications par utilisateur (les plus récentes)
-      const { data: userNotifs } = await supabaseAdmin
-        .from('notifications')
-        .select('id')
-        .eq('recipient_id', userId)
-        .order('created_at', { ascending: false })
-        .range(100, 999);
-
-      if (userNotifs && userNotifs.length > 0) {
-        const idsToDelete = userNotifs.map(n => n.id);
-        await supabaseAdmin
-          .from('notifications')
-          .delete()
-          .in('id', idsToDelete);
-      }
-
-      console.log('🧹 Nettoyage notifications terminé pour:', userId);
-    } catch (error) {
-      console.error('❌ Erreur cleanup notifications:', error);
-    }
-  }
-
-  /**
-   * 🆕 REGROUPEMENT INTELLIGENT - Pour frontend optimisé
-   */
-  async getGroupedNotifications(userId: string, userToken: string, limit: number = 15): Promise<any[]> {
-    try {
-      // Validation token
-      const { data: { user }, error: tokenError } = await supabaseAdmin.auth.getUser(userToken);
-      if (tokenError || !user || user.id !== userId) {
-        throw new Error('Unauthorized');
-      }
-
-      // Nettoyage automatique à chaque appel
-      await this.cleanupOldNotifications(userId);
-
-      // Récupérer toutes les notifications récentes
-      const { data: allNotifications, error } = await supabaseAdmin
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-
-      // Regrouper par type + sender dans les dernières 24h
-      const grouped = new Map<string, any>();
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-      
-      for (const notif of allNotifications || []) {
-        const notifDate = new Date(notif.created_at);
-        
-        // Regrouper seulement les notifications récentes (24h)
-        const groupKey = notifDate > oneDayAgo 
-          ? `${notif.type}-${notif.sender_id}`
-          : `${notif.id}-individual`; // Anciennes = individuelles
-        
-        if (grouped.has(groupKey)) {
-          const group = grouped.get(groupKey);
-          group.count++;
-          group.latest_date = notif.created_at;
-          group.has_unread = group.has_unread || notif.status === 'unread';
-          group.notification_ids.push(notif.id);
-        } else {
-          grouped.set(groupKey, {
-            id: notif.id,
-            type: notif.type,
-            sender_id: notif.sender_id,
-            sender_name: notif.payload.sender_name || notif.payload.viewer_name || notif.payload.responder_name,
-            sender_avatar: notif.payload.sender_avatar || notif.payload.viewer_avatar || notif.payload.responder_avatar,
-            count: 1,
-            latest_date: notif.created_at,
-            has_unread: notif.status === 'unread',
-            notification_ids: [notif.id],
-            original_notification: notif
-          });
-        }
-      }
-
-      // Convertir en array et trier par date
-      const result = Array.from(grouped.values())
-        .sort((a, b) => new Date(b.latest_date).getTime() - new Date(a.latest_date).getTime())
-        .slice(0, limit);
-
-      console.log(`✅ Regroupement: ${allNotifications?.length || 0} → ${result.length} notifications`);
-      return result;
-
-    } catch (error) {
-      console.error('❌ Erreur getGroupedNotifications:', error);
-      throw error;
-    }
-  }

@@ -108,9 +108,31 @@ router.post(
 
 /**
  * 🎯 GET /api/discovery/notifications/stats - Statistiques de notifications
+
+/**
+ * GET /api/discovery/notifications/grouped - Notifications regroupées
+ */
+router.get(
+  "/notifications/grouped",
+  [
+    query("limit").optional().isInt({ min: 1, max: 50 })
+  ],
+  discoveryController.getGroupedNotifications
+);
  */
 router.get(
   '/notifications/stats',
+
+/**
+ * GET /api/discovery/notifications/grouped - Notifications regroupées
+ */
+router.get(
+  "/notifications/grouped",
+  [
+    query("limit").optional().isInt({ min: 1, max: 50 })
+  ],
+  discoveryController.getGroupedNotifications
+);
   discoveryController.getNotificationStats
 );
 

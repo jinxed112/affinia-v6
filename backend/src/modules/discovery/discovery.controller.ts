@@ -584,3 +584,27 @@ class DiscoveryController {
 }
 
 export const discoveryController = new DiscoveryController();
+  /**
+   * 🆕 GET /api/discovery/notifications/grouped - Notifications regroupées intelligentes
+   */
+  async getGroupedNotifications(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 15;
+
+      console.log('📊 Get Grouped Notifications Controller - User:', userId, 'Limit:', limit);
+
+      const groupedNotifications = await discoveryService.getGroupedNotifications(userId, req.userToken!, limit);
+
+      res.json({
+        success: true,
+        data: groupedNotifications
+      });
+    } catch (error) {
+      console.error('❌ Get Grouped Notifications Controller - Erreur:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch grouped notifications'
+      });
+    }
+  }

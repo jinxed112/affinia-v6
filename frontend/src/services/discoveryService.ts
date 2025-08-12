@@ -212,3 +212,15 @@ class DiscoveryService {
 }
 
 export const discoveryService = new DiscoveryService()
+  // ============ 🆕 MÉTHODE NOTIFICATIONS GROUPÉES ============
+
+  async getGroupedNotifications(limit = 15): Promise<any[]> {
+    try {
+      const headers = await this.getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/discovery/notifications/grouped?limit=${limit}`, { headers })
+      return this.handleResponse(response)
+    } catch (error) {
+      console.error('❌ getGroupedNotifications error:', error)
+      throw error
+    }
+  }
