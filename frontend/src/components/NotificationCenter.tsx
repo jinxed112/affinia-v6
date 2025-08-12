@@ -32,7 +32,7 @@ interface NotificationCenterProps {
   isDarkMode: boolean;
 }
 
-export const NotificationCenterOptimized: React.FC<NotificationCenterProps> = ({ isDarkMode }) => {
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMode }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -433,8 +433,7 @@ export const NotificationCenterOptimized: React.FC<NotificationCenterProps> = ({
   );
 };
 
-export { NotificationCenter };
 
-export { NotificationCenter };
+
 
 export { NotificationCenter };
