@@ -428,7 +428,7 @@ class DiscoveryService {
       }
 
       // Créer une notification pour le receiver avec supabaseAdmin (système)
-      await this.createNotificationSmart(
+      const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
           recipient_id: receiverId,
@@ -538,7 +538,7 @@ class DiscoveryService {
         ? `${responderProfile?.name || 'Quelqu\'un'} a accepté votre demande de miroir`
         : `${responderProfile?.name || 'Quelqu\'un'} a refusé votre demande de miroir`;
 
-      await this.createNotificationSmart(
+      const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
           recipient_id: request.sender_id,
@@ -827,7 +827,7 @@ class DiscoveryService {
           .eq('id', viewerId)
           .single();
 
-        await this.createNotificationSmart(
+        const { error: notifError } = await supabaseAdmin
           .from('notifications')
           .insert({
             recipient_id: profileId,
@@ -1084,9 +1084,7 @@ class DiscoveryService {
         break;
     }
   }
-}
 
-export const discoveryService = new DiscoveryService();
   /**
    * 🆕 DÉDUPLICATION INTELLIGENTE - Créer notification seulement si pas de doublon récent
    */
@@ -1142,43 +1140,6 @@ export const discoveryService = new DiscoveryService();
   }
 
   /**
-   * 🆕 NETTOYAGE AUTOMATIQUE - Supprimer anciennes notifications
-   */
-  async cleanupOldNotifications(userId: string): Promise<void> {
-    try {
-      // Supprimer notifications > 30 jours
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      await supabaseAdmin
-        .from('notifications')
-        .delete()
-        .eq('recipient_id', userId)
-        .lt('created_at', thirtyDaysAgo.toISOString());
-
-      // Garder max 100 notifications par utilisateur (les plus récentes)
-      const { data: userNotifs } = await supabaseAdmin
-        .from('notifications')
-        .select('id')
-        .eq('recipient_id', userId)
-        .order('created_at', { ascending: false })
-        .range(100, 999);
-
-      if (userNotifs && userNotifs.length > 0) {
-        const idsToDelete = userNotifs.map(n => n.id);
-        await supabaseAdmin
-          .from('notifications')
-          .delete()
-          .in('id', idsToDelete);
-      }
-
-      console.log('🧹 Nettoyage notifications terminé pour:', userId);
-    } catch (error) {
-      console.error('❌ Erreur cleanup notifications:', error);
-    }
-  }
-
-  /**
    * 🆕 REGROUPEMENT INTELLIGENT - Pour frontend optimisé
    */
   async getGroupedNotifications(userId: string, userToken: string, limit: number = 15): Promise<any[]> {
@@ -1188,9 +1149,6 @@ export const discoveryService = new DiscoveryService();
       if (tokenError || !user || user.id !== userId) {
         throw new Error('Unauthorized');
       }
-
-      // Nettoyage automatique à chaque appel
-      await this.cleanupOldNotifications(userId);
 
       // Récupérer toutes les notifications récentes
       const { data: allNotifications, error } = await supabaseAdmin
@@ -1250,3 +1208,6 @@ export const discoveryService = new DiscoveryService();
       throw error;
     }
   }
+}
+
+export const discoveryService = new DiscoveryService();

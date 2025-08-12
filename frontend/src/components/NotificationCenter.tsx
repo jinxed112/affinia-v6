@@ -542,4 +542,3 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
     </div>
   );
 };
-
