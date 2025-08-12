@@ -93,7 +93,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isDarkMo
       setError(null);
       console.log('📋 Chargement notifications NotificationCenter');
       
-      const newNotifications = await discoveryService.getNotifications(15, 0);
+      const newNotifications = await discoveryService.getGroupedNotifications(15);
       
       if (mountedRef.current) {
         // Déduplication simple
