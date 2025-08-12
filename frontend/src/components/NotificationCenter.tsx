@@ -434,3 +434,7 @@ export const NotificationCenterOptimized: React.FC<NotificationCenterProps> = ({
 };
 
 export { NotificationCenter };
+
+export { NotificationCenter };
+
+export { NotificationCenter };
