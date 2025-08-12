@@ -107,33 +107,22 @@ router.post(
 // ============ ROUTES NOTIFICATIONS ============
 
 /**
- * 🎯 GET /api/discovery/notifications/stats - Statistiques de notifications
-
-/**
- * GET /api/discovery/notifications/grouped - Notifications regroupées
- */
-router.get(
-  "/notifications/grouped",
-  [
-    query("limit").optional().isInt({ min: 1, max: 50 })
-  ],
-  discoveryController.getGroupedNotifications
-);
+ * GET /api/discovery/notifications/stats - Statistiques de notifications
  */
 router.get(
   '/notifications/stats',
+  discoveryController.getNotificationStats
+);
 
 /**
  * GET /api/discovery/notifications/grouped - Notifications regroupées
  */
 router.get(
-  "/notifications/grouped",
+  '/notifications/grouped',
   [
-    query("limit").optional().isInt({ min: 1, max: 50 })
+    query('limit').optional().isInt({ min: 1, max: 50 })
   ],
   discoveryController.getGroupedNotifications
-);
-  discoveryController.getNotificationStats
 );
 
 /**
