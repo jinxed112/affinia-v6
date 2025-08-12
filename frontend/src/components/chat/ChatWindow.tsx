@@ -139,7 +139,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <MessageInput
         onSendMessage={handleSendMessage}
         onTyping={handleTyping}
-        disabled={sending || !isConnected}
+        disabled={sending}
         isDarkMode={isDarkMode}
         isMobile={isMobile}
       />
