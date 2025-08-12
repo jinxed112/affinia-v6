@@ -1166,6 +1166,7 @@ class DiscoveryService {
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       
       for (const notif of allNotifications || []) {
+        const payload = typeof notif.payload === 'string' ? JSON.parse(notif.payload) : notif.payload;
         const notifDate = new Date(notif.created_at);
         
         // Regrouper seulement les notifications récentes (24h)
@@ -1184,8 +1185,8 @@ class DiscoveryService {
             id: notif.id,
             type: notif.type,
             sender_id: notif.sender_id,
-            sender_name: notif.payload.sender_name || notif.payload.viewer_name || notif.payload.responder_name,
-            sender_avatar: notif.payload.sender_avatar || notif.payload.viewer_avatar || notif.payload.responder_avatar,
+            sender_name: payload.sender_name || payload.viewer_name || payload.responder_name,
+            sender_avatar: payload.sender_avatar || payload.viewer_avatar || payload.responder_avatar,
             count: 1,
             latest_date: notif.created_at,
             has_unread: notif.status === 'unread',
