@@ -432,3 +432,5 @@ export const NotificationCenterOptimized: React.FC<NotificationCenterProps> = ({
     </div>
   );
 };
+
+export { NotificationCenter };
