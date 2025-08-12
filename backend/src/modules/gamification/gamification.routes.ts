@@ -16,4 +16,4 @@ router.get('/xp-history', gamificationController.getXpHistory.bind(gamificationC
 // Route pour valider automatiquement les actions
 router.post('/validate/:action', gamificationController.validateAction.bind(gamificationController));
 
-export { router as gamificationRoutes };
+export const gamificationRoutes = router;

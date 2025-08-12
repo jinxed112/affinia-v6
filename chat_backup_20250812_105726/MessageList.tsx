@@ -144,7 +144,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
               return (
                 <MessageBubble
-                  key={`msg-${message.id}-${index}-${message.created_at}`}
+                  key={message.id}
                   message={message}
                   onReactToMessage={onReactToMessage}
                   onDeleteMessage={onDeleteMessage}

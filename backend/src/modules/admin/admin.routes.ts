@@ -52,4 +52,4 @@ router.delete('/quests/:id', adminController.deleteQuest.bind(adminController));
 // Actions spéciales
 router.post('/quests/:id/sync', adminController.syncQuestWithUsers.bind(adminController));
 
-export { router as adminRoutes };
+export const adminRoutes = router;

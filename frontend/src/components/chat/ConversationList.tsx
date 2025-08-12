@@ -1,5 +1,6 @@
 // =============================================
 // LISTE DES CONVERSATIONS MOBILE - frontend/src/components/chat/ConversationList.tsx
+// ✅ VERSION CORRIGÉE - ERREURS REACT FIXES
 // =============================================
 
 import React, { useState } from 'react';
@@ -55,28 +56,28 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     if (diffMins < 60) return `${diffMins}min`;
     if (diffHours < 24) return `${diffHours}h`;
     if (diffDays < 7) return `${diffDays}j`;
-    
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'short' 
+
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short'
     });
   };
 
   const getLastMessagePreview = (conversation: Conversation) => {
     if (!conversation.last_message) return 'Nouvelle conversation';
-    
+
     const msg = conversation.last_message;
     if (msg.message_type === 'system') return msg.content || 'Message système';
     if (msg.message_type === 'image') return '📷 Image';
     if (msg.message_type === 'voice') return '🎵 Message vocal';
-    
+
     const content = msg.content || '';
     return content.length > (isMobile ? 35 : 40) ? content.substring(0, isMobile ? 35 : 40) + '...' : content;
   };
 
   return (
     <div className={`h-full flex flex-col ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-      
+
       {/* Header */}
       <div className={`${isMobile ? 'p-3' : 'p-4'} border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <div className="flex items-center justify-between mb-4">
@@ -93,15 +94,16 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               )}
             </p>
           </div>
-          
+
+          {/* ✅ CORRECTION : Button au lieu de div */}
           <button
             onClick={handleRefresh}
             disabled={isLoading || isRefreshing}
             className={`p-2 rounded-lg transition-all duration-200 ${
-              isDarkMode 
-                ? 'hover:bg-gray-700 text-gray-300' 
+              isDarkMode
+                ? 'hover:bg-gray-700 text-gray-300'
                 : 'hover:bg-gray-100 text-gray-600'
-            } ${(isLoading || isRefreshing) ? 'opacity-50' : ''}`}
+            } ${(isLoading || isRefreshing) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             title="Actualiser"
           >
             <RefreshCw className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -119,8 +121,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full ${isMobile ? 'pl-9 pr-3 py-2.5 text-sm' : 'pl-10 pr-4 py-2'} rounded-lg border transition-colors ${
-              isDarkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-purple-500' 
+              isDarkMode
+                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-purple-500'
                 : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-purple-500'
             } focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
           />
@@ -179,13 +181,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 } ${
                   currentConversation?.id === conversation.id
                     ? `border-l-purple-500 ${
-                        isDarkMode 
-                          ? 'bg-purple-900/30 shadow-lg shadow-purple-900/20' 
+                        isDarkMode
+                          ? 'bg-purple-900/30 shadow-lg shadow-purple-900/20'
                           : 'bg-purple-50 shadow-lg shadow-purple-500/10'
                       }`
                     : `border-l-transparent ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-700/50 active:bg-gray-700/70' 
+                        isDarkMode
+                          ? 'hover:bg-gray-700/50 active:bg-gray-700/70'
                           : 'hover:bg-gray-50 active:bg-gray-100'
                       }`
                 }`}
@@ -206,7 +208,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         </span>
                       </div>
                     )}
-                    
+
                     {/* Indicateur en ligne (placeholder) */}
                     <div className={`absolute -bottom-0 -right-0 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'} bg-green-500 border-2 border-white dark:border-gray-800 rounded-full`}></div>
                   </div>
@@ -219,14 +221,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       } ${currentConversation?.id === conversation.id ? 'text-purple-300' : ''}`}>
                         {conversation.other_participant?.name || 'Utilisateur'}
                       </h4>
-                      
+
                       <div className="flex items-center space-x-2 flex-shrink-0">
                         <span className={`${isMobile ? 'text-xs' : 'text-xs'} ${
                           isDarkMode ? 'text-gray-400' : 'text-gray-500'
                         }`}>
                           {formatLastMessageTime(conversation.last_message_at)}
                         </span>
-                        
+
                         {(conversation.unread_count || 0) > 0 && (
                           <span className={`inline-flex items-center justify-center px-2 py-1 ${isMobile ? 'text-xs' : 'text-xs'} font-bold leading-none text-white bg-red-500 rounded-full min-w-[20px]`}>
                             {conversation.unread_count! > 99 ? '99+' : conversation.unread_count}
@@ -234,14 +236,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <p className={`${isMobile ? 'text-xs' : 'text-sm'} truncate mr-2 ${
                         isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       } ${currentConversation?.id === conversation.id ? 'text-purple-200' : ''}`}>
                         {getLastMessagePreview(conversation)}
                       </p>
-                      
+
                       {conversation.last_message?.edited_at && (
                         <span className={`text-xs italic ${
                           isDarkMode ? 'text-gray-500' : 'text-gray-400'
@@ -254,19 +256,19 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
                   {/* Menu options (masqué sur mobile pour l'espace) */}
                   {!isMobile && (
-                    <button
-                      onClick={(e) => {
+                    <div
+                      onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         // TODO: Menu options conversation
                       }}
-                      className={`p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-600 text-gray-400' 
+                      className={`p-1 rounded-lg opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity ${
+                        isDarkMode
+                          ? 'hover:bg-gray-600 text-gray-400'
                           : 'hover:bg-gray-200 text-gray-500'
                       }`}
                     >
                       <MoreVertical className="w-4 h-4" />
-                    </button>
+                    </div>
                   )}
                 </div>
               </button>

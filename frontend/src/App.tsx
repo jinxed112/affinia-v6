@@ -16,6 +16,7 @@ import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from './pages'
 import { ChatPage } from './components/chat/ChatPage'
+import { ChatPageOptimized } from './components/chat/ChatPageOptimized';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth()

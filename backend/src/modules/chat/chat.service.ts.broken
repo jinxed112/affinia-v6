@@ -1039,4 +1039,8 @@ class ChatService {
 }
 
 
+  // Méthode pour connecter le service WebSocket
+  setWebSocketService(webSocketService: any) {
+    this.webSocketService = webSocketService;
+  }
 export const chatService = new ChatService();

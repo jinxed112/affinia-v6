@@ -61,7 +61,7 @@ class ProfileService {
   async getMyProfile(): Promise<Profile> {
     try {
       const headers = await this.getAuthHeaders()
-      const response = await fetch(`${API_BASE_URL}/api/profiles/me`, { headers })
+      const response = await fetch(`${API_BASE_URL}/api/profile/me`, { headers })
       return this.handleResponse(response)
     } catch (error) {
       console.error('❌ getMyProfile error:', error)
@@ -72,7 +72,7 @@ class ProfileService {
   async updateMyProfile(updates: Partial<Profile>): Promise<Profile> {
     try {
       const headers = await this.getAuthHeaders()
-      const response = await fetch(`${API_BASE_URL}/api/profiles/me`, {
+      const response = await fetch(`${API_BASE_URL}/api/profile/me`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(updates)

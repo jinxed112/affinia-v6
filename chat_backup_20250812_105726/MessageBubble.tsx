@@ -22,7 +22,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onDeleteMessage,
   isDarkMode,
   isGrouped = false,
-  isMobile = false,
+  isMobile = false
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);

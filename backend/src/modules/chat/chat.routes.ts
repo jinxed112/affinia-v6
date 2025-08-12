@@ -198,4 +198,4 @@ router.get(
  */
 router.get('/stats', chatController.getChatStats);
 
-export default router;
+export const chatRoutes = router;
