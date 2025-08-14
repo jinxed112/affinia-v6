@@ -496,8 +496,17 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         throw new Error('Non authentifié');
       }
       
+      // ✅ PROPRE : Utiliser la variable d'environnement
+      const apiUrl = import.meta.env.VITE_API_URL;
+      
+      if (!apiUrl) {
+        throw new Error('VITE_API_URL non configurée');
+      }
+      
+      console.log('🌐 API URL:', `${apiUrl}/api/chat/conversations`);
+      
       // Appeler l'API backend pour créer/récupérer la conversation
-      const response = await fetch(`http://localhost:3001/api/chat/conversations`, {
+      const response = await fetch(`${apiUrl}/api/chat/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -508,18 +517,30 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         })
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Response error:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText || `HTTP ${response.status}` };
+        }
+        
+        throw new Error(errorData.message || `Erreur ${response.status}`);
       }
 
       const result = await response.json();
+      console.log('✅ API Response:', result);
       
       if (!result.success || !result.data?.id) {
         throw new Error('Réponse API invalide');
       }
 
-      const conversationId = result.data.id; // Vrai UUID retourné par l'API
+      const conversationId = result.data.id;
       console.log('✅ Conversation ID récupéré:', conversationId);
       
       // Naviguer vers la page chat avec le vrai UUID
@@ -529,7 +550,7 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       console.error('❌ Erreur création conversation:', error);
       showToast(error.message || 'Erreur lors de la création de la conversation', 'error');
     }
-  }, [navigate]);
+  }, [navigate, supabase]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     const bgColor = type === 'success' 
