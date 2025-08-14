@@ -1,3 +1,4 @@
+// DiscoveryPage.tsx - CLEAN & CORRECTED VERSION
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -11,7 +12,8 @@ import { AffiniaCard } from "../components/profile/AffiniaCard";
 import { 
   MapPin, X, Loader, SlidersHorizontal, RefreshCw, ChevronLeft, ChevronRight, 
   Unlock, Lock, Clock, Sparkles, Heart, Info, Zap, Star, ArrowUpRight, Brain, Cpu,
-  Database, Check, MessageCircle, BookOpen, Target, CloudRain, User, Shield, Filter
+  Database, Check, MessageCircle, BookOpen, Target, CloudRain, User, Shield, Filter,
+  Menu, ArrowLeft
 } from "lucide-react";
 import type { DiscoveryProfile, DiscoveryFilters } from "../../../shared/types/discovery";
 
@@ -36,22 +38,21 @@ interface MirrorData {
   profile_json: any;
 }
 
-// 🆕 CONTACT REQUEST STATUS PAR PROFIL
 interface ContactRequestState {
   status: 'idle' | 'requesting' | 'requested' | 'accepted';
   canRequest: boolean;
 }
 
 type EnhancedProfile = DiscoveryProfile | AcceptedConnection;
-
-// Status filter types
 type ProfileStatusFilter = 'all' | 'new' | 'pending' | 'accepted';
 
 interface EnhancedFilters extends DiscoveryFilters {
   profile_status: ProfileStatusFilter;
 }
 
-// Mirror status machine (ENHANCED)
+type MobileTab = 'profile' | 'mirror' | 'actions';
+
+// Mirror status machine
 function getMirrorState(p: EnhancedProfile) {
   if ('status' in p && p.status === 'accepted') {
     return { key: "accepted" as const, label: "Connexion établie", color: "green", actionLabel: "Voir le miroir", icon: Check };
@@ -94,18 +95,18 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showCompatibilityInfo, setShowCompatibilityInfo] = useState(false);
 
-  // États pour le miroir (profils acceptés)
   const [mirrorData, setMirrorData] = useState<MirrorData | null>(null);
   const [loadingMirror, setLoadingMirror] = useState(false);
-
-  // 🆕 CONTACT REQUEST STATES PAR PROFIL
   const [contactRequests, setContactRequests] = useState<Map<string, ContactRequestState>>(new Map());
+
+  const [mobileTab, setMobileTab] = useState<MobileTab>('profile');
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Couleurs sections miroir
   const sectionColors = [
     { bg: 'from-purple-900/10 to-indigo-900/10', accent: 'purple-400', glow: 'purple-500/20' },
     { bg: 'from-indigo-900/10 to-violet-900/10', accent: 'indigo-400', glow: 'indigo-500/20' },
@@ -113,11 +114,40 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     { bg: 'from-rose-900/10 to-pink-900/10', accent: 'rose-400', glow: 'rose-500/20' },
   ];
 
-  // Combiner et filtrer tous les profils selon le statut sélectionné
+  // Swipe gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (selectedIndex === null) return;
+    
+    if (isLeftSwipe && selectedIndex < allProfiles.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+      setMobileTab('profile');
+    }
+    
+    if (isRightSwipe && selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+      setMobileTab('profile');
+    }
+  };
+
+  // Combine and filter profiles
   const allProfiles: EnhancedProfile[] = useMemo(() => {
     const profileMap = new Map<string, EnhancedProfile>();
     
-    // Base profiles selon le filtre de statut
     if (filters.profile_status === 'all' || filters.profile_status === 'new') {
       discoveryProfiles.forEach(profile => {
         profileMap.set(profile.id, profile);
@@ -142,7 +172,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }
     
     if (filters.profile_status === 'pending') {
-      // Filtrer seulement les profils avec statut pending
       discoveryProfiles
         .filter(p => p.interaction_status?.mirror_request_status === 'pending')
         .forEach(profile => {
@@ -153,12 +182,10 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     return Array.from(profileMap.values());
   }, [discoveryProfiles, acceptedConnections, filters.profile_status]);
 
-  // Redirect if no user
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  // Block body scroll when modal is open
   useEffect(() => {
     if (selectedIndex !== null) {
       document.body.style.overflow = 'hidden';
@@ -170,13 +197,10 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     };
   }, [selectedIndex]);
 
-  // Load accepted connections (même logique)
   const loadAcceptedConnections = useCallback(async () => {
     if (!user) return;
 
     try {
-      console.log('🔗 Chargement des connexions acceptées...');
-
       const { data: acceptedRequests, error: requestsError } = await supabase
         .from('mirror_requests')
         .select('receiver_id, created_at, responded_at')
@@ -184,13 +208,9 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         .eq('status', 'accepted')
         .order('responded_at', { ascending: false });
 
-      if (requestsError) {
-        console.error('Erreur mirror_requests:', requestsError);
-        return;
-      }
+      if (requestsError) return;
 
       if (!acceptedRequests || acceptedRequests.length === 0) {
-        console.log('🔭 Aucune connexion acceptée');
         setAcceptedConnections([]);
         return;
       }
@@ -202,29 +222,18 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         .select('id, name, avatar_url, city, bio, gender, birth_date')
         .in('id', receiverIds);
 
-      if (profilesError) {
-        console.error('Erreur profiles:', profilesError);
-        return;
-      }
+      if (profilesError) return;
 
-      const { data: photos, error: photosError } = await supabase
+      const { data: photos } = await supabase
         .from('profile_photos')
         .select('id, photo_url, is_main, photo_order, user_id')
         .in('user_id', receiverIds);
 
-      if (photosError) {
-        console.warn('⚠️ Erreur photos:', photosError);
-      }
-
-      const { data: questionnaires, error: questionnaireError } = await supabase
+      const { data: questionnaires } = await supabase
         .from('questionnaire_responses')
         .select('user_id, profile_json, generated_profile, created_at')
         .in('user_id', receiverIds)
         .order('created_at', { ascending: false });
-
-      if (questionnaireError) {
-        console.warn('⚠️ Erreur questionnaires:', questionnaireError);
-      }
 
       const connectionsData: AcceptedConnection[] = profiles.map(profile => {
         const request = acceptedRequests.find(req => req.receiver_id === profile.id);
@@ -267,15 +276,13 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         };
       });
 
-      console.log('✅ Connexions acceptées chargées:', connectionsData.length);
       setAcceptedConnections(connectionsData);
 
     } catch (err: any) {
-      console.error('❌ Erreur chargement connexions acceptées:', err);
+      console.error('Error loading accepted connections:', err);
     }
   }, [user]);
 
-  // Load discovery profiles (existing logic)
   const loadDiscoveryProfiles = useCallback(async () => {
     abortRef.current?.abort();
     const ac = new AbortController();
@@ -295,7 +302,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }
   }, [filters]);
 
-  // Load more discovery profiles
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -304,13 +310,12 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       setDiscoveryProfiles((prev) => [...prev, ...res.profiles]);
       setHasMore(res.has_more);
     } catch (e) {
-      // silent; user can tap refresh
+      // silent
     } finally {
       setLoadingMore(false);
     }
   }, [filters, discoveryProfiles.length, hasMore, loadingMore]);
 
-  // Load initial data
   useEffect(() => { 
     if (user) {
       loadDiscoveryProfiles();
@@ -318,7 +323,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }
   }, [user, loadDiscoveryProfiles, loadAcceptedConnections]);
 
-  // 🆕 CHARGER LES STATUTS DE CONTACT POUR CHAQUE PROFIL
   const loadContactStatuses = useCallback(async () => {
     if (!user || allProfiles.length === 0) return;
 
@@ -326,18 +330,12 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       const profileIds = allProfiles.map(p => p.id);
       const newContactRequests = new Map<string, ContactRequestState>();
 
-      // Vérifier les demandes de contact existantes
-      const { data: existingRequests, error } = await supabase
+      const { data: existingRequests } = await supabase
         .from('contact_requests')
         .select('receiver_id, status')
         .eq('sender_id', user.id)
         .in('receiver_id', profileIds);
 
-      if (error) {
-        console.warn('⚠️ Erreur chargement contact statuses:', error);
-      }
-
-      // Initialiser les statuts pour chaque profil
       for (const profile of allProfiles) {
         const existingRequest = existingRequests?.find(req => req.receiver_id === profile.id);
         
@@ -361,19 +359,16 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       }
 
       setContactRequests(newContactRequests);
-      console.log('✅ Contact statuses chargés:', newContactRequests.size);
 
     } catch (err) {
-      console.error('❌ Erreur chargement contact statuses:', err);
+      console.error('Error loading contact statuses:', err);
     }
   }, [user, allProfiles]);
 
-  // Charger les statuts de contact quand les profils changent
   useEffect(() => {
     loadContactStatuses();
   }, [loadContactStatuses]);
 
-  // Infinite scroll observer
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
     observerRef.current = new IntersectionObserver((entries) => {
@@ -383,13 +378,11 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     return () => observerRef.current?.disconnect();
   }, [loadMore]);
 
-  // Selected profile
   const selectedProfile: EnhancedProfile | null = useMemo(
     () => (selectedIndex == null ? null : allProfiles[selectedIndex] ?? null),
     [selectedIndex, allProfiles]
   );
 
-  // Keyboard navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (selectedIndex == null) return;
@@ -401,12 +394,9 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedIndex, allProfiles.length]);
 
-  // 📖 CHARGER LE MIROIR POUR LES PROFILS ACCEPTÉS
   const loadMirrorData = useCallback(async (profileId: string) => {
     try {
       setLoadingMirror(true);
-      
-      console.log('📖 Chargement miroir pour:', profileId);
 
       const { data: questionnaireData, error: questionnaireError } = await supabase
         .from('questionnaire_responses')
@@ -425,7 +415,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       let finalProfileJson = questionnaireData.profile_json;
       
       if (!finalProfileJson || Object.keys(finalProfileJson).length === 0) {
-        console.log('📱 Mode simplifié détecté, extraction JSON du texte...');
         finalProfileJson = extractJsonFromText(questionnaireData.generated_profile);
       }
 
@@ -434,17 +423,13 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         profile_json: finalProfileJson || {}
       });
 
-      console.log('✅ Miroir chargé avec succès');
-
     } catch (err: any) {
-      console.error('❌ Erreur chargement miroir:', err);
       setMirrorData(null);
     } finally {
       setLoadingMirror(false);
     }
   }, []);
 
-  // Charger le miroir quand on ouvre un profil accepté
   useEffect(() => {
     if (selectedProfile && 'status' in selectedProfile && selectedProfile.status === 'accepted') {
       loadMirrorData(selectedProfile.id);
@@ -453,23 +438,18 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }
   }, [selectedProfile, loadMirrorData]);
 
-  // 🆕 GESTION DES CONTACT REQUESTS
   const handleContactRequest = useCallback(async (profileId: string) => {
     const currentState = contactRequests.get(profileId);
     
     if (!currentState?.canRequest || currentState.status !== 'idle') {
-      console.log('🚫 Cannot request contact:', currentState);
       return;
     }
 
     try {
-      // Mettre à jour l'état immédiatement
       setContactRequests(prev => new Map(prev.set(profileId, { 
         status: 'requesting', 
         canRequest: false 
       })));
-
-      console.log('💬 Demande de contact pour:', profileId);
       
       const result = await contactService.requestContact(profileId);
 
@@ -478,16 +458,12 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
           status: 'requested', 
           canRequest: false 
         })));
-        console.log('✅ Contact request envoyé');
         showToast('Demande envoyée ! 💬', 'success');
       } else {
         throw new Error(result.message || 'Erreur lors de l\'envoi');
       }
 
     } catch (error: any) {
-      console.error('❌ Erreur contact request:', error);
-      
-      // Revenir à l'état initial en cas d'erreur
       setContactRequests(prev => new Map(prev.set(profileId, { 
         status: 'idle', 
         canRequest: true 
@@ -497,22 +473,13 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }
   }, [contactRequests]);
 
-  // 💬 CRÉATION ET REDIRECTION VERS CHAT
   const createConversation = useCallback(async (profileId: string) => {
     try {
-      console.log('💬 Création conversation avec:', profileId);
-      
-      // Vérifier si une conversation existe déjà entre les deux utilisateurs
-      const { data: existingConversations, error: searchError } = await supabase
+      const { data: existingConversations } = await supabase
         .from('conversations')
         .select('id, participants')
         .or(`participants.cs.{${user.id},participants.cs.{${profileId}}`);
 
-      if (searchError) {
-        console.warn('⚠️ Erreur recherche conversation:', searchError);
-      }
-
-      // Filtrer pour trouver une conversation directe entre les deux utilisateurs
       const existingConversation = existingConversations?.find(conv => 
         conv.participants.length === 2 && 
         conv.participants.includes(user.id) && 
@@ -520,12 +487,10 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       );
 
       if (existingConversation) {
-        console.log('✅ Conversation existante trouvée:', existingConversation.id);
         navigate(`/chat/${existingConversation.id}`);
         return;
       }
 
-      // Créer nouvelle conversation
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert({
@@ -539,15 +504,10 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         throw createError;
       }
 
-      console.log('✅ Nouvelle conversation créée:', newConversation.id);
       navigate(`/chat/${newConversation.id}`);
 
     } catch (error: any) {
-      console.error('❌ Erreur création conversation:', error);
-      
-      // Fallback : utiliser un ID de conversation basé sur les deux user IDs
       const conversationId = [user.id, profileId].sort().join('_');
-      console.log('🔄 Fallback vers conversation ID:', conversationId);
       navigate(`/chat/${conversationId}`);
     }
   }, [user, navigate]);
@@ -584,7 +544,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     }, 3000);
   };
 
-  // toCardProps
   const toCardProps = useCallback((p: EnhancedProfile) => {
     const profile = { 
       id: p.id, 
@@ -622,7 +581,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     return { profile, questionnaire, photos };
   }, []);
 
-  // Actions
   const requestMirror = useCallback(async (p: DiscoveryProfile) => {
     setDiscoveryProfiles((prev) => prev.map((x) => x.id === p.id
       ? { ...x, interaction_status: { ...x.interaction_status, mirror_request_status: "pending", can_request_mirror: false } }
@@ -643,7 +601,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     navigate(`/miroir/${p.id}`);
   }, [navigate]);
 
-  // Analyses du miroir
   const getAnalysisSections = (profileJson: any) => {
     const sections = [
       { key: 'strength_signals', title: 'Forces Dominantes', icon: Star, color: 'text-amber-500' },
@@ -659,6 +616,98 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         data: profileJson[section.key]
       }))
       .filter(section => section.data && (Array.isArray(section.data) ? section.data.length > 0 : true));
+  };
+
+  // 🔧 CORRECTED LOGIC: Check if contact can be requested
+  const canRequestContact = (profile: EnhancedProfile): boolean => {
+    const mirrorState = getMirrorState(profile);
+    // Contact can ONLY be requested if mirror is accepted
+    return mirrorState.key === "accepted" || mirrorState.key === "public";
+  };
+
+  // 🔧 CORRECTED ACTION LOGIC
+  const getActionButtons = (profile: EnhancedProfile) => {
+    const contactState = contactRequests.get(profile.id);
+    const mirrorState = getMirrorState(profile);
+    
+    // If connection already established → Direct chat
+    if (contactState?.status === 'accepted' || ('status' in profile && profile.status === 'accepted')) {
+      return {
+        primary: {
+          label: "Démarrer une conversation",
+          icon: MessageCircle,
+          action: () => createConversation(profile.id),
+          className: "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+        }
+      };
+    }
+
+    // WORKFLOW: Mirror first, then Contact
+    const buttons: any = {};
+
+    // 1. Mirror button (always first priority)
+    if (mirrorState.key === "public" || mirrorState.key === "accepted") {
+      buttons.mirror = {
+        label: mirrorState.actionLabel,
+        icon: Sparkles,
+        action: () => viewMirror(profile),
+        className: "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+      };
+    } else if (mirrorState.key === "pending") {
+      buttons.mirror = {
+        label: "En attente",
+        icon: Clock,
+        action: null,
+        className: "bg-amber-500/20 border border-amber-400/40 text-amber-200 cursor-not-allowed",
+        compact: true
+      };
+    } else if (mirrorState.key === "rejected") {
+      buttons.mirror = {
+        label: "Refusé",
+        icon: X,
+        action: null,
+        className: "bg-red-500/20 border border-red-400/40 text-red-200 cursor-not-allowed",
+        compact: true
+      };
+    } else {
+      buttons.mirror = {
+        label: "Demander l'accès au miroir",
+        icon: Lock,
+        action: () => requestMirror(profile as DiscoveryProfile),
+        className: "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border border-cyan-400/30"
+      };
+    }
+
+    // 2. Contact button (only if mirror accepted)
+    if (canRequestContact(profile)) {
+      if (contactState?.status === 'requesting') {
+        buttons.contact = {
+          label: "Envoi...",
+          icon: Loader,
+          action: null,
+          className: "bg-blue-500/20 border border-blue-400/40 text-blue-200 cursor-not-allowed",
+          compact: true,
+          spinning: true
+        };
+      } else if (contactState?.status === 'requested') {
+        buttons.contact = {
+          label: "Envoyée ✨",
+          icon: Heart,
+          action: null,
+          className: "bg-green-500/20 border border-green-400/40 text-green-200 cursor-not-allowed",
+          compact: true
+        };
+      } else if (contactState?.canRequest) {
+        buttons.contact = {
+          label: "Demander un contact",
+          icon: Heart,
+          action: () => handleContactRequest(profile.id),
+          className: "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"
+        };
+      }
+    }
+
+    return buttons;
   };
 
   // UI helpers
@@ -681,7 +730,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
   }
 
   function StatusBadge({ p }: { p: EnhancedProfile }) {
-    // Badge pour connexions acceptées
     if ('status' in p && p.status === 'accepted') {
       return (
         <div className="absolute top-4 left-4 px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full z-30 animate-pulse">
@@ -690,7 +738,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       );
     }
     
-    // Badge pour demandes de contact
     const contactState = contactRequests.get(p.id);
     if (contactState?.status === 'requested') {
       return (
@@ -700,7 +747,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       );
     }
     
-    // Badge pour accès miroir en attente
     const s = getMirrorState(p);
     if (s.key === 'pending') {
       return (
@@ -739,18 +785,23 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     
     return (
       <div
-        className="group relative cursor-pointer hover:scale-[1.02] transition-all duration-300 hover:-translate-y-1"
-        onClick={() => { setSelectedIndex(idx); }}
+        className="group relative cursor-pointer hover:scale-[1.02] transition-all duration-300 hover:-translate-y-1 discovery-card-container"
+        style={{ width: '320px', height: '500px' }}
+        onClick={() => { 
+          setSelectedIndex(idx); 
+          setMobileTab('profile');
+        }}
       >
         <MirrorBadge p={p} />
         <StatusBadge p={p} />
         <CompatibilityBadge />
-        <AffiniaCard {...cardProps} className="w-full" />
+        <div className="affinia-card-override">
+          <AffiniaCard {...cardProps} />
+        </div>
       </div>
     );
   }
 
-  // Enhanced styles
   const css = `
     .affinia-modal { 
       position: fixed; 
@@ -763,6 +814,22 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       background: rgba(0,0,0,0.95); 
       backdrop-filter: blur(20px);
       animation: modalIn 0.3s ease-out;
+    }
+    
+    @media (max-width: 1023px) {
+      .affinia-modal {
+        padding: 0;
+        align-items: stretch;
+      }
+      
+      .modal-content-mobile {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: rgba(15, 23, 42, 0.98);
+        backdrop-filter: blur(20px);
+      }
     }
     
     @keyframes modalIn {
@@ -786,6 +853,51 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.6); border-radius: 3px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+    
+    .mobile-tab-active {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+      color: white;
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+    
+    .mobile-tab-inactive {
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.6);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .discovery-card-container .affinia-card-override {
+      width: 320px !important;
+      max-width: 320px !important;
+      height: 500px !important;
+      margin: 0 !important;
+    }
+    
+    .discovery-card-container .affinia-card-override > div {
+      width: 320px !important;
+      max-width: 320px !important;
+      height: 500px !important;
+    }
+    
+    .affinia-card-modal-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .affinia-card-modal-wrapper .affinia-card-override {
+      width: 320px !important;
+      max-width: 320px !important;
+      height: 500px !important;
+      margin: 0 !important;
+    }
+    
+    .affinia-card-modal-wrapper .affinia-card-override > div {
+      width: 320px !important;
+      max-width: 320px !important;
+      height: 500px !important;
+    }
   `;
 
   if (!user) return null;
@@ -795,14 +907,12 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       <style>{css}</style>
       <BaseComponents.MysticalBackground isDarkMode={isDarkMode} intensity="low" />
 
-      {/* Animated background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {error ? (
           <div className="h-64 flex items-center justify-center">
@@ -814,14 +924,16 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
             </div>
           </div>
         ) : loading && allProfiles.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-items-center">
+          <div className="flex flex-wrap justify-center gap-8">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="w-80 h-[500px] rounded-3xl bg-white/5 animate-pulse" />
+              <div key={i} className="discovery-card-container" style={{ width: '320px', height: '500px' }}>
+                <div className="w-full h-full rounded-3xl bg-white/5 animate-pulse" />
+              </div>
             ))}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 justify-items-center">
+            <div className="flex flex-wrap justify-center gap-8">
               {allProfiles.map((p, i) => (
                 <GridCard key={p.id} p={p} idx={i} />
               ))}
@@ -841,7 +953,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         )}
       </main>
 
-      {/* Enhanced floating actions */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-4 z-30">
         <button 
           onClick={() => setFiltersOpen(!filtersOpen)} 
@@ -861,45 +972,99 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
         </button>
       </div>
 
-      {/* 🔄 MODAL ADAPTATIF SELON LE TYPE DE PROFIL */}
       {selectedProfile && (
-        <div className="affinia-modal" onClick={() => setSelectedIndex(null)}>
-          {/* Close button */}
-          <button 
-            onClick={() => setSelectedIndex(null)} 
-            className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-colors z-50"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          
-          {/* Navigation controls */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
-            <button 
-              onClick={(e) => { e.stopPropagation(); setSelectedIndex((i) => (i == null ? i : Math.max(0, i - 1))); }} 
-              disabled={selectedIndex === 0}
-              className="px-4 py-2 rounded-xl bg-black/60 backdrop-blur-sm border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-colors hover:bg-black/80"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              Précédent
-            </button>
+        <div 
+          className="affinia-modal" 
+          onClick={() => setSelectedIndex(null)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Mobile Modal */}
+          <div className="modal-content-mobile lg:hidden" onClick={(e) => e.stopPropagation()}>
             
-            <button 
-              onClick={(e) => { e.stopPropagation(); setSelectedIndex((i) => (i == null ? i : Math.min(allProfiles.length - 1, i + 1))); }} 
-              disabled={selectedIndex === allProfiles.length - 1 && !hasMore}
-              className="px-4 py-2 rounded-xl bg-black/60 backdrop-blur-sm border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-colors hover:bg-black/80"
-            >
-              Suivant
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+            <div className="flex items-center justify-between p-4 bg-black/20 backdrop-blur-xl border-b border-white/10">
+              <button 
+                onClick={() => setSelectedIndex(null)} 
+                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              
+              <div className="text-center">
+                <h2 className="text-white font-bold">{selectedProfile.name}</h2>
+                <p className="text-gray-400 text-sm">{selectedIndex + 1} / {allProfiles.length}</p>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setSelectedIndex(Math.max(0, selectedIndex - 1)); 
+                    setMobileTab('profile');
+                  }} 
+                  disabled={selectedIndex === 0}
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setSelectedIndex(Math.min(allProfiles.length - 1, selectedIndex + 1)); 
+                    setMobileTab('profile');
+                  }} 
+                  disabled={selectedIndex === allProfiles.length - 1}
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white disabled:opacity-30"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-          {/* 🔄 CONTENU MODAL ADAPTATIF */}
-          {'status' in selectedProfile && selectedProfile.status === 'accepted' ? (
-            // 📖 MODAL 2 COLONNES pour profils acceptés
-            <div className="modal-content w-full max-w-7xl h-full max-h-[90vh] flex gap-6 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              {/* Colonne gauche - Miroir */}
-              <div className="flex-1 w-[70%] overflow-y-auto custom-scrollbar bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl">
-                <div className="p-6 space-y-6">
+            <div className="flex bg-black/20 backdrop-blur-xl border-b border-white/10">
+              <button 
+                onClick={() => setMobileTab('profile')}
+                className={`flex-1 py-3 px-4 border-b-2 transition-all ${
+                  mobileTab === 'profile' ? 'mobile-tab-active' : 'mobile-tab-inactive'
+                }`}
+              >
+                <User className="w-4 h-4 mx-auto mb-1" />
+                <span className="text-xs font-medium">Profil</span>
+              </button>
+              
+              {('status' in selectedProfile && selectedProfile.status === 'accepted') && (
+                <button 
+                  onClick={() => setMobileTab('mirror')}
+                  className={`flex-1 py-3 px-4 border-b-2 transition-all ${
+                    mobileTab === 'mirror' ? 'mobile-tab-active' : 'mobile-tab-inactive'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 mx-auto mb-1" />
+                  <span className="text-xs font-medium">Miroir</span>
+                </button>
+              )}
+              
+              <button 
+                onClick={() => setMobileTab('actions')}
+                className={`flex-1 py-3 px-4 border-b-2 transition-all ${
+                  mobileTab === 'actions' ? 'mobile-tab-active' : 'mobile-tab-inactive'
+                }`}
+              >
+                <Zap className="w-4 h-4 mx-auto mb-1" />
+                <span className="text-xs font-medium">Actions</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {mobileTab === 'profile' && (
+                <div className="p-4">
+                  <AffiniaCard {...toCardProps(selectedProfile)} className="w-full max-w-sm mx-auto" />
+                </div>
+              )}
+
+              {mobileTab === 'mirror' && ('status' in selectedProfile && selectedProfile.status === 'accepted') && (
+                <div className="p-4 space-y-6">
                   {loadingMirror ? (
                     <div className="flex items-center justify-center h-64">
                       <div className="text-center">
@@ -909,24 +1074,20 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
                     </div>
                   ) : mirrorData ? (
                     <>
-                      {/* Header du miroir */}
-                      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                          <BookOpen className="w-6 h-6 text-white" />
+                      <div className="text-center mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-3">
+                          <BookOpen className="w-8 h-8 text-white" />
                         </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-white">
-                            Miroir de {selectedProfile.name}
-                          </h2>
-                          <p className="text-gray-400 text-sm">
-                            Analyse psychologique complète
-                          </p>
-                        </div>
+                        <h2 className="text-xl font-bold text-white mb-1">
+                          Miroir de {selectedProfile.name}
+                        </h2>
+                        <p className="text-gray-400 text-sm">
+                          Analyse psychologique complète
+                        </p>
                       </div>
 
-                      {/* Révélations avec découpage intelligent */}
                       {mirrorData.generated_profile && (
-                        <section className="space-y-6">
+                        <section className="space-y-4">
                           <h3 className="text-white font-bold flex items-center gap-2">
                             <Sparkles className="w-4 h-4 text-purple-400" />
                             Révélations
@@ -939,15 +1100,14 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
                               <div
                                 key={index}
                                 className={`
-                                  relative border border-white/10 rounded-2xl p-6
+                                  relative border border-white/10 rounded-xl p-4
                                   bg-gradient-to-br ${colorScheme.bg}
-                                  transition-all duration-300 hover:border-purple-400/20
-                                  group
+                                  transition-all duration-300
                                 `}
                               >
-                                <div className="flex justify-between items-center mb-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-6 h-6 rounded-full bg-gradient-to-r from-${colorScheme.accent} to-pink-400 flex items-center justify-center`}>
+                                <div className="flex justify-between items-center mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-5 h-5 rounded-full bg-gradient-to-r from-${colorScheme.accent} to-pink-400 flex items-center justify-center`}>
                                       <span className="text-xs font-mono text-white">
                                         {String(index + 1).padStart(2, '0')}
                                       </span>
@@ -957,8 +1117,8 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
                                 </div>
 
                                 <div className="relative">
-                                  <div className="text-sm leading-relaxed text-white pl-4">
-                                    <span className="float-left text-4xl leading-none pr-2 font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                                  <div className="text-sm leading-relaxed text-white">
+                                    <span className="float-left text-2xl leading-none pr-2 font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                                       {paragraph.charAt(0)}
                                     </span>
                                     <span>{paragraph.slice(1)}</span>
@@ -970,32 +1130,31 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
                         </section>
                       )}
 
-                      {/* Analyses détaillées */}
                       {mirrorData.profile_json && (
-                        <section className="space-y-4">
+                        <section className="space-y-3">
                           <h3 className="text-white font-bold flex items-center gap-2">
                             <Brain className="w-4 h-4 text-purple-400" />
                             Analyses Détaillées
                           </h3>
                           
                           {getAnalysisSections(mirrorData.profile_json).map((section) => (
-                            <div key={section.key} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                              <div className="flex items-center gap-2 mb-3">
+                            <div key={section.key} className="bg-white/5 rounded-xl p-3 border border-white/10">
+                              <div className="flex items-center gap-2 mb-2">
                                 <section.icon className={`w-4 h-4 ${section.color}`} />
-                                <span className="text-white font-medium">{section.title}</span>
+                                <span className="text-white font-medium text-sm">{section.title}</span>
                               </div>
                               <div className="space-y-2">
                                 {Array.isArray(section.data) ? (
                                   section.data.map((item, idx) => (
                                     <div key={idx} className="bg-white/5 rounded-lg p-2">
-                                      <span className="text-gray-300 text-sm">
+                                      <span className="text-gray-300 text-xs">
                                         {typeof item === 'string' ? item : JSON.stringify(item)}
                                       </span>
                                     </div>
                                   ))
                                 ) : (
                                   <div className="bg-white/5 rounded-lg p-2">
-                                    <span className="text-gray-300 text-sm">
+                                    <span className="text-gray-300 text-xs">
                                       {typeof section.data === 'string' ? section.data : JSON.stringify(section.data)}
                                     </span>
                                   </div>
@@ -1016,165 +1175,339 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
                     </div>
                   )}
                 </div>
-              </div>
+              )}
 
-              {/* 🎯 Colonne droite - Carte + Bouton conversation */}
-              <div className="w-[30%] flex-shrink-0 flex flex-col">
-                <div className="flex-1">
-                  <AffiniaCard {...toCardProps(selectedProfile)} className="w-full scale-90" />
+              {mobileTab === 'actions' && (
+                <div className="p-4 space-y-3">
+                  {(() => {
+                    const actionButtons = getActionButtons(selectedProfile);
+                    
+                    return (
+                      <>
+                        {actionButtons.primary && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); actionButtons.primary.action(); }} 
+                            className={`w-full py-4 rounded-2xl text-white font-bold flex items-center justify-center gap-3 transition-all shadow-lg ${actionButtons.primary.className}`}
+                          >
+                            <actionButtons.primary.icon className="w-5 h-5" />
+                            {actionButtons.primary.label}
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {actionButtons.mirror && (
+                          actionButtons.mirror.action ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); actionButtons.mirror.action(); }} 
+                              className={`w-full ${actionButtons.mirror.compact ? 'py-2' : 'py-4'} rounded-2xl text-white font-bold flex items-center justify-center gap-3 transition-all shadow-lg ${actionButtons.mirror.className}`}
+                            >
+                              <actionButtons.mirror.icon className={`w-5 h-5 ${actionButtons.mirror.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.mirror.label}
+                              {!actionButtons.mirror.compact && <ArrowUpRight className="w-4 h-4" />}
+                            </button>
+                          ) : (
+                            <div className={`w-full ${actionButtons.mirror.compact ? 'py-2' : 'py-4'} rounded-2xl font-semibold flex items-center justify-center gap-2 ${actionButtons.mirror.className}`}>
+                              <actionButtons.mirror.icon className={`w-4 h-4 ${actionButtons.mirror.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.mirror.label}
+                            </div>
+                          )
+                        )}
+                        
+                        {actionButtons.contact && (
+                          actionButtons.contact.action ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); actionButtons.contact.action(); }} 
+                              className={`w-full ${actionButtons.contact.compact ? 'py-2' : 'py-4'} rounded-2xl text-white font-bold flex items-center justify-center gap-3 transition-all shadow-lg ${actionButtons.contact.className}`}
+                            >
+                              <actionButtons.contact.icon className={`w-5 h-5 ${actionButtons.contact.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.contact.label}
+                              {!actionButtons.contact.compact && <ArrowUpRight className="w-4 h-4" />}
+                            </button>
+                          ) : (
+                            <div className={`w-full ${actionButtons.contact.compact ? 'py-2' : 'py-4'} rounded-2xl font-semibold flex items-center justify-center gap-2 ${actionButtons.contact.className}`}>
+                              <actionButtons.contact.icon className={`w-4 h-4 ${actionButtons.contact.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.contact.label}
+                            </div>
+                          )
+                        )}
+                      </>
+                    );
+                  })()}
+                  
+                  <div className="text-center pt-4 border-t border-white/10">
+                    <p className="text-gray-400 text-sm">
+                      💡 Swipe gauche/droite pour naviguer
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Modal */}
+          <div className="hidden lg:block">
+            <button 
+              onClick={() => setSelectedIndex(null)} 
+              className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-colors z-50"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSelectedIndex((i) => (i == null ? i : Math.max(0, i - 1))); }} 
+                disabled={selectedIndex === 0}
+                className="px-4 py-2 rounded-xl bg-black/60 backdrop-blur-sm border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-colors hover:bg-black/80"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                Précédent
+              </button>
+              
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSelectedIndex((i) => (i == null ? i : Math.min(allProfiles.length - 1, i + 1))); }} 
+                disabled={selectedIndex === allProfiles.length - 1 && !hasMore}
+                className="px-4 py-2 rounded-xl bg-black/60 backdrop-blur-sm border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-colors hover:bg-black/80"
+              >
+                Suivant
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+
+            {'status' in selectedProfile && selectedProfile.status === 'accepted' ? (
+              <div className="modal-content w-full max-w-7xl h-full max-h-[90vh] flex gap-6 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1 w-[70%] overflow-y-auto custom-scrollbar bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl">
+                  <div className="p-6 space-y-6">
+                    {loadingMirror ? (
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <Loader className="w-8 h-8 text-purple-400 mx-auto mb-4 animate-spin" />
+                          <p className="text-white">Chargement du miroir...</p>
+                        </div>
+                      </div>
+                    ) : mirrorData ? (
+                      <>
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold text-white">
+                              Miroir de {selectedProfile.name}
+                            </h2>
+                            <p className="text-gray-400 text-sm">
+                              Analyse psychologique complète
+                            </p>
+                          </div>
+                        </div>
+
+                        {mirrorData.generated_profile && (
+                          <section className="space-y-6">
+                            <h3 className="text-white font-bold flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-purple-400" />
+                              Révélations
+                            </h3>
+                            
+                            {smartSplitParagraphs(parseEmotionalText(mirrorData.generated_profile)).map((paragraph, index) => {
+                              const colorScheme = sectionColors[index % sectionColors.length];
+
+                              return (
+                                <div
+                                  key={index}
+                                  className={`
+                                    relative border border-white/10 rounded-2xl p-6
+                                    bg-gradient-to-br ${colorScheme.bg}
+                                    transition-all duration-300 hover:border-purple-400/20
+                                    group
+                                  `}
+                                >
+                                  <div className="flex justify-between items-center mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-6 h-6 rounded-full bg-gradient-to-r from-${colorScheme.accent} to-pink-400 flex items-center justify-center`}>
+                                        <span className="text-xs font-mono text-white">
+                                          {String(index + 1).padStart(2, '0')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Sparkles className={`w-3 h-3 text-${colorScheme.accent}/60`} />
+                                  </div>
+
+                                  <div className="relative">
+                                    <div className="text-sm leading-relaxed text-white pl-4">
+                                      <span className="float-left text-4xl leading-none pr-2 font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                                        {paragraph.charAt(0)}
+                                      </span>
+                                      <span>{paragraph.slice(1)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </section>
+                        )}
+
+                        {mirrorData.profile_json && (
+                          <section className="space-y-4">
+                            <h3 className="text-white font-bold flex items-center gap-2">
+                              <Brain className="w-4 h-4 text-purple-400" />
+                              Analyses Détaillées
+                            </h3>
+                            
+                            {getAnalysisSections(mirrorData.profile_json).map((section) => (
+                              <div key={section.key} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <section.icon className={`w-4 h-4 ${section.color}`} />
+                                  <span className="text-white font-medium">{section.title}</span>
+                                </div>
+                                <div className="space-y-2">
+                                  {Array.isArray(section.data) ? (
+                                    section.data.map((item, idx) => (
+                                      <div key={idx} className="bg-white/5 rounded-lg p-2">
+                                        <span className="text-gray-300 text-sm">
+                                          {typeof item === 'string' ? item : JSON.stringify(item)}
+                                        </span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="bg-white/5 rounded-lg p-2">
+                                      <span className="text-gray-300 text-sm">
+                                        {typeof section.data === 'string' ? section.data : JSON.stringify(section.data)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </section>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-white mb-2">Miroir non disponible</p>
+                          <p className="text-gray-400 text-sm">Les données du miroir n'ont pas pu être chargées</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="w-[30%] flex-shrink-0 flex flex-col">
+                  <div className="flex-1">
+                    <AffiniaCard {...toCardProps(selectedProfile)} className="w-full scale-90" />
+                  </div>
+                  
+                  <div className="mt-4 px-4">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); createConversation(selectedProfile.id); }} 
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold flex items-center justify-center gap-3 hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-green-500/30 transform hover:scale-105"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Démarrer une conversation
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="modal-content relative flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                <div className="affinia-card-modal-wrapper" style={{ width: '320px', height: '500px' }}>
+                  <div className="affinia-card-override">
+                    <AffiniaCard {...toCardProps(selectedProfile)} />
+                  </div>
                 </div>
                 
-                {/* 💬 BOUTON CONVERSATION SOUS LA CARTE */}
-                <div className="mt-4 px-4">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); createConversation(selectedProfile.id); }} 
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold flex items-center justify-center gap-3 hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-green-500/30 transform hover:scale-105"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    Démarrer une conversation
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // 📲 MODAL SIMPLE pour autres profils avec contact request
-            <div className="modal-content relative" onClick={(e) => e.stopPropagation()}>
-              {/* Badge compatibilité dans le modal */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); setShowCompatibilityInfo(true); }}
-                className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center shadow-xl hover:scale-110 transition-transform z-40 border-2 border-white/30"
-              >
-                <span className="text-white font-bold">?</span>
-              </button>
-              
-              <AffiniaCard {...toCardProps(selectedProfile)} className="w-full" />
-              
-              {/* Actions au centre */}
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-4">
-                {(() => {
-                  const contactState = contactRequests.get(selectedProfile.id);
-                  const mirrorState = getMirrorState(selectedProfile);
-                  
-                  // Si c'est une connexion acceptée
-                  if (contactState?.status === 'accepted') {
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowCompatibilityInfo(true); }}
+                  className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center shadow-xl hover:scale-110 transition-transform z-40 border-2 border-white/30"
+                >
+                  <span className="text-white font-bold">?</span>
+                </button>
+                
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3">
+                  {(() => {
+                    const actionButtons = getActionButtons(selectedProfile);
+                    
                     return (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); createConversation(selectedProfile.id); }} 
-                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold flex items-center gap-3 hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-green-500/30 transform hover:scale-105"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                        Démarrer une conversation
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
+                      <>
+                        {actionButtons.primary && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); actionButtons.primary.action(); }} 
+                            className={`px-6 py-3 rounded-2xl text-white font-bold flex items-center gap-3 transition-all shadow-lg transform hover:scale-105 ${actionButtons.primary.className}`}
+                          >
+                            <actionButtons.primary.icon className="w-5 h-5" />
+                            {actionButtons.primary.label}
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {actionButtons.mirror && (
+                          actionButtons.mirror.action ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); actionButtons.mirror.action(); }} 
+                              className={`px-6 py-3 rounded-2xl text-white font-bold flex items-center gap-3 transition-all shadow-lg transform hover:scale-105 ${actionButtons.mirror.className}`}
+                            >
+                              <actionButtons.mirror.icon className={`w-5 h-5 ${actionButtons.mirror.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.mirror.label}
+                              <ArrowUpRight className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <div className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${actionButtons.mirror.className}`}>
+                              <actionButtons.mirror.icon className={`w-4 h-4 ${actionButtons.mirror.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.mirror.label}
+                            </div>
+                          )
+                        )}
+                        
+                        {actionButtons.contact && (
+                          actionButtons.contact.action ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); actionButtons.contact.action(); }} 
+                              className={`px-6 py-3 rounded-2xl text-white font-bold flex items-center gap-3 transition-all shadow-lg transform hover:scale-105 ${actionButtons.contact.className}`}
+                            >
+                              <actionButtons.contact.icon className={`w-5 h-5 ${actionButtons.contact.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.contact.label}
+                            </button>
+                          ) : (
+                            <div className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${actionButtons.contact.className}`}>
+                              <actionButtons.contact.icon className={`w-4 h-4 ${actionButtons.contact.spinning ? 'animate-spin' : ''}`} />
+                              {actionButtons.contact.label}
+                            </div>
+                          )
+                        )}
+                      </>
                     );
-                  }
-                  
-                  // Bouton demande de contact selon l'état
-                  let contactButton;
-                  if (contactState?.status === 'requesting') {
-                    contactButton = (
-                      <div className="px-6 py-3 rounded-2xl bg-blue-500/20 border-2 border-blue-400/40 text-center text-blue-200 font-semibold flex items-center gap-2 animate-pulse">
-                        <div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
-                        Envoi en cours...
-                      </div>
-                    );
-                  } else if (contactState?.status === 'requested') {
-                    contactButton = (
-                      <div className="px-6 py-3 rounded-2xl bg-green-500/20 border-2 border-green-400/40 text-center text-green-200 font-semibold flex items-center gap-2 animate-pulse">
-                        <Heart className="w-5 h-5" />
-                        Demande envoyée ✨
-                      </div>
-                    );
-                  } else if (contactState?.canRequest) {
-                    contactButton = (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleContactRequest(selectedProfile.id); }} 
-                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-rose-600 text-white font-bold flex items-center gap-3 hover:from-pink-700 hover:to-rose-700 transition-all shadow-lg hover:shadow-pink-500/30 transform hover:scale-105"
-                      >
-                        <Heart className="w-5 h-5" />
-                        Demander un contact
-                      </button>
-                    );
-                  }
-                  
-                  // Bouton miroir selon l'état
-                  let mirrorButton;
-                  if (mirrorState.key === "public" || mirrorState.key === "accepted") {
-                    mirrorButton = (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); viewMirror(selectedProfile); }} 
-                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold flex items-center gap-3 hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-purple-500/30 transform hover:scale-105"
-                      >
-                        <Sparkles className="w-5 h-5" />
-                        {mirrorState.actionLabel}
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
-                    );
-                  } else if (mirrorState.key === "pending") {
-                    mirrorButton = (
-                      <div className="px-6 py-3 rounded-2xl bg-amber-500/20 border-2 border-amber-400/40 text-center text-amber-200 font-semibold flex items-center gap-2 animate-pulse">
-                        <Clock className="w-5 h-5" />
-                        Demande en attente...
-                      </div>
-                    );
-                  } else if (mirrorState.key === "rejected") {
-                    mirrorButton = (
-                      <div className="px-6 py-3 rounded-2xl bg-red-500/20 border-2 border-red-400/40 text-center text-red-200 font-semibold flex items-center gap-2">
-                        <X className="w-5 h-5" />
-                        Accès non accordé
-                      </div>
-                    );
-                  } else {
-                    mirrorButton = (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); requestMirror(selectedProfile as DiscoveryProfile); }} 
-                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold flex items-center gap-3 hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-blue-500/30 transform hover:scale-105 border border-cyan-400/30"
-                      >
-                        <Lock className="w-5 h-5" />
-                        Demander l'accès au miroir
-                      </button>
-                    );
-                  }
-                  
-                  return (
-                    <>
-                      {contactButton}
-                      {mirrorButton}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Info modal */}
-          {showCompatibilityInfo && (
-            <div className="absolute top-6 left-6 max-w-md bg-slate-900/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 z-50">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-lg mb-2">🧠 Analyses Psychologiques</h4>
-                  <p className="text-purple-200 text-sm leading-relaxed mb-3">
-                    Ces profils contiennent de vraies analyses psychologiques complètes ! Mais le système de <strong>compatibilité automatique</strong> n'est pas encore activé.
-                  </p>
+                  })()}
                 </div>
               </div>
+            )}
 
-              <button 
-                onClick={() => setShowCompatibilityInfo(false)}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-white font-semibold transition-all transform hover:scale-105"
-              >
-                C'est déjà génial ! 🚀
-              </button>
-            </div>
-          )}
+            {showCompatibilityInfo && (
+              <div className="absolute top-6 left-6 max-w-md bg-slate-900/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 z-50">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold text-lg mb-2">🧠 Analyses Psychologiques</h4>
+                    <p className="text-purple-200 text-sm leading-relaxed mb-3">
+                      Ces profils contiennent de vraies analyses psychologiques complètes ! Mais le système de <strong>compatibilité automatique</strong> n'est pas encore activé.
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowCompatibilityInfo(false)}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-white font-semibold transition-all transform hover:scale-105"
+                >
+                  C'est déjà génial ! 🚀
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 🎯 FILTRES AMÉLIORÉS avec statut de profil */}
       {filtersOpen && (
         <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setFiltersOpen(false)} />
@@ -1189,7 +1522,6 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
               </button>
             </div>
             
-            {/* 🎯 NOUVEAU : Filtre par statut de profil */}
             <div className="mb-6">
               <label className="block mb-3">
                 <span className="text-white font-medium block mb-3">Type de profil</span>
