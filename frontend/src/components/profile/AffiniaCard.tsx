@@ -1,4 +1,4 @@
-// AffiniaCard.tsx - Version ULTRA-OPTIMISÉE Mobile Performance
+// AffiniaCard.tsx - VERSION SANS DEBUG LOGS + FIX LAYOUT
 import React, { useState, useMemo, useCallback } from 'react';
 import { Heart, Zap, Shield, Star, Sparkles, Eye, MapPin, User, Calendar, ChevronLeft, ChevronRight, FileText, Brain, MessageCircle, X, AlertTriangle } from 'lucide-react';
 
@@ -61,12 +61,11 @@ interface AffiniaCardProps {
   questionnaire?: Questionnaire;
 }
 
-// 🚀 OPTIMISATION 1: Cache des conversions mobile
+// 🚀 Cache des conversions mobile - OPTIMISÉ
 const mobileConversionCache = new Map<string, ProfileJson>();
 
-// 🚀 OPTIMISATION 2: Fonction de conversion MEMOIZED
+// 🚀 Fonction de conversion MEMOIZED - SANS DEBUG LOGS
 const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJson | null => {
-  // Check cache first
   if (mobileConversionCache.has(generatedProfile)) {
     return mobileConversionCache.get(generatedProfile)!;
   }
@@ -74,7 +73,7 @@ const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJs
   let result: ProfileJson | null = null;
 
   try {
-    // 1. Essayer d'extraire un JSON complet d'abord
+    // 1. JSON complet
     const jsonMatch = generatedProfile.match(/```json\s*(\{[\s\S]*?\})\s*```/);
     if (jsonMatch && jsonMatch[1]) {
       const parsedJson = JSON.parse(jsonMatch[1]);
@@ -100,7 +99,7 @@ const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJs
       };
     }
 
-    // 2. Si pas de JSON, essayer d'extraire depuis "PARTIE 2"
+    // 2. PARTIE 2
     if (!result) {
       const partie2Match = generatedProfile.match(/PARTIE 2[^{]*(\{[\s\S]*\})/);
       if (partie2Match && partie2Match[1]) {
@@ -128,7 +127,7 @@ const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJs
       }
     }
 
-    // 3. Fallback simplifié pour mobile
+    // 3. Fallback
     if (!result) {
       result = {
         authenticity_score: 8,
@@ -152,14 +151,12 @@ const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJs
       };
     }
 
-    // Cache le résultat
     mobileConversionCache.set(generatedProfile, result);
     return result;
     
   } catch (error) {
-    console.error('❌ Erreur conversion mobile text → JSON:', error);
+    // ❌ DEBUG LOG SUPPRIMÉ
     
-    // Fallback en cas d'erreur
     const fallback = {
       authenticity_score: 8,
       attachment_style: 'temporaire',
@@ -186,15 +183,15 @@ const convertMobileTextToProfileJsonMemo = (generatedProfile: string): ProfileJs
   }
 };
 
-// 🚀 OPTIMISATION 3: Cache de déduction de style
+// 🚀 Cache de déduction de style
 const attachmentStyleCache = new Map<string, string>();
 
-// 🚀 OPTIMISATION 4: Déduction de style MEMOIZED
+// 🚀 Déduction de style MEMOIZED - SANS DEBUG LOGS
 const deduceAttachmentStyleMemo = (profileData: any): string => {
   const cacheKey = JSON.stringify({
     attachment_style: profileData.attachment_style,
     affective: profileData.affective_indicators?.attachment_style,
-    signals: (profileData.strength_signals || []).slice(0, 2), // Seulement les 2 premiers pour le cache
+    signals: (profileData.strength_signals || []).slice(0, 2),
     patterns: (profileData.unconscious_patterns || []).slice(0, 2)
   });
 
@@ -204,7 +201,7 @@ const deduceAttachmentStyleMemo = (profileData: any): string => {
 
   let result = 'temporaire';
 
-  // 1. Vérifier d'abord s'il y a un attachment_style direct
+  // 1. Vérifier attachment_style direct
   if (profileData.attachment_style && profileData.attachment_style !== 'temporaire') {
     result = profileData.attachment_style;
   }
@@ -212,7 +209,7 @@ const deduceAttachmentStyleMemo = (profileData: any): string => {
   else if (profileData.affective_indicators?.attachment_style) {
     result = profileData.affective_indicators.attachment_style;
   }
-  // 3. Analyse des patterns (simplifié pour mobile)
+  // 3. Analyse simplifiée pour mobile
   else {
     const allText = [
       ...(profileData.strength_signals || []),
@@ -221,7 +218,6 @@ const deduceAttachmentStyleMemo = (profileData: any): string => {
       profileData.mirroring_warning || ''
     ].join(' ').toLowerCase();
 
-    // Patterns simplifiés pour performance
     if (allText.includes('retrait') || allText.includes('évitement') || allText.includes('distance')) {
       result = 'évitant';
     } else if (allText.includes('anxieux') || allText.includes('validation') || allText.includes('dépendance')) {
@@ -242,7 +238,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
-  // 🚀 OPTIMISATION 5: Données de base mémorisées
+  // 🚀 Données de base mémorisées
   const baseData = useMemo(() => {
     const fullName = props.userName || props.profile?.name || 'Utilisateur';
     const userName = fullName.split(' ')[0];
@@ -261,7 +257,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     return { fullName, userName, photos, className, age };
   }, [props.userName, props.profile?.name, props.photos, props.className, props.age, props.questionnaire?.answers]);
 
-  // 🚀 OPTIMISATION 6: ProfileJson traité MEMOIZED
+  // 🚀 ProfileJson traité MEMOIZED - SANS DEBUG LOGS
   const processedProfileJson = useMemo(() => {
     let profileJson = props.profileJson;
     
@@ -272,7 +268,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
           ? JSON.parse(props.questionnaire.profile_json)
           : props.questionnaire.profile_json;
       }
-      // Mobile : generated_profile (texte à convertir)
+      // Mobile : generated_profile
       else if (props.questionnaire.generated_profile) {
         profileJson = convertMobileTextToProfileJsonMemo(props.questionnaire.generated_profile);
       }
@@ -305,12 +301,12 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     return profileJson;
   }, [props.profileJson, props.questionnaire]);
 
-  // 🚀 OPTIMISATION 7: Style d'attachement MEMOIZED
+  // 🚀 Style d'attachement MEMOIZED - SANS DEBUG LOGS
   const deducedAttachmentStyle = useMemo(() => {
     return deduceAttachmentStyleMemo(processedProfileJson);
   }, [processedProfileJson]);
 
-  // 🚀 OPTIMISATION 8: Helpers MEMOIZED
+  // 🚀 Helpers MEMOIZED
   const uiData = useMemo(() => {
     const getRarity = (score: number) => {
       if (score >= 9) return { name: 'Légendaire', color: 'from-yellow-400 to-orange-500', textColor: 'text-yellow-300' };
@@ -379,7 +375,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     return { rarity, personalityType };
   }, [processedProfileJson.authenticity_score, deducedAttachmentStyle]);
 
-  // 🚀 OPTIMISATION 9: Photo principale MEMOIZED
+  // 🚀 Photo principale MEMOIZED
   const mainPhoto = useMemo(() => {
     if (baseData.photos.length > 0) {
       return baseData.photos[currentPhotoIndex]?.photo_url;
@@ -387,7 +383,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     return props.avatar || props.profile?.avatar_url;
   }, [baseData.photos, currentPhotoIndex, props.avatar, props.profile?.avatar_url]);
 
-  // 🚀 OPTIMISATION 10: Navigation photos optimisée
+  // 🚀 Navigation photos optimisée
   const nextPhoto = useCallback(() => {
     if (baseData.photos.length > 0) {
       setCurrentPhotoIndex((prev) => (prev + 1) % baseData.photos.length);
@@ -400,7 +396,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     }
   }, [baseData.photos.length]);
 
-  // 🚀 OPTIMISATION 11: CSS réduit pour mobile
+  // 🚀 CSS optimisé mobile
   const rgbAnimation = useMemo(() => `
     @keyframes rgb-border-subtle {
       0% { background-position: 0% 50%; }
@@ -429,9 +425,9 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     <div className={`relative ${baseData.className}`}>
       <style>{rgbAnimation}</style>
       
-      {/* Wrapper avec contour optimisé */}
+      {/* Wrapper avec contour optimisé - FIX DIMENSIONS */}
       <div 
-        className={`w-80 h-[500px] rounded-[28px] p-2 transition-all duration-300 hover:scale-[1.01] relative shadow-2xl ${
+        className={`w-full max-w-80 h-[500px] rounded-[28px] p-2 transition-all duration-300 hover:scale-[1.01] relative shadow-2xl mx-auto ${
           deducedAttachmentStyle === 'temporaire' ? 'rgb-border-subtle' : ''
         }`}
         style={{
@@ -443,13 +439,13 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
             : `0 0 30px rgba(${uiData.personalityType.shadowColor}, 0.6), 0 10px 40px rgba(0, 0, 0, 0.4)`
         }}
       >
-        {/* Carte intérieure */}
+        {/* Carte intérieure - FIX RESPONSIVE */}
         <div 
           className="w-full h-full rounded-[20px] overflow-hidden cursor-pointer relative bg-black"
           onClick={() => setIsFlipped(!isFlipped)}
         >
         
-        {/* FACE AVANT - Simplifiée mobile */}
+        {/* FACE AVANT - Optimisée mobile */}
         {!isFlipped && (
           <div className="relative w-full h-full">
             {/* Photo de fond avec lazy loading */}
@@ -470,7 +466,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
             </div>
 
-            {/* Navigation photos - Simplifiée mobile */}
+            {/* Navigation photos - Optimisée mobile */}
             {baseData.photos.length > 1 && (
               <>
                 <button
@@ -545,7 +541,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
           </div>
         )}
 
-        {/* FACE ARRIÈRE - Données réelles optimisées */}
+        {/* FACE ARRIÈRE - Simplifiée mobile */}
         {isFlipped && (
           <div className="w-full h-full bg-gray-900 p-4 sm:p-6 overflow-y-auto">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
@@ -618,7 +614,7 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
                 </div>
               </div>
 
-              {/* Forces - Limitées pour mobile */}
+              {/* Forces - Limitées */}
               {processedProfileJson.strength_signals && processedProfileJson.strength_signals.length > 0 && (
                 <div className="bg-gray-800 rounded-xl sm:rounded-2xl p-3 sm:p-4">
                   <h4 className="text-white font-bold mb-2 sm:mb-3 flex items-center gap-2">
