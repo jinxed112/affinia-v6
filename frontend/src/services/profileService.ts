@@ -28,6 +28,17 @@ export interface Profile {
   show_me_on_affinia?: boolean | null
 }
 
+export interface QuestionnaireResponse {
+  id: string
+  user_id: string
+  answers: any
+  completed_at?: string | null
+  profile_json?: any | null
+  generated_profile?: string | null
+  created_at: string
+  updated_at?: string
+}
+
 class ProfileService {
   private async getAuthHeaders(): Promise<Record<string, string>> {
     const token = await authManager.getAccessToken()
@@ -100,6 +111,31 @@ class ProfileService {
       return result
     } catch (error) {
       console.error('❌ ProfileService: updateMyProfile error:', error)
+      throw error
+    }
+  }
+
+  // 🔥 MÉTHODE REMISE - CRITIQUE POUR QUESTIONNAIRE
+  async getLatestQuestionnaire(): Promise<QuestionnaireResponse> {
+    try {
+      console.log('🧠 ProfileService: Getting latest questionnaire...')
+      const headers = await this.getAuthHeaders()
+      
+      const url = `${API_BASE_URL}/api/questionnaire/latest`
+      console.log(`📡 ProfileService: Calling ${url}`)
+      
+      const response = await fetch(url, { headers })
+      
+      if (response.status === 404) {
+        console.log('ℹ️ ProfileService: No questionnaire found (normal for new users)')
+        return null
+      }
+
+      const result = await this.handleResponse(response)
+      console.log('✅ ProfileService: Questionnaire loaded successfully')
+      return result
+    } catch (error) {
+      console.error('❌ ProfileService: getLatestQuestionnaire error:', error)
       throw error
     }
   }
