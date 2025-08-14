@@ -91,6 +91,10 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
+  // 🆕 États pour synchroniser les chargements
+  const [loadingDiscovery, setLoadingDiscovery] = useState(true);
+  const [loadingConnections, setLoadingConnections] = useState(true);
+
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showCompatibilityInfo, setShowCompatibilityInfo] = useState(false);
@@ -201,6 +205,8 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     if (!user) return;
 
     try {
+      setLoadingConnections(true);
+      
       const { data: acceptedRequests, error: requestsError } = await supabase
         .from('mirror_requests')
         .select('receiver_id, created_at, responded_at')
@@ -280,6 +286,8 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
 
     } catch (err: any) {
       console.error('Error loading accepted connections:', err);
+    } finally {
+      setLoadingConnections(false);
     }
   }, [user]);
 
@@ -287,7 +295,7 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
-    setLoading(true);
+    setLoadingDiscovery(true);
     setError(null);
     try {
       const res = await discoveryService.getDiscoveryProfiles({ ...filters, offset: 0 });
@@ -298,7 +306,7 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
     } catch (e: any) {
       if (!ac.signal.aborted) setError(e?.message ?? "Erreur de chargement");
     } finally {
-      if (!ac.signal.aborted) setLoading(false);
+      if (!ac.signal.aborted) setLoadingDiscovery(false);
     }
   }, [filters]);
 
@@ -322,6 +330,11 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
       loadAcceptedConnections();
     }
   }, [user, loadDiscoveryProfiles, loadAcceptedConnections]);
+
+  // 🆕 Synchroniser le loading global
+  useEffect(() => {
+    setLoading(loadingDiscovery || loadingConnections);
+  }, [loadingDiscovery, loadingConnections]);
 
   const loadContactStatuses = useCallback(async () => {
     if (!user || allProfiles.length === 0) return;
@@ -475,42 +488,48 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
 
   const createConversation = useCallback(async (profileId: string) => {
     try {
-      const { data: existingConversations } = await supabase
-        .from('conversations')
-        .select('id, participants')
-        .or(`participants.cs.{${user.id},participants.cs.{${profileId}}`);
-
-      const existingConversation = existingConversations?.find(conv => 
-        conv.participants.length === 2 && 
-        conv.participants.includes(user.id) && 
-        conv.participants.includes(profileId)
-      );
-
-      if (existingConversation) {
-        navigate(`/chat/${existingConversation.id}`);
-        return;
+      console.log('💬 Création conversation avec:', profileId);
+      
+      // Récupérer le token d'authentification
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Non authentifié');
       }
-
-      const { data: newConversation, error: createError } = await supabase
-        .from('conversations')
-        .insert({
-          participants: [user.id, profileId],
-          type: 'direct'
+      
+      // Appeler l'API backend pour créer/récupérer la conversation
+      const response = await fetch(`http://localhost:3001/api/chat/conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          participant_id: profileId
         })
-        .select('id')
-        .single();
+      });
 
-      if (createError) {
-        throw createError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
-      navigate(`/chat/${newConversation.id}`);
+      const result = await response.json();
+      
+      if (!result.success || !result.data?.id) {
+        throw new Error('Réponse API invalide');
+      }
 
-    } catch (error: any) {
-      const conversationId = [user.id, profileId].sort().join('_');
+      const conversationId = result.data.id; // Vrai UUID retourné par l'API
+      console.log('✅ Conversation ID récupéré:', conversationId);
+      
+      // Naviguer vers la page chat avec le vrai UUID
       navigate(`/chat/${conversationId}`);
+      
+    } catch (error: any) {
+      console.error('❌ Erreur création conversation:', error);
+      showToast(error.message || 'Erreur lors de la création de la conversation', 'error');
     }
-  }, [user, navigate]);
+  }, [navigate]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     const bgColor = type === 'success' 
@@ -931,7 +950,7 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
               </div>
             ))}
           </div>
-        ) : (
+        ) : allProfiles.length > 0 ? (
           <>
             <div className="flex flex-wrap justify-center gap-8">
               {allProfiles.map((p, i) => (
@@ -950,6 +969,22 @@ export function DiscoveryPage({ isDarkMode }: DiscoveryPageProps) {
               )}
             </div>
           </>
+        ) : (
+          <div className="h-64 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-4">
+                <User className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-white text-xl font-bold mb-2">Aucun profil trouvé</h3>
+              <p className="text-gray-400 mb-4">Essayez de modifier vos filtres pour découvrir plus de profils</p>
+              <button 
+                onClick={() => setFiltersOpen(true)}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium hover:from-purple-700 hover:to-pink-700 transition-colors"
+              >
+                Modifier les filtres
+              </button>
+            </div>
+          </div>
         )}
       </main>
 
