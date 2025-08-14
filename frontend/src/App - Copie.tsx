@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { NotificationProvider } from './contexts/NotificationContext' // 🆕 AJOUTÉ
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { AuthCallback } from './components/AuthCallback'
@@ -9,13 +10,14 @@ import AuthConfirm from './components/AuthConfirm'
 import Login from './pages/Login'
 import { HomePage } from './pages/HomePage'
 import { ProfilePage } from './pages/ProfilePage'
-import { MiroirPage } from './pages/MiroirPage'
+import { MirrorPage } from './pages/MirrorPage'
 import { DiscoveryPage } from './pages/DiscoveryPage'
-import { MirrorRequestsPage } from './pages/MirrorRequestsPage'
+import { RequestsPage } from './pages/RequestsPage'
 import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from './pages'
 import { ChatPage } from './components/chat/ChatPage'
+import { ChatPageOptimized } from './components/chat/ChatPageOptimized';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth()
@@ -74,7 +76,15 @@ function AppContent() {
           <Route path="/miroir" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
-                <MiroirPage isDarkMode={isDarkMode} />
+                <MirrorPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
+          <Route path="/miroir/:id" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <MirrorPage isDarkMode={isDarkMode} />
               </OnboardingGuard>
             </PrivateRoute>
           } />
@@ -87,10 +97,10 @@ function AppContent() {
             </PrivateRoute>
           } />
 
-          <Route path="/demandes-miroir" element={
+          <Route path="/demandes" element={
             <PrivateRoute>
               <OnboardingGuard isDarkMode={isDarkMode}>
-                <MirrorRequestsPage isDarkMode={isDarkMode} />
+                <RequestsPage isDarkMode={isDarkMode} />
               </OnboardingGuard>
             </PrivateRoute>
           } />
@@ -135,7 +145,10 @@ export default function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <AppContent />
+          {/* 🔔 AJOUT DU NOTIFICATION PROVIDER */}
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>

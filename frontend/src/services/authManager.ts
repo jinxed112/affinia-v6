@@ -1,6 +1,8 @@
-// frontend/src/services/authManager.ts - VERSION COMPLÈTE
+// frontend/src/services/authManager.ts - VERSION PROPRE
 import { supabase } from '../lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
+
+const DEBUG_AUTH = false; // ← DÉSACTIVÉ POUR PRODUCTION
 
 export interface AuthState {
   user: User | null
@@ -22,20 +24,16 @@ class AuthManager {
   private listeners: AuthStateListener[] = []
 
   constructor() {
-    // Auto-initialize
     this.initialize()
   }
 
-  // ✅ MÉTHODE MANQUANTE : getState
   getState(): AuthState {
     return this.state
   }
 
-  // ✅ MÉTHODE MANQUANTE : subscribe
   subscribe(listener: AuthStateListener): () => void {
     this.listeners.push(listener)
-    
-    // Retourner fonction de désabonnement
+
     return () => {
       const index = this.listeners.indexOf(listener)
       if (index > -1) {
@@ -44,19 +42,16 @@ class AuthManager {
     }
   }
 
-  // ✅ MÉTHODE MANQUANTE : initialize
   async initialize(): Promise<void> {
     try {
-      console.log('🚀 AuthManager: Initialisation...')
+      if (DEBUG_AUTH) console.log('🚀 AuthManager: Initialisation...')
 
-      // Vérifier session existante
       const { data: { session }, error } = await supabase.auth.getSession()
-      
+
       if (error) {
         console.error('❌ AuthManager: Erreur getSession:', error)
       }
 
-      // Mettre à jour l'état initial
       this.updateState({
         user: session?.user || null,
         session: session || null,
@@ -64,12 +59,13 @@ class AuthManager {
         initialized: true
       })
 
-      console.log('✅ AuthManager: Initialisé avec session:', session?.user?.email || 'null')
+      if (DEBUG_AUTH) console.log('✅ AuthManager: Initialisé avec session:', session?.user?.email || 'null')
 
-      // Écouter les changements d'auth
       supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔔 AuthManager: Auth event:', event)
-        console.log('🔔 Session:', session?.user?.email || 'null')
+        if (DEBUG_AUTH) {
+          console.log('🔔 AuthManager: Auth event:', event)
+          console.log('🔔 Session:', session?.user?.email || 'null')
+        }
 
         this.updateState({
           user: session?.user || null,
@@ -90,11 +86,9 @@ class AuthManager {
     }
   }
 
-  // 🔄 Mettre à jour l'état et notifier les listeners
   private updateState(newState: Partial<AuthState>): void {
     this.state = { ...this.state, ...newState }
-    
-    // Notifier tous les listeners
+
     this.listeners.forEach(listener => {
       try {
         listener(this.state)
@@ -104,7 +98,6 @@ class AuthManager {
     })
   }
 
-  // ✅ MÉTHODES EXISTANTES (gardées)
   async getAccessToken(): Promise<string | null> {
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -133,28 +126,25 @@ class AuthManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : signOut (utilisée par AuthContext)
   async signOut(): Promise<void> {
     try {
-      console.log('🚪 AuthManager: Déconnexion...')
-      
+      if (DEBUG_AUTH) console.log('🚪 AuthManager: Déconnexion...')
+
       const { error } = await supabase.auth.signOut()
-      
+
       if (error) {
         console.error('❌ SignOut error:', error)
         throw error
       }
 
-      // L'état sera mis à jour automatiquement via onAuthStateChange
-      console.log('✅ AuthManager: Déconnexion réussie')
-      
+      if (DEBUG_AUTH) console.log('✅ AuthManager: Déconnexion réussie')
+
     } catch (error) {
       console.error('💥 AuthManager: Erreur signOut:', error)
       throw error
     }
   }
 
-  // 🔍 DEBUG : Vérifier l'état actuel
   debug(): void {
     console.log('🔍 AuthManager Debug State:', {
       user: this.state.user?.email || 'null',
@@ -166,8 +156,5 @@ class AuthManager {
   }
 }
 
-// Export instance singleton
 export const authManager = new AuthManager()
-
-// Export du type pour TypeScript
 export type { AuthState }

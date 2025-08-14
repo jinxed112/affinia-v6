@@ -38,7 +38,7 @@ export function useChat({ conversationId }: UseChatOptimizedOptions = {}) {
       setIsLoadingConversations(true);
       const convs = await chatService.getConversations();
       setConversations(convs);
-      console.log('✅ useChat: Conversations chargées:', convs.length);
+      
     } catch (error) {
       console.error('❌ useChat: Erreur chargement conversations:', error);
     } finally {

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { NotificationProvider } from './contexts/NotificationContext' // 🆕 AJOUTÉ
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { AuthCallback } from './components/AuthCallback'
@@ -12,6 +13,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { MirrorPage } from './pages/MirrorPage'
 import { DiscoveryPage } from './pages/DiscoveryPage'
 import { RequestsPage } from './pages/RequestsPage'
+import PokédexPage from './pages/PokédexPage' // 🆕 AJOUTÉ
 import SimpleQuestionnairePage from './pages/SimpleQuestionnairePage'
 import { AdminPage } from './pages/AdminPage'
 import { ResetPasswordPage } from './pages'
@@ -104,6 +106,15 @@ function AppContent() {
             </PrivateRoute>
           } />
 
+          {/* 🆕 NOUVELLE ROUTE POKÉDEX */}
+          <Route path="/pokedex" element={
+            <PrivateRoute>
+              <OnboardingGuard isDarkMode={isDarkMode}>
+                <PokédexPage isDarkMode={isDarkMode} />
+              </OnboardingGuard>
+            </PrivateRoute>
+          } />
+
           <Route path="/questionnaire" element={
             <PrivateRoute>
               <SimpleQuestionnairePage isDarkMode={isDarkMode} />
@@ -144,7 +155,10 @@ export default function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <AppContent />
+          {/* 🔔 AJOUT DU NOTIFICATION PROVIDER */}
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>

@@ -1,8 +1,15 @@
+// Header.tsx - Version Premium V2 AVEC NOTIFICATIONS REALTIME
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useProfile } from '../hooks/useProfile'
+import { useNotificationContext } from '../contexts/NotificationContext' // 🆕 NOUVEAU CONTEXTE
 import { NotificationCenter } from './NotificationCenter'
-import { Heart, User, LogOut, Menu, X, Home, Sparkles, Sun, Moon, ChevronDown, BookOpen, MessageCircle } from 'lucide-react'
+import { 
+  Heart, User, LogOut, Menu, X, Home, Sparkles, Sun, Moon, 
+  ChevronDown, BookOpen, MessageCircle, Mail, Settings, 
+  Target, Shield, Bell, Search, Crown, Zap
+} from 'lucide-react'
 import { Button } from './ui/Button'
 import { useChat } from '../hooks/useChat'
 
@@ -12,15 +19,31 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => {
-  const { user, profile, signOut } = useAuth()
+  const { user, signOut } = useAuth()
+  const { profile: extendedProfile, questionnaire } = useProfile()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
-  // Hook pour les stats du chat
+  // 🔔 NOUVEAU: Hook pour les notifications temps réel
+  const { stats: notificationStats } = useNotificationContext()
+
+  // Hook pour les stats du chat (gardé pour les messages)
   const { chatStats } = useChat()
+
+  // Vérifier si le questionnaire est complété
+  const hasCompletedQuestionnaire = () => {
+    if (!questionnaire) return false;
+    // Format desktop (JSON structuré)
+    if (questionnaire.profile_json) return true;
+    // Format mobile (texte brut avec données valides)
+    if (questionnaire.generated_profile && questionnaire.generated_profile.length > 100) return true;
+    // Fallback : si le questionnaire existe avec des answers complètes
+    if (questionnaire.answers && Object.keys(questionnaire.answers).length > 2) return true;
+    return false;
+  }
 
   // Gérer l'effet au scroll
   useEffect(() => {
@@ -49,378 +72,617 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
     }
   }
 
-  // Ne pas afficher le header sur la page de login
-  if (location.pathname === '/login' || location.pathname === '/auth/callback') {
+  // Ne pas afficher le header sur certaines pages
+  if (location.pathname === '/login' || 
+      location.pathname === '/auth/callback' ||
+      location.pathname === '/reset-password') {
     return null
   }
 
-  // Navigation items avec icônes seulement
+  // Navigation items avec badges temps réel
   const navItems = [
-    { path: '/', icon: Home, label: 'Accueil' },
-    { path: '/decouverte', icon: Sparkles, label: 'Découverte' },
-    { path: '/matches', icon: Heart, label: 'Matchs' },
+    { 
+      path: '/', 
+      icon: Home, 
+      label: 'Accueil',
+      available: true
+    },
+    { 
+      path: '/decouverte', 
+      icon: Sparkles, 
+      label: 'Découverte',
+      available: hasCompletedQuestionnaire(),
+      locked: !hasCompletedQuestionnaire()
+    },
+    { 
+      path: '/demandes', 
+      icon: Mail,
+      label: 'Demandes',
+      available: true,
+      badge: notificationStats?.pending_requests_count > 0 ? notificationStats.pending_requests_count : undefined // 🆕 TEMPS RÉEL
+    },
     { 
       path: '/chat', 
       icon: MessageCircle,
       label: 'Messages',
-      badge: chatStats.total_unread_conversations > 0 ? chatStats.total_unread_conversations : undefined
+      available: true,
+      badge: chatStats?.total_unread_conversations > 0 ? chatStats.total_unread_conversations : undefined // Gardé pour chat
     },
-    { path: '/miroir', icon: BookOpen, label: 'Mon Miroir' },
+    { 
+      path: '/miroir', 
+      icon: BookOpen, 
+      label: 'Mon Miroir',
+      available: hasCompletedQuestionnaire(),
+      locked: !hasCompletedQuestionnaire()
+    },
   ]
 
+  // Obtenir le nom d'affichage
+  const getDisplayName = () => {
+    return extendedProfile?.name || 
+           user?.user_metadata?.full_name || 
+           user?.email?.split('@')[0] || 
+           'Utilisateur'
+  }
+
+  // Obtenir le niveau de l'utilisateur
+  const getUserLevel = () => {
+    return extendedProfile?.level || 1
+  }
+
+  
+
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isDarkMode 
-        ? isScrolled 
-          ? 'bg-gray-900/95 backdrop-blur-xl shadow-2xl border-b border-gray-700/50' 
-          : 'bg-gray-900/90 backdrop-blur-lg shadow-xl'
-        : isScrolled
-          ? 'bg-white/95 backdrop-blur-xl shadow-2xl border-b border-gray-200/50'
-          : 'bg-white/90 backdrop-blur-lg shadow-xl'
-    }`}>
-      
-      {/* Overlay pour améliorer la visibilité */}
-      <div className={`absolute inset-0 ${
+    <>
+      {/* CSS Premium pour le Header */}
+      <style>{`
+        .header-gradient {
+          background: linear-gradient(
+            135deg,
+            rgba(15, 23, 42, 0.95) 0%,
+            rgba(30, 41, 59, 0.95) 50%,
+            rgba(15, 23, 42, 0.95) 100%
+          );
+        }
+        
+        .nav-button {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+        }
+        
+        .nav-button:hover {
+          transform: translateY(-2px);
+        }
+        
+        .nav-button.active::after {
+          content: '';
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 6px;
+          height: 6px;
+          background: linear-gradient(135deg, #a855f7, #ec4899);
+          border-radius: 50%;
+        }
+        
+        .logo-glow {
+          filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));
+        }
+        
+        .premium-blur {
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+        }
+        
+        .hover-lift {
+          transition: all 0.2s ease;
+        }
+        
+        .hover-lift:hover {
+          transform: translateY(-1px);
+        }
+        
+        .notification-dot {
+          animation: pulse-notification 2s infinite;
+        }
+        
+        @keyframes pulse-notification {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.1); }
+        }
+      `}</style>
+
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isDarkMode 
-          ? 'bg-gradient-to-b from-gray-900/80 to-gray-900/60' 
-          : 'bg-gradient-to-b from-white/80 to-white/60'
-      }`}></div>
-      
-      <div className={`relative z-10 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-4'}`}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            
-            {/* Logo compact */}
-            <div 
-              className="flex items-center gap-3 cursor-pointer group"
-              onClick={() => navigate('/')}
-            >
-              <div className="relative">
-                <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 
-                  group-hover:opacity-70 transition-all duration-300 ${isScrolled ? 'scale-90' : ''}`}></div>
-                <div className={`relative bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl transition-all duration-300
-                  ${isScrolled ? 'p-1.5' : 'p-2'}`}>
-                  <Heart className={`text-white transition-all duration-300 ${isScrolled ? 'w-5 h-5' : 'w-6 h-6'}`} />
-                </div>
-              </div>
-              <h1 className={`font-bold hidden sm:block transition-all duration-300 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              } ${isScrolled ? 'text-lg' : 'text-xl'} drop-shadow-sm`}>Affinia</h1>
-              <span className={`text-xs bg-purple-600 text-white px-2 py-1 rounded-full transition-all duration-300
-                ${isScrolled ? 'scale-90' : ''} shadow-lg`}>V6</span>
-            </div>
-
-            {/* Navigation Desktop - Icônes seulement */}
-            <nav className="hidden md:flex items-center">
-              <div className={`flex items-center gap-1 rounded-full p-1 shadow-lg ${
-                isDarkMode ? 'bg-gray-800/90 border border-gray-700/50' : 'bg-white/90 border border-gray-200/50'
-              }`}>
-                {navItems.map((item) => {
-                  const Icon = item.icon
-                  const isActive = location.pathname === item.path || 
-                    (item.path === '/chat' && location.pathname.startsWith('/chat'))
-                  
-                  return (
-                    <button
-                      key={item.path}
-                      onClick={() => navigate(item.path)}
-                      title={item.label} // Tooltip au hover
-                      className={`
-                        relative p-3 rounded-full transition-all duration-300 group
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30' 
-                          : isDarkMode
-                            ? 'text-gray-300 hover:text-white hover:bg-gray-700/50'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
-                        }
-                      `}
-                    >
-                      <div className="relative">
-                        <Icon className={`transition-all duration-300 ${isScrolled ? 'w-5 h-5' : 'w-5 h-5'}`} />
-                        {/* Badge pour messages non lus */}
-                        {item.badge && (
-                          <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
-                            {item.badge > 99 ? '99+' : item.badge}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Effet de glow au hover */}
-                      {isActive && (
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 opacity-20 blur-xl"></div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </nav>
-
-            {/* User Menu Desktop - Simplifié */}
-            <div className="hidden md:flex items-center gap-2">
-              {/* Notifications */}
-              <NotificationCenter isDarkMode={isDarkMode} />
-
-              {/* Theme Toggle */}
-              <button
-                onClick={onThemeToggle}
-                className={`p-2 rounded-lg transition-all duration-300 group shadow-lg ${
-                  isDarkMode
-                    ? 'bg-gray-800/90 hover:bg-gray-700 border border-gray-700/50'
-                    : 'bg-white/90 hover:bg-gray-50 border border-gray-200/50'
-                }`}
-                title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
-              >
-                {isDarkMode ? (
-                  <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-180" />
-                ) : (
-                  <Moon className="w-5 h-5 text-gray-700 transition-transform duration-300 group-hover:-rotate-12" />
-                )}
-              </button>
-
-              {/* Profile Dropdown compact */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className={`flex items-center gap-2 p-1 rounded-full transition-all duration-300 group shadow-lg
-                    ${isDarkMode 
-                      ? 'hover:bg-gray-800/80 border border-gray-700/50' 
-                      : 'hover:bg-gray-100/80 border border-gray-200/50'
-                    } ${isScrolled ? 'scale-95' : ''}`}
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full 
-                      blur-sm opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-                    <div className="relative w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
-                      <div className={`w-full h-full rounded-full ${
-                        isDarkMode ? 'bg-gray-900' : 'bg-white'
-                      } flex items-center justify-center overflow-hidden`}>
-                        {profile?.avatar_url ? (
-                          <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <User className={`w-4 h-4 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  } ${isProfileOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Dropdown Menu */}
-                <div className={`absolute right-0 mt-2 w-48 transition-all duration-300 transform origin-top-right
-                  ${isProfileOpen 
-                    ? 'opacity-100 scale-100 translate-y-0' 
-                    : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-                  }`}>
-                  <div className={`${
-                    isDarkMode 
-                      ? 'bg-gray-800/95 border-gray-700' 
-                      : 'bg-white/95 border-gray-200'
-                  } backdrop-blur-xl border rounded-xl shadow-xl overflow-hidden`}>
-                    
-                    {/* User info */}
-                    <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {profile?.name || user?.email?.split('@')[0]}
-                      </p>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {user?.email}
-                      </p>
-                    </div>
-                    
-                    {/* Menu items */}
-                    <div className="py-1">
-                      <button
-                        onClick={() => {
-                          navigate('/profil')
-                          setIsProfileOpen(false)
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200 ${
-                          isDarkMode
-                            ? 'text-gray-300 hover:text-white hover:bg-gray-700/50'
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        <User className="w-4 h-4" />
-                        Mon Profil
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          navigate('/demandes')
-                          setIsProfileOpen(false)
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200 ${
-                          isDarkMode
-                            ? 'text-gray-300 hover:text-white hover:bg-gray-700/50'
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        <BookOpen className="w-4 h-4" />
-                        Mes demandes
-                      </button>
-                      
-                      <button
-                        onClick={handleSignOut}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200 ${
-                          isDarkMode
-                            ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                            : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                        }`}
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Déconnexion
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="flex items-center gap-2 md:hidden">
-              {/* Messages badge mobile */}
-              {chatStats.total_unread_conversations > 0 && (
-                <button
-                  onClick={() => navigate('/chat')}
-                  className={`relative p-2 rounded-lg transition-all duration-200 shadow-lg ${
-                    isDarkMode
-                      ? 'bg-gray-800/90 hover:bg-gray-700 text-blue-400 border border-gray-700/50'
-                      : 'bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200/50'
-                  }`}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                    {chatStats.total_unread_conversations > 99 ? '99+' : chatStats.total_unread_conversations}
-                  </div>
-                </button>
-              )}
-
-              {/* Notifications Mobile */}
-              <NotificationCenter isDarkMode={isDarkMode} />
-
-              {/* Theme Toggle Mobile */}
-              <button
-                onClick={onThemeToggle}
-                className={`p-2 rounded-lg transition-all duration-200 shadow-lg ${
-                  isDarkMode
-                    ? 'bg-gray-800/90 hover:bg-gray-700 text-yellow-400 border border-gray-700/50'
-                    : 'bg-white/90 hover:bg-gray-50 text-gray-700 border border-gray-200/50'
-                }`}
-              >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
+          ? isScrolled 
+            ? 'header-gradient premium-blur shadow-2xl border-b border-white/10' 
+            : 'header-gradient premium-blur shadow-xl'
+          : isScrolled
+            ? 'bg-white/95 premium-blur shadow-2xl border-b border-gray-200/50'
+            : 'bg-white/90 premium-blur shadow-xl'
+      }`}>
+        
+        <div className={`relative z-10 transition-all duration-300 ${isScrolled ? 'py-3' : 'py-4'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center">
               
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={`p-2 rounded-lg transition-all duration-300 shadow-lg ${
-                  isDarkMode
-                    ? 'text-gray-300 hover:text-white hover:bg-gray-800/80 border border-gray-700/50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 border border-gray-200/50'
-                } ${mobileMenuOpen ? 'rotate-90' : ''}`}
+              {/* Logo Premium */}
+              <div 
+                className="flex items-center gap-4 cursor-pointer group"
+                onClick={() => navigate('/')}
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+                <div className="relative">
+                  {/* Glow effect */}
+                  <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 
+                    group-hover:opacity-70 transition-all duration-300 ${isScrolled ? 'scale-90' : ''}`}></div>
+                  
+                  {/* Logo container */}
+                  <div className={`relative bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl transition-all duration-300 logo-glow
+                    ${isScrolled ? 'p-2' : 'p-2.5'}`}>
+                    <Heart className={`text-white transition-all duration-300 ${isScrolled ? 'w-6 h-6' : 'w-7 h-7'}`} />
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <h1 className={`font-bold hidden sm:block transition-all duration-300 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  } ${isScrolled ? 'text-xl' : 'text-2xl'} drop-shadow-sm`}>
+                    Affinia
+                  </h1>
+                  <span className={`text-xs bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2 py-1 rounded-full transition-all duration-300 font-medium
+                    ${isScrolled ? 'scale-90' : ''} shadow-lg`}>
+                    V6
+                  </span>
+                </div>
+              </div>
+
+              {/* Navigation Desktop Premium */}
+              <nav className="hidden lg:flex items-center">
+                <div className={`flex items-center gap-2 rounded-2xl p-2 shadow-xl border ${
+                  isDarkMode 
+                    ? 'bg-slate-800/90 border-slate-700/50' 
+                    : 'bg-white/90 border-gray-200/50'
+                } premium-blur`}>
+                  {navItems.map((item) => {
+                    const Icon = item.icon
+                    const isActive = location.pathname === item.path || 
+                      (item.path === '/chat' && location.pathname.startsWith('/chat')) ||
+                      (item.path === '/demandes' && location.pathname.startsWith('/demandes'))
+                    
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => item.available && navigate(item.path)}
+                        disabled={!item.available}
+                        title={item.locked ? `${item.label} - Questionnaire requis` : item.label}
+                        className={`
+                          nav-button relative px-4 py-3 rounded-xl transition-all duration-300 group
+                          ${isActive 
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/30' 
+                            : item.available
+                              ? isDarkMode
+                                ? 'text-gray-300 hover:text-white hover:bg-slate-700/50'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
+                              : 'text-gray-500 opacity-50 cursor-not-allowed'
+                          }
+                          ${isActive ? 'active' : ''}
+                        `}
+                      >
+                        <div className="relative flex items-center gap-2">
+                          <Icon className={`transition-all duration-300 ${isScrolled ? 'w-5 h-5' : 'w-5 h-5'}`} />
+                          
+                          {/* Badge pour notifications - TEMPS RÉEL */}
+                          {item.badge && (
+                            <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold notification-dot">
+                              {item.badge > 99 ? '99+' : item.badge}
+                            </div>
+                          )}
+                          
+                          {/* Lock icon pour les éléments verrouillés */}
+                          {item.locked && (
+                            <Shield className="w-3 h-3 absolute -top-1 -right-1 text-gray-400" />
+                          )}
+                        </div>
+                        
+                        {/* Tooltip au hover */}
+                        <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none`}>
+                          {item.label}
+                          {item.locked && ' (Verrouillé)'}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </nav>
+
+              {/* User Section Desktop */}
+              <div className="hidden lg:flex items-center gap-3">
+
+                {/* 🔔 Notifications - NOUVEAU CONTEXTE */}
+                <div className={`p-2 rounded-xl shadow-lg border transition-all duration-300 hover-lift ${
+                  isDarkMode
+                    ? 'bg-slate-800/90 border-slate-700/50'
+                    : 'bg-white/90 border-gray-200/50'
+                } premium-blur`}>
+                  <NotificationCenter isDarkMode={isDarkMode} />
+                </div>
+
+                {/* Theme Toggle Premium */}
+                <button
+                  onClick={onThemeToggle}
+                  className={`p-3 rounded-xl transition-all duration-300 group shadow-lg border hover-lift ${
+                    isDarkMode
+                      ? 'bg-slate-800/90 hover:bg-slate-700 border-slate-700/50'
+                      : 'bg-white/90 hover:bg-gray-50 border-gray-200/50'
+                  } premium-blur`}
+                  title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+                >
+                  {isDarkMode ? (
+                    <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-180" />
+                  ) : (
+                    <Moon className="w-5 h-5 text-gray-700 transition-transform duration-300 group-hover:-rotate-12" />
+                  )}
+                </button>
+
+                {/* Profile Dropdown Premium */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className={`flex items-center gap-3 p-2 rounded-xl transition-all duration-300 group shadow-lg border hover-lift
+                      ${isDarkMode 
+                        ? 'hover:bg-slate-800/80 border-slate-700/50 bg-slate-800/90' 
+                        : 'hover:bg-gray-100/80 border-gray-200/50 bg-white/90'
+                      } premium-blur ${isScrolled ? 'scale-95' : ''}`}
+                  >
+                    <div className="relative">
+                      {/* Avatar avec niveau */}
+                      <div className="relative w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
+                        <div className={`w-full h-full rounded-xl ${
+                          isDarkMode ? 'bg-slate-900' : 'bg-white'
+                        } flex items-center justify-center overflow-hidden`}>
+                          {extendedProfile?.avatar_url ? (
+                            <img src={extendedProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <User className={`w-5 h-5 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Badge de niveau */}
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center border-2 border-slate-900">
+                        <span className="text-xs font-bold text-white">{getUserLevel()}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="hidden xl:block text-left">
+                      <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {getDisplayName()}
+                      </div>
+                      <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Niveau {getUserLevel()}
+                      </div>
+                    </div>
+                    
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    } ${isProfileOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu Premium */}
+                  <div className={`absolute right-0 mt-3 w-64 transition-all duration-300 transform origin-top-right
+                    ${isProfileOpen 
+                      ? 'opacity-100 scale-100 translate-y-0' 
+                      : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                    }`}>
+                    <div className={`${
+                      isDarkMode 
+                        ? 'bg-slate-800/95 border-slate-700' 
+                        : 'bg-white/95 border-gray-200'
+                    } premium-blur border rounded-2xl shadow-2xl overflow-hidden`}>
+                      
+                      {/* User info avec stats */}
+                      <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
+                              <div className={`w-full h-full rounded-xl ${
+                                isDarkMode ? 'bg-slate-900' : 'bg-white'
+                              } flex items-center justify-center`}>
+                                {extendedProfile?.avatar_url ? (
+                                  <img src={extendedProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
+                                ) : (
+                                  <User className="w-6 h-6 text-gray-400" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                              <Crown className="w-3 h-3 text-white" />
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1">
+                            <p className={`font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {getDisplayName()}
+                            </p>
+                            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {user?.email}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Zap className="w-3 h-3 text-yellow-400" />
+                              <span className="text-xs text-yellow-400 font-medium">
+                                Niveau {getUserLevel()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Menu items avec icônes */}
+                      <div className="py-2">
+                        <button
+                          onClick={() => {
+                            navigate('/profil')
+                            setIsProfileOpen(false)
+                          }}
+                          className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 ${
+                            isDarkMode
+                              ? 'text-gray-300 hover:text-white hover:bg-slate-700/50'
+                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          <User className="w-4 h-4" />
+                          <span>Mon Profil</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            navigate('/demandes')
+                            setIsProfileOpen(false)
+                          }}
+                          className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 ${
+                            isDarkMode
+                              ? 'text-gray-300 hover:text-white hover:bg-slate-700/50'
+                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Mail className="w-4 h-4" />
+                          <span>Mes demandes</span>
+                          {/* 🆕 BADGE TEMPS RÉEL */}
+                          {notificationStats?.pending_requests_count > 0 && (
+                            <div className="ml-auto w-2 h-2 bg-red-500 rounded-full notification-dot"></div>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            navigate('/parametres')
+                            setIsProfileOpen(false)
+                          }}
+                          className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 ${
+                            isDarkMode
+                              ? 'text-gray-300 hover:text-white hover:bg-slate-700/50'
+                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>Paramètres</span>
+                        </button>
+                        
+                        <div className={`border-t mx-6 my-2 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}></div>
+                        
+                        <button
+                          onClick={handleSignOut}
+                          className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 ${
+                            isDarkMode
+                              ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                              : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                          }`}
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Déconnexion</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Menu Button */}
+              <div className="flex items-center gap-3 lg:hidden">
+                {/* Messages badge mobile */}
+                {chatStats?.total_unread_conversations > 0 && (
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className={`relative p-2 rounded-xl transition-all duration-200 shadow-lg border ${
+                      isDarkMode
+                        ? 'bg-slate-800/90 hover:bg-slate-700 text-blue-400 border-slate-700/50'
+                        : 'bg-white/90 hover:bg-gray-50 text-blue-600 border-gray-200/50'
+                    } premium-blur`}
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold notification-dot">
+                      {chatStats.total_unread_conversations > 99 ? '99+' : chatStats.total_unread_conversations}
+                    </div>
+                  </button>
+                )}
+
+                {/* 🔔 Notifications Mobile */}
+                <div className={`p-2 rounded-xl shadow-lg border ${
+                  isDarkMode
+                    ? 'bg-slate-800/90 border-slate-700/50'
+                    : 'bg-white/90 border-gray-200/50'
+                } premium-blur`}>
+                  <NotificationCenter isDarkMode={isDarkMode} />
+                </div>
+
+                {/* Theme Toggle Mobile */}
+                <button
+                  onClick={onThemeToggle}
+                  className={`p-2 rounded-xl transition-all duration-200 shadow-lg border ${
+                    isDarkMode
+                      ? 'bg-slate-800/90 hover:bg-slate-700 text-yellow-400 border-slate-700/50'
+                      : 'bg-white/90 hover:bg-gray-50 text-gray-700 border-gray-200/50'
+                  } premium-blur`}
+                >
+                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+                
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className={`p-2 rounded-xl transition-all duration-300 shadow-lg border ${
+                    isDarkMode
+                      ? 'text-gray-300 hover:text-white hover:bg-slate-800/80 border-slate-700/50 bg-slate-800/90'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 border-gray-200/50 bg-white/90'
+                  } premium-blur ${mobileMenuOpen ? 'rotate-90' : ''}`}
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Menu avec navigation complète */}
-      <div className={`md:hidden transition-all duration-500 transform ${
-        mobileMenuOpen 
-          ? 'max-h-screen opacity-100' 
-          : 'max-h-0 opacity-0 overflow-hidden'
-      }`}>
-        <div className={`${
-          isDarkMode 
-            ? 'bg-gray-900/98 border-t border-gray-700' 
-            : 'bg-white/98 border-t border-gray-200'
-        } backdrop-blur-xl shadow-xl`}>
-          <div className="px-4 py-4 space-y-2 max-w-6xl mx-auto">
-            
-            {/* Navigation Mobile avec labels */}
-            {navItems.map((item, index) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.path || 
-                (item.path === '/chat' && location.pathname.startsWith('/chat'))
+        {/* Mobile Menu Premium */}
+        <div className={`lg:hidden transition-all duration-500 transform ${
+          mobileMenuOpen 
+            ? 'max-h-screen opacity-100' 
+            : 'max-h-0 opacity-0 overflow-hidden'
+        }`}>
+          <div className={`${
+            isDarkMode 
+              ? 'bg-slate-900/98 border-t border-slate-700' 
+              : 'bg-white/98 border-t border-gray-200'
+          } premium-blur shadow-2xl`}>
+            <div className="px-4 py-6 space-y-4 max-w-7xl mx-auto">
               
-              return (
+              {/* Profile info mobile */}
+              <div className={`flex items-center gap-4 p-4 rounded-xl ${
+                isDarkMode ? 'bg-slate-800/50' : 'bg-gray-100/50'
+              }`}>
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 p-0.5">
+                    <div className={`w-full h-full rounded-xl ${
+                      isDarkMode ? 'bg-slate-900' : 'bg-white'
+                    } flex items-center justify-center`}>
+                      {extendedProfile?.avatar_url ? (
+                        <img src={extendedProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
+                      ) : (
+                        <User className="w-6 h-6 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">{getUserLevel()}</span>
+                  </div>
+                </div>
+                
+                <div className="flex-1">
+                  <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {getDisplayName()}
+                  </p>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Niveau {getUserLevel()}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Navigation Mobile avec états - BADGES TEMPS RÉEL */}
+              {navItems.map((item, index) => {
+                const Icon = item.icon
+                const isActive = location.pathname === item.path || 
+                  (item.path === '/chat' && location.pathname.startsWith('/chat'))
+                
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => {
+                      if (item.available) {
+                        navigate(item.path)
+                        setMobileMenuOpen(false)
+                      }
+                    }}
+                    disabled={!item.available}
+                    className={`
+                      w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-300
+                      transform hover:scale-[1.02] relative
+                      ${isActive 
+                        ? isDarkMode
+                          ? 'bg-purple-600/20 text-white border border-purple-500/30'
+                          : 'bg-purple-100 text-purple-700 border border-purple-200'
+                        : item.available
+                          ? isDarkMode
+                            ? 'text-gray-400 hover:text-white hover:bg-slate-800/80'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80'
+                          : 'text-gray-500 opacity-50'
+                      }
+                      ${!item.available ? 'cursor-not-allowed' : ''}
+                    `}
+                    style={{ 
+                      transitionDelay: `${index * 50}ms`,
+                      opacity: mobileMenuOpen ? 1 : 0,
+                      transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-20px)'
+                    }}
+                  >
+                    <div className="relative">
+                      <Icon className="w-6 h-6" />
+                      {/* 🆕 BADGES TEMPS RÉEL MOBILE */}
+                      {item.badge && (
+                        <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold notification-dot">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </div>
+                      )}
+                      {item.locked && (
+                        <Shield className="w-3 h-3 absolute -top-1 -right-1 text-gray-400" />
+                      )}
+                    </div>
+                    <span className="font-medium flex-1 text-left">{item.label}</span>
+                    {item.locked && (
+                      <span className="text-xs bg-gray-500/20 px-2 py-1 rounded-full">
+                        Verrouillé
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+
+              {/* User actions mobile */}
+              <div className={`border-t pt-4 mt-4 space-y-2 ${
+                isDarkMode ? 'border-slate-700' : 'border-gray-200'
+              }`}>
                 <button
-                  key={item.path}
                   onClick={() => {
-                    navigate(item.path)
+                    navigate('/profil')
                     setMobileMenuOpen(false)
                   }}
-                  className={`
-                    w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300
-                    transform hover:scale-[1.02] relative
-                    ${isActive 
-                      ? isDarkMode
-                        ? 'bg-purple-600/20 text-white border border-purple-500/30'
-                        : 'bg-purple-100 text-purple-700 border border-purple-200'
-                      : isDarkMode
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-800/80'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80'
-                    }
-                  `}
-                  style={{ 
-                    transitionDelay: `${index * 50}ms`,
-                    opacity: mobileMenuOpen ? 1 : 0,
-                    transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-20px)'
-                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl transition-colors ${
+                    isDarkMode
+                      ? 'text-gray-300 hover:text-white hover:bg-slate-800/80'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
+                  }`}
                 >
-                  <div className="relative">
-                    <Icon className="w-5 h-5" />
-                    {item.badge && (
-                      <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                        {item.badge > 99 ? '99+' : item.badge}
-                      </div>
-                    )}
-                  </div>
-                  <span className="font-medium">{item.label}</span>
+                  <User className="w-5 h-5" />
+                  <span>Mon Profil</span>
                 </button>
-              )
-            })}
 
-            {/* User actions mobile */}
-            <div className={`border-t pt-4 mt-4 space-y-2 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
-              <button
-                onClick={() => {
-                  navigate('/profil')
-                  setMobileMenuOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
-                  isDarkMode
-                    ? 'text-gray-300 hover:text-white hover:bg-gray-800/80'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/80'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                Mon Profil
-              </button>
-
-              <button
-                onClick={handleSignOut}
-                className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${
-                  isDarkMode
-                    ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                }`}
-              >
-                <LogOut className="w-4 h-4" />
-                Déconnexion
-              </button>
+                <button
+                  onClick={handleSignOut}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl transition-colors ${
+                    isDarkMode
+                      ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                      : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                  }`}
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Déconnexion</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   )
 }

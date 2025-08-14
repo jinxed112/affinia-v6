@@ -222,9 +222,6 @@ class DiscoveryService {
       throw error
     }
   }
-
-  // 📝 NOTE: Les méthodes pokédex ont été supprimées car PokédexPage utilise maintenant Supabase directement
-  // comme MirrorPage. Cela évite la duplication d'endpoints et utilise la logique existante.
 }
 
 export const discoveryService = new DiscoveryService()

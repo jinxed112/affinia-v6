@@ -1,12 +1,13 @@
-// Header.tsx - Version Premium V2 SANS COMPLETION BADGE
+// Header.tsx - Version Premium V2 AVEC POKÉDEX
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfile } from '../hooks/useProfile'
+import { useNotificationContext } from '../contexts/NotificationContext' // 🆕 NOUVEAU CONTEXTE
 import { NotificationCenter } from './NotificationCenter'
 import { 
   Heart, User, LogOut, Menu, X, Home, Sparkles, Sun, Moon, 
-  ChevronDown, BookOpen, MessageCircle, Mail, Settings, 
+  ChevronDown, BookOpen, MessageCircle, Database, Settings, 
   Target, Shield, Bell, Search, Crown, Zap
 } from 'lucide-react'
 import { Button } from './ui/Button'
@@ -26,7 +27,10 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
   const [isScrolled, setIsScrolled] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
-  // Hook pour les stats du chat
+  // 🔔 NOUVEAU: Hook pour les notifications temps réel
+  const { stats: notificationStats } = useNotificationContext()
+
+  // Hook pour les stats du chat (gardé pour les messages)
   const { chatStats } = useChat()
 
   // Vérifier si le questionnaire est complété
@@ -75,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
     return null
   }
 
-  // Navigation items avec logique conditionnelle
+  // Navigation items avec badges temps réel - POKÉDEX AJOUTÉ
   const navItems = [
     { 
       path: '/', 
@@ -91,18 +95,18 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
       locked: !hasCompletedQuestionnaire()
     },
     { 
-      path: '/demandes', 
-      icon: Mail,
-      label: 'Demandes',
-      available: true,
-      badge: 2 // Simulated pour démo
+      path: '/pokedex', // 🆕 NOUVEAU: Pokédex au lieu de demandes
+      icon: Database,   // 🆕 NOUVEAU: Icône Database pour le pokédex
+      label: 'Pokédex',
+      available: true
+      // Pas de badge pour le pokédex
     },
     { 
       path: '/chat', 
       icon: MessageCircle,
       label: 'Messages',
       available: true,
-      badge: chatStats?.total_unread_conversations > 0 ? chatStats.total_unread_conversations : undefined
+      badge: chatStats?.total_unread_conversations > 0 ? chatStats.total_unread_conversations : undefined // Gardé pour chat
     },
     { 
       path: '/miroir', 
@@ -126,10 +130,12 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
     return extendedProfile?.level || 1
   }
 
+  
+
   return (
     <>
       {/* CSS Premium pour le Header */}
-      <style jsx>{`
+      <style>{`
         .header-gradient {
           background: linear-gradient(
             135deg,
@@ -242,7 +248,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                     const Icon = item.icon
                     const isActive = location.pathname === item.path || 
                       (item.path === '/chat' && location.pathname.startsWith('/chat')) ||
-                      (item.path === '/demandes' && location.pathname.startsWith('/demandes'))
+                      (item.path === '/pokedex' && location.pathname.startsWith('/pokedex')) // 🆕 NOUVEAU: Support pour pokédex
                     
                     return (
                       <button
@@ -266,7 +272,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                         <div className="relative flex items-center gap-2">
                           <Icon className={`transition-all duration-300 ${isScrolled ? 'w-5 h-5' : 'w-5 h-5'}`} />
                           
-                          {/* Badge pour notifications */}
+                          {/* Badge pour notifications - TEMPS RÉEL */}
                           {item.badge && (
                             <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold notification-dot">
                               {item.badge > 99 ? '99+' : item.badge}
@@ -293,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
               {/* User Section Desktop */}
               <div className="hidden lg:flex items-center gap-3">
 
-                {/* Notifications */}
+                {/* 🔔 Notifications - NOUVEAU CONTEXTE */}
                 <div className={`p-2 rounded-xl shadow-lg border transition-all duration-300 hover-lift ${
                   isDarkMode
                     ? 'bg-slate-800/90 border-slate-700/50'
@@ -431,9 +437,10 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                           <span>Mon Profil</span>
                         </button>
 
+                        {/* 🆕 NOUVEAU: Pokédex dans le dropdown */}
                         <button
                           onClick={() => {
-                            navigate('/demandes')
+                            navigate('/pokedex')
                             setIsProfileOpen(false)
                           }}
                           className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 ${
@@ -442,9 +449,8 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                               : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                           }`}
                         >
-                          <Mail className="w-4 h-4" />
-                          <span>Mes demandes</span>
-                          <div className="ml-auto w-2 h-2 bg-red-500 rounded-full notification-dot"></div>
+                          <Database className="w-4 h-4" />
+                          <span>Pokédex</span>
                         </button>
 
                         <button
@@ -499,6 +505,15 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                     </div>
                   </button>
                 )}
+
+                {/* 🔔 Notifications Mobile */}
+                <div className={`p-2 rounded-xl shadow-lg border ${
+                  isDarkMode
+                    ? 'bg-slate-800/90 border-slate-700/50'
+                    : 'bg-white/90 border-gray-200/50'
+                } premium-blur`}>
+                  <NotificationCenter isDarkMode={isDarkMode} />
+                </div>
 
                 {/* Theme Toggle Mobile */}
                 <button
@@ -571,11 +586,12 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                 </div>
               </div>
               
-              {/* Navigation Mobile avec états */}
+              {/* Navigation Mobile avec états - BADGES TEMPS RÉEL */}
               {navItems.map((item, index) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.path || 
-                  (item.path === '/chat' && location.pathname.startsWith('/chat'))
+                  (item.path === '/chat' && location.pathname.startsWith('/chat')) ||
+                  (item.path === '/pokedex' && location.pathname.startsWith('/pokedex')) // 🆕 NOUVEAU: Support pokédex mobile
                 
                 return (
                   <button
@@ -610,6 +626,7 @@ export const Header: React.FC<HeaderProps> = ({ isDarkMode, onThemeToggle }) => 
                   >
                     <div className="relative">
                       <Icon className="w-6 h-6" />
+                      {/* 🆕 BADGES TEMPS RÉEL MOBILE */}
                       {item.badge && (
                         <div className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold notification-dot">
                           {item.badge > 99 ? '99+' : item.badge}
