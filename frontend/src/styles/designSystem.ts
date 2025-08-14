@@ -1,5 +1,7 @@
-// Design System Unifié pour Affinia - Styles et Utilitaires uniquement
+// Design System Unifié pour Affinia - VERSION ULTRA-OPTIMISÉE MOBILE
 // src/styles/designSystem.ts
+
+import { useMemo } from 'react';
 
 export const DesignSystem = {
   // Couleurs principales unifiées
@@ -88,12 +90,45 @@ export const DesignSystem = {
   }
 };
 
-// Animations CSS unifiées - intégrant votre CSS existant
+// 🚀 OPTIMISATION 1: Détection device capability
+const getDeviceCapability = (): 'low' | 'medium' | 'high' => {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isSlowDevice = window.innerWidth <= 768 || navigator.hardwareConcurrency <= 2;
+  
+  if (isMobile && isSlowDevice) return 'low';
+  if (isMobile || isSlowDevice) return 'medium';
+  return 'high';
+};
+
+// 🚀 OPTIMISATION 2: CSS Adaptatif Mobile-First
 export const UnifiedAnimations = `
-  /* Vos animations existantes intégrées */
+  /* 🚀 CSS Mobile-First avec détection de capacité */
+  @media (max-width: 768px) {
+    /* Réduire les animations sur mobile */
+    * {
+      animation-duration: 0.5s !important;
+      transition-duration: 0.2s !important;
+    }
+    
+    /* Désactiver certaines animations sur très petits écrans */
+    @media (max-width: 480px) {
+      .animate-float,
+      .animate-bounce,
+      .animate-pulse {
+        animation: none !important;
+      }
+    }
+  }
+
+  /* Animations CSS unifiées optimisées */
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
+  }
+
+  @keyframes float-reduced {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
   }
 
   @keyframes pulse-glow {
@@ -101,21 +136,30 @@ export const UnifiedAnimations = `
     50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.6); }
   }
 
+  @keyframes pulse-glow-reduced {
+    0%, 100% { box-shadow: 0 0 10px rgba(236, 72, 153, 0.2); }
+    50% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.4); }
+  }
+
   @keyframes shimmer {
     0% { background-position: -200px 0; }
     100% { background-position: calc(200px + 100%) 0; }
   }
 
-  /* Nouvelles animations pour cohérence */
   @keyframes float-up {
     0% { transform: translateY(100vh) scale(0); opacity: 0; }
     10% { transform: translateY(90vh) scale(1); opacity: 0.4; }
     100% { transform: translateY(-10vh) scale(0); opacity: 0; }
   }
-  
+
   @keyframes glow-pulse {
     0%, 100% { opacity: 0.4; transform: scale(1); }
     50% { opacity: 0.8; transform: scale(1.1); }
+  }
+
+  @keyframes glow-pulse-reduced {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.05); }
   }
 
   @keyframes gradient-shift {
@@ -123,13 +167,21 @@ export const UnifiedAnimations = `
     50% { background-position: 100% 50%; }
   }
 
-  /* Classes d'animation unifiées */
+  /* 🚀 Classes d'animation adaptatives */
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
 
+  .animate-float-reduced {
+    animation: float-reduced 2s ease-in-out infinite;
+  }
+
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow-reduced {
+    animation: pulse-glow-reduced 3s ease-in-out infinite;
   }
 
   .animate-shimmer {
@@ -137,13 +189,17 @@ export const UnifiedAnimations = `
     background-size: 200px 100%;
     animation: shimmer 2s infinite;
   }
-  
+
   .animate-float-up {
     animation: float-up linear infinite;
   }
-  
+
   .animate-glow-pulse {
     animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse-reduced {
+    animation: glow-pulse-reduced 4s ease-in-out infinite;
   }
 
   .animate-gradient {
@@ -151,17 +207,29 @@ export const UnifiedAnimations = `
     animation: gradient-shift 6s ease infinite;
   }
 
-  /* Vos effets glass intégrés */
+  /* 🚀 Effets glass adaptatifs */
   .glass {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  .glass-reduced {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
   .glass-dark {
     background: rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-dark-reduced {
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   /* Gradient text unifié */
@@ -172,7 +240,7 @@ export const UnifiedAnimations = `
     background-clip: text;
   }
 
-  /* Card hover effects unifiés */
+  /* 🚀 Card hover effects adaptatifs */
   .card-hover {
     transition: all 0.3s ease;
   }
@@ -182,7 +250,16 @@ export const UnifiedAnimations = `
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   }
 
-  /* Effet mystique unifié */
+  .card-hover-reduced {
+    transition: all 0.2s ease;
+  }
+
+  .card-hover-reduced:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 🚀 Effet mystique adaptatif */
   .mystical-glow {
     position: relative;
   }
@@ -202,40 +279,176 @@ export const UnifiedAnimations = `
     opacity: 0.5;
     animation: gradient-shift 2s ease infinite;
   }
+
+  .mystical-glow-reduced {
+    position: relative;
+  }
+
+  .mystical-glow-reduced::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(45deg, #8b5cf6, #ec4899, #8b5cf6);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .mystical-glow-reduced:hover::before {
+    opacity: 0.3;
+  }
+
+  /* 🚀 Classe utilitaire pour préférences réduite mouvement */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 `;
 
-// Hook pour utiliser le système de design
+// 🚀 OPTIMISATION 3: Cache pour les classes générées
+const classCache = new Map<string, string>();
+
+// 🚀 OPTIMISATION 4: Hook optimisé avec mémorisation complète
 export const useDesignSystem = (isDarkMode: boolean) => {
-  return {
-    colors: DesignSystem.colors,
-    getCardClasses: (variant: 'default' | 'highlighted' | 'glass' = 'default') => {
-      const base = 'rounded-2xl border transition-all duration-300 hover:scale-[1.02]';
+  return useMemo(() => {
+    const deviceCapability = getDeviceCapability();
+    
+    // 🚀 Fonctions getCardClasses mémorisées avec cache
+    const getCardClasses = (variant: 'default' | 'highlighted' | 'glass' = 'default') => {
+      const cacheKey = `card_${variant}_${isDarkMode}_${deviceCapability}`;
+      
+      if (classCache.has(cacheKey)) {
+        return classCache.get(cacheKey)!;
+      }
+
+      const base = deviceCapability === 'low' 
+        ? 'rounded-xl border transition-all duration-200 hover:scale-[1.01]'
+        : 'rounded-2xl border transition-all duration-300 hover:scale-[1.02]';
+
       const variants = {
-        default: isDarkMode 
-          ? 'bg-gray-800/50 border-gray-700/50 backdrop-blur-xl' 
-          : 'bg-white/80 border-gray-200/50 backdrop-blur-xl',
+        default: isDarkMode
+          ? (deviceCapability === 'low' 
+            ? 'bg-gray-800/30 border-gray-700/30 backdrop-blur-sm'
+            : 'bg-gray-800/50 border-gray-700/50 backdrop-blur-xl')
+          : (deviceCapability === 'low'
+            ? 'bg-white/60 border-gray-200/30 backdrop-blur-sm'
+            : 'bg-white/80 border-gray-200/50 backdrop-blur-xl'),
+        
         highlighted: isDarkMode
-          ? 'bg-gradient-to-br from-purple-900/20 to-pink-900/10 border-purple-500/30 backdrop-blur-xl'
-          : 'bg-gradient-to-br from-purple-100/50 to-pink-100/30 border-purple-200/50 backdrop-blur-xl',
-        glass: 'backdrop-blur-xl bg-white/10 border border-white/20'
+          ? (deviceCapability === 'low'
+            ? 'bg-purple-900/10 border-purple-500/20 backdrop-blur-sm'
+            : 'bg-gradient-to-br from-purple-900/20 to-pink-900/10 border-purple-500/30 backdrop-blur-xl')
+          : (deviceCapability === 'low'
+            ? 'bg-purple-100/30 border-purple-200/30 backdrop-blur-sm'
+            : 'bg-gradient-to-br from-purple-100/50 to-pink-100/30 border-purple-200/50 backdrop-blur-xl'),
+        
+        glass: deviceCapability === 'low'
+          ? 'backdrop-blur-sm bg-white/5 border border-white/10'
+          : 'backdrop-blur-xl bg-white/10 border border-white/20'
       };
-      return `${base} ${variants[variant]}`;
-    },
-    getTextClasses: (variant: 'primary' | 'secondary' | 'muted' = 'primary') => {
+
+      const result = `${base} ${variants[variant]}`;
+      classCache.set(cacheKey, result);
+      return result;
+    };
+
+    // 🚀 Fonctions getTextClasses mémorisées
+    const getTextClasses = (variant: 'primary' | 'secondary' | 'muted' = 'primary') => {
+      const cacheKey = `text_${variant}_${isDarkMode}`;
+      
+      if (classCache.has(cacheKey)) {
+        return classCache.get(cacheKey)!;
+      }
+
       const variants = {
         primary: isDarkMode ? 'text-white' : 'text-gray-900',
         secondary: isDarkMode ? 'text-gray-300' : 'text-gray-700',
         muted: isDarkMode ? 'text-gray-400' : 'text-gray-600'
       };
-      return variants[variant];
-    },
-    getBgClasses: (variant: 'primary' | 'secondary' | 'card' = 'primary') => {
+
+      const result = variants[variant];
+      classCache.set(cacheKey, result);
+      return result;
+    };
+
+    // 🚀 Fonctions getBgClasses mémorisées
+    const getBgClasses = (variant: 'primary' | 'secondary' | 'card' = 'primary') => {
+      const cacheKey = `bg_${variant}_${isDarkMode}`;
+      
+      if (classCache.has(cacheKey)) {
+        return classCache.get(cacheKey)!;
+      }
+
       const variants = {
         primary: isDarkMode ? 'bg-gray-900' : 'bg-gray-50',
         secondary: isDarkMode ? 'bg-gray-800' : 'bg-white',
         card: isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
       };
-      return variants[variant];
-    }
+
+      const result = variants[variant];
+      classCache.set(cacheKey, result);
+      return result;
+    };
+
+    // 🚀 Fonction getAnimationClasses mémorisées
+    const getAnimationClasses = (animation: 'float' | 'pulse' | 'glow' | 'hover') => {
+      const cacheKey = `anim_${animation}_${deviceCapability}`;
+      
+      if (classCache.has(cacheKey)) {
+        return classCache.get(cacheKey)!;
+      }
+
+      const animations = {
+        float: deviceCapability === 'low' ? 'animate-float-reduced' : 'animate-float',
+        pulse: deviceCapability === 'low' ? 'animate-pulse' : 'animate-pulse-glow',
+        glow: deviceCapability === 'low' ? 'animate-glow-pulse-reduced' : 'animate-glow-pulse',
+        hover: deviceCapability === 'low' ? 'card-hover-reduced' : 'card-hover'
+      };
+
+      const result = animations[animation];
+      classCache.set(cacheKey, result);
+      return result;
+    };
+
+    return {
+      colors: DesignSystem.colors,
+      deviceCapability,
+      getCardClasses,
+      getTextClasses,
+      getBgClasses,
+      getAnimationClasses,
+      
+      // 🚀 Utilitaires rapides mémorisés
+      isLowPerformance: deviceCapability === 'low',
+      isMediumPerformance: deviceCapability === 'medium',
+      isHighPerformance: deviceCapability === 'high',
+      
+      // 🚀 Classes pré-calculées pour les cas fréquents
+      cardDefault: getCardClasses('default'),
+      cardHighlighted: getCardClasses('highlighted'),
+      textPrimary: getTextClasses('primary'),
+      textSecondary: getTextClasses('secondary'),
+      bgPrimary: getBgClasses('primary')
+    };
+  }, [isDarkMode]); // 🚀 Seule dépendance: isDarkMode
+};
+
+// 🚀 OPTIMISATION 5: Fonction pour nettoyer le cache (utile au développement)
+export const clearDesignSystemCache = (): void => {
+  classCache.clear();
+};
+
+// 🚀 OPTIMISATION 6: Fonction pour obtenir les stats du cache
+export const getDesignSystemCacheStats = (): { size: number; keys: string[] } => {
+  return {
+    size: classCache.size,
+    keys: Array.from(classCache.keys())
   };
 };

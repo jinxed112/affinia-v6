@@ -65,14 +65,56 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
-  // Conversion mobile → JSON
+  // Extraction propre des données
+  const fullName = props.userName || props.profile?.name || 'Utilisateur';
+  const userName = fullName.split(' ')[0]; // Juste le prénom
+
+  // 🔍 DEBUG LOG 3 - Vérifier ce qu'AffiniaCard reçoit
+  if (userName.includes('Michele')) {
+    console.log(`🎨 AffiniaCard reçoit pour ${userName}:`, {
+      hasPropsProfileJson: !!props.profileJson,
+      hasQuestionnaireProfileJson: !!props.questionnaire?.profile_json,
+      profileJsonType: typeof props.questionnaire?.profile_json,
+      profileJsonContent: props.questionnaire?.profile_json,
+      fullProps: props
+    });
+  }
+
+  // Conversion mobile → JSON AMÉLIORÉE
   const convertMobileTextToProfileJson = (generatedProfile: string): ProfileJson | null => {
     try {
-      const jsonMatch = generatedProfile.match(/PARTIE 2[^{]*(\{[\s\S]*\})/);
-      
+      // 1. Essayer d'extraire un JSON complet d'abord
+      const jsonMatch = generatedProfile.match(/```json\s*(\{[\s\S]*?\})\s*```/);
       if (jsonMatch && jsonMatch[1]) {
         const parsedJson = JSON.parse(jsonMatch[1]);
-        
+        console.log('📱 JSON complet trouvé dans le texte mobile:', parsedJson);
+        return {
+          authenticity_score: parsedJson.authenticity_score || 8,
+          attachment_style: parsedJson.attachment_style || parsedJson.affective_indicators?.attachment_style || 'évitant',
+          strength_signals: parsedJson.strength_signals || [],
+          weakness_signals: parsedJson.weakness_signals || [],
+          unconscious_patterns: parsedJson.unconscious_patterns || [],
+          ideal_partner_traits: parsedJson.ideal_partner_traits || [],
+          mirroring_warning: parsedJson.mirroring_warning,
+          reliability_score: parsedJson.reliability_score || 0.8,
+          affective_indicators: {
+            emotion_expression: parsedJson.affective_indicators?.emotion_expression || 'modérée',
+            defense_mechanisms: parsedJson.affective_indicators?.defense_mechanisms || [],
+            attachment_style: parsedJson.affective_indicators?.attachment_style || parsedJson.attachment_style || 'évitant'
+          },
+          cognitive_signals: {
+            language_level: parsedJson.cognitive_signals?.language_level || 'élevé',
+            thinking_style: parsedJson.cognitive_signals?.thinking_style || 'analytique',
+            complexity: parsedJson.cognitive_signals?.complexity || 'Complexité élevée'
+          }
+        };
+      }
+
+      // 2. Si pas de JSON, essayer d'extraire depuis "PARTIE 2"
+      const partie2Match = generatedProfile.match(/PARTIE 2[^{]*(\{[\s\S]*\})/);
+      if (partie2Match && partie2Match[1]) {
+        const parsedJson = JSON.parse(partie2Match[1]);
+        console.log('📱 JSON PARTIE 2 trouvé:', parsedJson);
         return {
           authenticity_score: parsedJson.authenticity_score || 8,
           attachment_style: parsedJson.affective_indicators?.attachment_style || 'évitant',
@@ -94,36 +136,94 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
           }
         };
       }
+
+      // 3. Si toujours pas de JSON, essayer d'extraire les informations du texte brut
+      console.log('📱 Pas de JSON trouvé, analyse du texte brut');
       
-      return null;
+      // Extraction basique depuis le texte
+      const extractFromText = (text: string) => {
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        // Chercher des patterns dans le texte
+        const strengths: string[] = [];
+        const weaknesses: string[] = [];
+        const patterns: string[] = [];
+        
+        // Analyser le texte pour extraire des informations
+        for (const line of lines) {
+          if (line.includes('force') || line.includes('atout') || line.includes('qualité')) {
+            strengths.push(line);
+          }
+          if (line.includes('faiblesse') || line.includes('limite') || line.includes('difficulté')) {
+            weaknesses.push(line);
+          }
+          if (line.includes('pattern') || line.includes('tendance') || line.includes('habitude')) {
+            patterns.push(line);
+          }
+        }
+
+        return {
+          authenticity_score: 8,
+          attachment_style: 'évitant', // Sera déduit plus tard
+          strength_signals: strengths.length > 0 ? strengths : ['Communication directe', 'Authenticité'],
+          weakness_signals: weaknesses.length > 0 ? weaknesses : ['En cours d\'analyse'],
+          unconscious_patterns: patterns.length > 0 ? patterns : ['Patterns en cours d\'analyse'],
+          ideal_partner_traits: ['Compatibilité en évaluation'],
+          mirroring_warning: 'Profil en cours d\'analyse par notre IA',
+          reliability_score: 0.85,
+          affective_indicators: {
+            emotion_expression: 'modérée',
+            defense_mechanisms: ['Analyse en cours'],
+            attachment_style: 'évitant'
+          },
+          cognitive_signals: {
+            language_level: 'élevé',
+            thinking_style: 'analytique',
+            complexity: 'Profil riche et complexe'
+          }
+        };
+      };
+
+      return extractFromText(generatedProfile);
       
     } catch (error) {
       console.error('❌ Erreur conversion mobile text → JSON:', error);
+      console.log('📱 Texte problématique:', generatedProfile.substring(0, 500));
       return null;
     }
   };
 
-  // 🧠 DÉDUCTION INTELLIGENTE DU STYLE D'ATTACHEMENT
+  // 🧠 DÉDUCTION INTELLIGENTE DU STYLE D'ATTACHEMENT - AMÉLIORÉE
   const deduceAttachmentStyle = (profileData: any): string => {
-    if (profileData.attachment_style) {
+    // 1. Vérifier d'abord s'il y a un attachment_style direct
+    if (profileData.attachment_style && profileData.attachment_style !== 'temporaire') {
       return profileData.attachment_style;
     }
 
-    // Analyser les patterns et signaux pour déduire le type
+    // 2. Vérifier dans affective_indicators
+    if (profileData.affective_indicators?.attachment_style) {
+      return profileData.affective_indicators.attachment_style;
+    }
+
+    // 3. Si pas de JSON structuré, analyser tous les textes disponibles
     const allText = [
       ...(profileData.strength_signals || []),
       ...(profileData.weakness_signals || []),
       ...(profileData.unconscious_patterns || []),
+      ...(profileData.ideal_partner_traits || []),
       profileData.mirroring_warning || ''
     ].join(' ').toLowerCase();
 
-    // Patterns évitants
+    // Patterns évitants (plus de mots-clés)
     if (allText.includes('retrait') || 
         allText.includes('se replier') || 
         allText.includes('évitement') ||
         allText.includes('distance') ||
         allText.includes('solitude') ||
-        allText.includes('se ressourcer seul')) {
+        allText.includes('se ressourcer seul') ||
+        allText.includes('indépendant') ||
+        allText.includes('autonomie') ||
+        allText.includes('espace personnel')) {
       return 'évitant';
     }
 
@@ -132,7 +232,9 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
         allText.includes('validation') || 
         allText.includes('dépendance') ||
         allText.includes('demande constante') ||
-        allText.includes('fusionnel')) {
+        allText.includes('fusionnel') ||
+        allText.includes('besoin de réassurance') ||
+        allText.includes('peur d\'abandon')) {
       return 'ambivalent';
     }
 
@@ -140,7 +242,10 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     if (allText.includes('stable') || 
         allText.includes('équilibré') || 
         allText.includes('sûr') ||
-        allText.includes('constance')) {
+        allText.includes('constance') ||
+        allText.includes('confiance') ||
+        allText.includes('secure') ||
+        allText.includes('équilibre')) {
       return 'secure';
     }
 
@@ -148,16 +253,16 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
     if (allText.includes('contradictoire') || 
         allText.includes('oscillation') || 
         allText.includes('saboter') ||
-        allText.includes('complexe')) {
+        allText.includes('complexe') ||
+        allText.includes('ambivalent émotionnellement') ||
+        allText.includes('désorganisé')) {
       return 'disorganized';
     }
 
+    // Si vraiment aucune donnée utilisable
     return 'temporaire';
   };
 
-  // Extraction propre des données
-  const fullName = props.userName || props.profile?.name || 'Utilisateur';
-  const userName = fullName.split(' ')[0]; // Juste le prénom
   const photos = props.photos || [];
   const className = props.className || '';
 
@@ -173,23 +278,41 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
   // City
   const city = props.profile?.city;
 
-  // ProfileJson - Support mobile ET desktop avec vraie structure DB
+  // ProfileJson - Support mobile ET desktop avec vraie structure DB + DEBUG
   let profileJson = props.profileJson;
   if (!profileJson && props.questionnaire) {
+    console.log('🔍 AffiniaCard - Questionnaire reçu:', {
+      hasProfileJson: !!props.questionnaire.profile_json,
+      hasGeneratedProfile: !!props.questionnaire.generated_profile,
+      questionnaire: props.questionnaire
+    });
+
+    // 🔍 DEBUG LOG 4 - Vérifier le parsing
     // Desktop : profile_json direct
     if (props.questionnaire.profile_json) {
+      if (userName.includes('Michele')) {
+        console.log(`💻 ${userName} - Desktop profile_json trouvé:`, props.questionnaire.profile_json);
+      }
       profileJson = typeof props.questionnaire.profile_json === 'string'
         ? JSON.parse(props.questionnaire.profile_json)
         : props.questionnaire.profile_json;
+      
+      // LOG APRÈS PARSING
+      if (userName.includes('Michele')) {
+        console.log(`💻 ${userName} - Après parsing:`, profileJson);
+      }
     }
     // Mobile : generated_profile (texte à convertir)
     else if (props.questionnaire.generated_profile) {
+      console.log('📱 Mobile - generated_profile trouvé, conversion...');
       profileJson = convertMobileTextToProfileJson(props.questionnaire.generated_profile);
+      console.log('📱 Résultat conversion:', profileJson);
     }
   }
 
   // Si toujours pas de profil psychologique - Fallback avec style RGB temporaire
   if (!profileJson) {
+    console.log('⚠️ Aucun profileJson trouvé - Fallback temporaire');
     profileJson = {
       authenticity_score: 8,
       attachment_style: 'temporaire',
@@ -211,6 +334,13 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
       }
     };
   }
+
+  console.log('🎯 AffiniaCard - ProfileJson final:', {
+    hasProfileJson: !!profileJson,
+    attachmentStyle: profileJson?.attachment_style,
+    strengthSignalsCount: profileJson?.strength_signals?.length || 0,
+    source: props.profileJson ? 'props' : props.questionnaire?.profile_json ? 'desktop' : props.questionnaire?.generated_profile ? 'mobile' : 'fallback'
+  });
 
   // Bio
   const bio = props.profile?.bio;
@@ -288,6 +418,17 @@ export const AffiniaCard: React.FC<AffiniaCardProps> = (props) => {
 
   // ✅ DÉDUIRE LE VRAI STYLE D'ATTACHEMENT
   const deducedAttachmentStyle = deduceAttachmentStyle(profileJson);
+
+  // 🔍 DEBUG LOG 5 - Vérifier la déduction finale
+  if (userName.includes('Michele')) {
+    console.log(`🧠 ${userName} - Déduction style d'attachement:`, {
+      profileJsonExists: !!profileJson,
+      attachmentStyleInData: profileJson?.attachment_style,
+      affectiveAttachment: profileJson?.affective_indicators?.attachment_style,
+      deducedResult: deducedAttachmentStyle
+    });
+  }
+
   const rarity = getRarity(profileJson.authenticity_score);
   const personalityType = getPersonalityType(deducedAttachmentStyle);
   const mainPhoto = getMainPhoto();
